@@ -1,0 +1,453 @@
+import React, { useState, useEffect } from 'react';
+
+export default function PanelProfesor({ usuario, setVista, darkMode, setVideosGlobales, videosGlobales = [], setVideoSeleccionado }) {
+  const [subVista, setSubVista] = useState('canal');
+  const [pestanaStudio, setPestanaStudio] = useState('VIDEOS'); 
+  const [misVideos, setMisVideos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // ESTADOS PARA PERSONALIZACIÓN DE CANAL (BANNER Y AVATAR)
+  const [mostrarPersonalizar, setMostrarPersonalizar] = useState(false);
+  const [bannerCustom, setBannerCustom] = useState(() => {
+    return localStorage.getItem(`eduverify_banner_${usuario?.email}`) || '';
+  });
+  const [fotoCustom, setFotoCustom] = useState(() => {
+    return localStorage.getItem(`eduverify_foto_${usuario?.email}`) || '';
+  });
+  
+  // Guardarán las cadenas de imagen temporales de la computadora
+  const [inputBanner, setInputBanner] = useState(bannerCustom);
+  const [inputFoto, setInputFoto] = useState(fotoCustom);
+
+  // Estados para el CRUD de Playlists del Profesor
+  const [nuevaPlaylistNombre, setNuevaPlaylistNombre] = useState('');
+  const [misPlaylists, setMisPlaylists] = useState(() => {
+    const creadas = localStorage.getItem(`eduverify_playlists_creadas_${usuario?.email}`);
+    return creadas ? JSON.parse(creadas) : { "Módulo 1: Fundamentos": [], "Módulo 2: Base de Datos": [] };
+  });
+
+  // Estados para el CRUD de Edición de Videos Individuales
+  const [videoEditando, setVideoEditando] = useState(null);
+  const [editTitulo, setEditTitulo] = useState('');
+  const [editEspecialidad, setEditEspecialidad] = useState('Programación');
+  const [editDescripcion, setEditDescripcion] = useState('');
+  const [editVideoUrl, setEditVideoUrl] = useState('');
+  const [editVisibilidad, setEditVisibilidad] = useState('Público');
+
+  // Estados del Formulario de Alta de Videos Nuevos
+  const [tipoContenido, setTipoContenido] = useState('grabado'); 
+  const [tituloLeccion, setTituloLeccion] = useState('');
+  const [especialidad, setEspecialidad] = useState('Programación Avanzada Web');
+  const [especialidadOtro, setEspecialidadOtro] = useState(''); 
+  const [videoUrl, setVideoUrl] = useState('');
+  const [descripcion, setDescripcion] = useState(''); 
+  const [editVisibilidadAlta, setEditVisibilidadAlta] = useState('Público');
+
+  const [tipoPdf, setTipoPdf] = useState('link'); 
+  const [pdfUrl, setPdfUrl] = useState('');
+  const [pdfNombreArchivo, setPdfNombreArchivo] = useState('');
+  const [subiendo, setSubiendo] = useState(false);
+  const [progreso, setProgreso] = useState(0);
+
+  // Sincronizar videos desde Hostinger
+  useEffect(() => {
+    fetch('./api/videos.php')
+      .then(response => response.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setMisVideos(data);
+        }
+      })
+      .catch(error => console.error("Error al sincronizar canal:", error))
+      .finally(() => setLoading(false));
+  }, [subVista]);
+
+  // Persistir Playlists del Profesor de forma aislada
+  useEffect(() => {
+    localStorage.setItem(`eduverify_playlists_creadas_${usuario?.email}`, JSON.stringify(misPlaylists));
+  }, [misPlaylists, usuario]);
+
+  const obtenerYoutubeId = (url) => {
+    if (!url) return null;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) setPdfNombreArchivo(file.name);
+  };
+
+  const specialtyTracker = (val) => {
+    if (val.toLowerCase().includes('progra')) return 'Programación';
+    if (val.toLowerCase().includes('ciber')) return 'Ciberseguridad';
+    if (val.toLowerCase().includes('mate')) return 'Matemáticas';
+    if (val.toLowerCase().includes('elec')) return 'Electrónica';
+    return 'Arte';
+  };
+
+  // Filtrar videos propios para el CRUD
+  const videosPropios = (misVideos.length > 0 ? misVideos : videosGlobales).filter(v => {
+    const coincideId = v.usuario_id && String(v.usuario_id) === String(usuario?.id);
+    const coincideAutor = v.autor && String(v.autor).toLowerCase() === String(usuario?.nombre).toLowerCase();
+    return coincideId || coincideAutor;
+  });
+
+  // Procesador de imágenes locales de la computadora
+  const manejarCambioArchivoBanner = (e) => {
+    const archivo = e.target.files[0];
+    if (archivo) {
+      const lector = new FileReader();
+      lector.onloadend = () => {
+        setInputBanner(lector.result); 
+      };
+      lector.readAsDataURL(archivo);
+    }
+  };
+
+  const manejarCambioArchivoFoto = (e) => {
+    const archivo = e.target.files[0];
+    if (archivo) {
+      const lector = new FileReader();
+      lector.onloadend = () => {
+        setInputFoto(lector.result); 
+      };
+      lector.readAsDataURL(archivo);
+    }
+  };
+
+  const handleGuardarPersonalizacion = (e) => {
+    e.preventDefault();
+    localStorage.setItem(`eduverify_banner_${usuario?.email}`, inputBanner);
+    localStorage.setItem(`eduverify_foto_${usuario?.email}`, inputFoto);
+    setBannerCustom(inputBanner);
+    setFotoCustom(inputFoto);
+    setMostrarPersonalizar(false);
+    alert("🎉 ¡Diseño del canal guardado y actualizado con éxito!");
+  };
+
+  // CRUD PLAYLISTS: Crear, Renombrar, Eliminar
+  const handleCrearPlaylistVacia = (e) => {
+    e.preventDefault();
+    const nombre = nuevaPlaylistNombre.trim();
+    if (!nombre) return;
+    if (misPlaylists[nombre]) return alert("⚠️ Ya tienes una playlist con ese nombre.");
+    setMisPlaylists({ ...misPlaylists, [nombre]: [] });
+    setNuevaPlaylistNombre('');
+  };
+
+  const handleRenombrarPlaylist = (nombreActual) => {
+    const nuevoNombre = prompt(`Modificar nombre de la playlist "${nombreActual}" a:`, nombreActual);
+    if (!nuevoNombre || !nuevoNombre.trim() || nuevoNombre.trim() === nombreActual) return;
+    const nombreLimpio = nuevoNombre.trim();
+    if (misPlaylists[nombreLimpio]) return alert("⚠️ Ya existe otra playlist con ese nombre.");
+    const copiaPlaylists = { ...misPlaylists };
+    copiaPlaylists[nombreLimpio] = copiaPlaylists[nombreActual];
+    delete copiaPlaylists[nombreActual];
+    setMisPlaylists(copiaPlaylists);
+  };
+
+  const handleEliminarPlaylist = (nombrePlaylist) => {
+    if (!confirm(`¿Estás seguro de eliminar la playlist "${nombrePlaylist}"?`)) return;
+    const copiaPlaylists = { ...misPlaylists };
+    delete copiaPlaylists[nombrePlaylist];
+    setMisPlaylists(copiaPlaylists);
+  };
+
+  // CRUD VIDEOS
+  const handlePublicarClase = async (e) => {
+    e.preventDefault();
+    if (!tituloLeccion.trim() || !videoUrl.trim()) return;
+
+    setSubiendo(true);
+    setProgreso(30);
+
+    const categoriaFinal = specialtyTracker(especialidad);
+    const payload = {
+      titulo: tituloLeccion.trim(),
+      descripcion: descripcion.trim(),
+      url_video: videoUrl.trim(),
+      categoria: categoriaFinal,
+      usuario_id: usuario?.id,
+      autor: usuario?.nombre || "Profesor"
+    };
+
+    try {
+      setProgreso(70);
+      const response = await fetch('./api/videos.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json();
+      setProgreso(100);
+
+      const nuevoContenido = {
+        id: data.id || Date.now(),
+        usuario_id: usuario?.id,
+        titulo: tituloLeccion.trim(),
+        categoria: categoriaFinal,
+        vistas: "0",
+        fecha_subida: "Recién subido",
+        url_video: videoUrl.trim(),
+        autor: usuario?.nombre || "Profesor",
+        descripcion: descripcion.trim(),
+        es_premium: editVisibilidadAlta === 'Privado'
+      };
+
+      setMisVideos([nuevoContenido, ...misVideos]);
+      if (setVideosGlobales) setVideosGlobales([nuevoContenido, ...videosGlobales]);
+      
+      setTimeout(() => {
+        setSubiendo(false); setProgreso(0);
+        setTituloLeccion(''); setDescripcion(''); setVideoUrl('');
+        setSubVista('canal');
+      }, 400);
+    } catch (error) {
+      setSubiendo(false);
+      setSubVista('canal');
+    }
+  };
+
+  const handleEliminarVideo = async (idVideo) => {
+    if (!confirm("¿Deseas eliminar este video de tu canal definitivamente?")) return;
+    setMisVideos(misVideos.filter(v => v.id !== idVideo));
+    if (setVideosGlobales) setVideosGlobales(videosGlobales.filter(v => v.id !== idVideo));
+    try {
+      await fetch(`./api/videos.php?id=${idVideo}`, { method: 'DELETE' });
+    } catch (err) { console.log(err); }
+  };
+
+  return (
+    <div className="relative min-h-screen pb-20 animate-fade-in select-none text-left">
+      {subVista === 'canal' && (
+        <>
+          {/* BANNER DINÁMICO */}
+          <div 
+            className="w-full h-32 md:h-44 rounded-3xl border border-gray-200 dark:border-white/5 relative overflow-hidden mb-6 flex items-center justify-center bg-cover bg-center transition-all duration-300 bg-gray-100 dark:bg-gray-900"
+            style={{ backgroundImage: bannerCustom ? `url(${bannerCustom})` : 'none' }}
+          >
+            {!bannerCustom && (
+              <div className="absolute inset-0 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-blue-900/20 dark:to-gray-900"></div>
+            )}
+            <div className="absolute inset-0 flex items-center justify-center opacity-10 font-black text-4xl md:text-7xl uppercase tracking-tighter text-gray-600 dark:text-white">
+              EDUVERIFY CREATOR
+            </div>
+          </div>
+
+          {/* PERFIL */}
+          <div className="flex flex-col md:flex-row items-start md:items-center gap-6 px-2 mb-10">
+            <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-blue-600 border-4 border-white dark:border-gray-950 shadow-xl flex items-center justify-center text-4xl text-white font-bold shrink-0 overflow-hidden">
+              {fotoCustom ? (
+                <img src={fotoCustom} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                usuario?.nombre?.charAt(0).toUpperCase() || 'P'
+              )}
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-2xl font-black tracking-tight text-gray-900 dark:text-white">
+                  {usuario?.nombre || 'Profesor'}
+                </h1>
+                <span className="bg-blue-500/10 text-blue-500 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border border-blue-500/20">Tu canal</span>
+              </div>
+              <p className="text-sm text-gray-500 mt-1">Administración directa de videos, transmisiones en vivo y materiales didácticos descargables.</p>
+              <div className="flex gap-4 mt-3 text-xs font-bold text-gray-400 uppercase tracking-widest">
+                <span>{videosPropios.length} Publicaciones</span>
+              </div>
+            </div>
+
+            <div className="flex gap-2.5 w-full md:w-auto flex-wrap">
+              <button 
+                onClick={() => { setInputBanner(bannerCustom); setInputFoto(fotoCustom); setMostrarPersonalizar(true); }}
+                className="flex-1 md:flex-none bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white font-bold py-2.5 px-6 rounded-full text-xs transition-all active:scale-95"
+              >
+                🎨 Personalizar canal
+              </button>
+              <button 
+                onClick={() => setSubVista('subir')} 
+                className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-6 rounded-full text-xs shadow-lg shadow-blue-600/10 transition-transform active:scale-95"
+              >
+                Subir Video
+              </button>
+            </div>
+          </div>
+
+          {/* TABS DE STUDIO */}
+          <div className="flex gap-6 border-b border-gray-200 dark:border-white/[0.04] mb-6 px-2">
+            <button onClick={() => setPestanaStudio('VIDEOS')} className={`pb-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${pestanaStudio === 'VIDEOS' ? 'border-blue-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Videos (CRUD)</button>
+            <button onClick={() => setPestanaStudio('PLAYLISTS')} className={`pb-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${pestanaStudio === 'PLAYLISTS' ? 'border-blue-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Playlists</button>
+          </div>
+
+          {/* LISTADOS */}
+          <div className={darkMode ? "p-5 rounded-3xl border bg-gray-900/40 border-white/5 shadow-sm" : "p-5 rounded-3xl border bg-white border-gray-200 shadow-sm"}>
+            {pestanaStudio === 'VIDEOS' && (
+              <div className="grid grid-cols-1 gap-4">
+                {videosPropios.length === 0 ? (
+                  <p className="text-center py-10 text-xs text-gray-400 uppercase font-mono tracking-wider">No has publicado ningún video todavía.</p>
+                ) : (
+                  videosPropios.map((v) => {
+                    const videoUrlReal = v.url_video || v.url;
+                    const ytId = obtenerYoutubeId(videoUrlReal);
+                    const urlMiniatura = ytId ? "https://img.youtube.com/vi/" + ytId + "/hqdefault.jpg" : null;
+
+                    return (
+                      <div key={v.id || Math.random()} className={darkMode ? "flex flex-col sm:flex-row items-center gap-4 p-4 rounded-2xl border transition-colors bg-gray-950/40 border-white/5 hover:bg-gray-950" : "flex flex-col sm:flex-row items-center gap-4 p-4 rounded-2xl border transition-colors bg-gray-50 border-gray-100 hover:bg-white"}
+                        ><div onClick={() => { if(setVideoSeleccionado) { setVideoSeleccionado(v); setVista('reproductor'); } }} className="w-full sm:w-40 aspect-video bg-gray-900 rounded-xl overflow-hidden border border-white/5 shrink-0 relative flex items-center justify-center cursor-pointer hover:opacity-90">
+                          {urlMiniatura ? <img src={urlMiniatura} alt="" className="w-full h-full object-cover" /> : <span className="text-xl opacity-30">🎬</span>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 onClick={() => { if(setVideoSeleccionado) { setVideoSeleccionado(v); setVista('reproductor'); } }} className={`text-sm font-bold truncate cursor-pointer hover:text-blue-500 transition-colors ${darkMode ? 'text-white' : 'text-gray-900'}`}>{v.titulo}</h4>
+                          <div className="flex gap-3 mt-1 text-[10px] text-gray-400 font-medium font-mono"><span className="text-blue-500 font-bold uppercase">{v.categoria || 'Lección'}</span><span>• {v.vistas || 0} vistas</span></div>
+                        </div>
+                        <div className="flex gap-2 w-full sm:w-auto">
+                          <button onClick={() => handleEliminarVideo(v.id)} className="flex-1 sm:flex-none text-[10px] font-bold uppercase py-2 px-4 bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors">Eliminar</button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+
+            {pestanaStudio === 'PLAYLISTS' && (
+              <div className="space-y-6">
+                <form onSubmit={handleCrearPlaylistVacia} className="flex gap-2 max-w-md text-left">
+                  <input type="text" required value={nuevaPlaylistNombre} onChange={(e) => setNuevaPlaylistNombre(e.target.value)} placeholder="Nombre de la nueva playlist..." className={darkMode ? "flex-1 p-2.5 rounded-xl border text-xs bg-gray-950 border-white/5 text-white outline-none" : "flex-1 p-2.5 rounded-xl border text-xs bg-gray-50 border-gray-200 text-black outline-none"} />
+                  <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white font-black text-[10px] uppercase tracking-widest px-5 py-2 rounded-xl">Crear</button>
+                </form>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+                  {Object.keys(misPlaylists).map((playlistName) => {
+                    const videosDeLista = misPlaylists[playlistName] || [];
+                    const primerVideo = videosDeLista[0] || {};
+                    const ytId = obtenerYoutubeId(primerVideo.url_video || primerVideo.url);
+                    const miniaturaPlaylist = ytId ? `https://img.youtube.com/vi/" + ytId + "/hqdefault.jpg` : null;
+
+                    return (
+                      <div key={playlistName} className="flex flex-col gap-2 p-3 rounded-2xl border border-gray-100 dark:border-white/[0.04] bg-gray-50/40 dark:bg-gray-900/10">
+                        <div onClick={() => { if (videosDeLista.length > 0 && setVideoSeleccionado) { setVideoSeleccionado(primerVideo); setVista('reproductor'); } }} className="w-full aspect-video bg-gray-900 rounded-xl overflow-hidden relative border border-gray-200/10 shadow-md cursor-pointer hover:opacity-95">
+                          {miniaturaPlaylist ? <img src={miniaturaPlaylist} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gradient-to-br from-blue-900/20 to-gray-950 flex items-center justify-center opacity-30 font-bold text-lg">📁</div>}
+                          <div className="absolute right-0 top-0 bottom-0 w-2/5 bg-black/70 backdrop-blur-[4px] flex flex-col items-center justify-center text-white border-l border-white/5 space-y-1">
+                            <span className="text-sm">☰</span><span className="text-[10px] font-black font-mono uppercase">{videosDeLista.length} videos</span>
+                          </div>
+                        </div>
+                        <div className="space-y-1 pt-1 flex flex-col flex-1 justify-between">
+                          <div>
+                            <h4 className={`text-xs font-black uppercase tracking-wide truncate ${darkMode ? 'text-white' : 'text-gray-900'}`}>{playlistName}</h4>
+                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Creada por ti</p>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 pt-3 border-t border-gray-100 dark:border-white/5 mt-3">
+                            <button onClick={() => handleRenombrarPlaylist(playlistName)} className="text-[9px] font-black uppercase py-1.5 px-2 bg-blue-500/10 text-blue-500 rounded-md hover:bg-blue-600 transition-colors">Renombrar</button>
+                            <button onClick={() => handleEliminarPlaylist(playlistName)} className="text-[9px] font-black uppercase py-1.5 px-2 bg-red-500/10 text-red-500 rounded-md hover:bg-red-600 transition-colors">Eliminar</button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* 🎨 MODAL DE PERSONALIZACIÓN COMPLETAMENTE CORREGIDO (NADA DE LINKS) */}
+      {mostrarPersonalizar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-fade-in">
+          <div className={`w-full max-w-md p-6 rounded-[2rem] border shadow-2xl space-y-4 ${darkMode ? 'bg-gray-900 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}>
+            <div>
+              <h3 className="text-sm font-black uppercase tracking-wider text-blue-600">Personalización del Estudio</h3>
+              <p className="text-[10px] text-gray-400 font-medium">Actualiza las portadas y firmas estéticas subiendo archivos desde tu equipo</p>
+            </div>
+            
+            <form onSubmit={handleGuardarPersonalizacion} className="space-y-5">
+              {/* SECCIÓN A: SUBIDA EXCLUSIVA DEL BANNER */}
+              <div className="space-y-2">
+                <label className="block text-[10px] font-black uppercase text-gray-400 px-0.5">Imagen de Banner (Fondo Superior)</label>
+                <div className="border-2 border-dashed border-gray-300 dark:border-white/10 rounded-2xl p-5 text-center bg-gray-50/50 dark:bg-gray-950 relative flex flex-col items-center justify-center min-h-[110px]">
+                  <input 
+                    id="fileBannerInput" type="file" accept="image/*" 
+                    onChange={manejarCambioArchivoBanner} className="hidden" 
+                  />
+                  <label htmlFor="fileBannerInput" className="cursor-pointer flex flex-col items-center gap-1.5">
+                    <span className="text-xl">🖼️</span>
+                    <span className="text-[11px] font-bold text-blue-500 hover:underline">Seleccionar archivo del equipo</span>
+                  </label>
+                  {inputBanner && (
+                    <div className="mt-3 w-full h-12 rounded-xl overflow-hidden border border-emerald-500/30 relative group">
+                      <img src={inputBanner} alt="Preview Banner" className="w-full h-full object-cover" />
+                      <button type="button" onClick={() => setInputBanner('')} className="absolute inset-0 bg-black/60 text-white font-bold opacity-0 group-hover:opacity-100 transition-opacity text-[10px] uppercase">Quitar</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* SECCIÓN B: SUBIDA EXCLUSIVA DEL AVATAR */}
+              <div className="space-y-2">
+                <label className="block text-[10px] font-bold uppercase text-gray-400 px-0.5">Foto de Perfil (Avatar Circular)</label>
+                <div className="border-2 border-dashed border-gray-300 dark:border-white/10 rounded-2xl p-5 text-center bg-gray-50/50 dark:bg-gray-950 relative flex flex-col items-center justify-center min-h-[110px]">
+                  <input 
+                    id="fileAvatarInput" type="file" accept="image/*" 
+                    onChange={manejarCambioArchivoFoto} className="hidden" 
+                  />
+                  <label htmlFor="fileAvatarInput" className="cursor-pointer flex flex-col items-center gap-1.5">
+                    <span className="text-xl">👤</span>
+                    <span className="text-[11px] font-bold text-blue-500 hover:underline">Seleccionar foto de perfil</span>
+                  </label>
+                  {inputFoto && (
+                    <div className="mt-3 w-12 h-12 rounded-full overflow-hidden border border-emerald-500/30 relative group">
+                      <img src={inputFoto} alt="Preview Foto" className="w-full h-full object-cover" />
+                      <button type="button" onClick={() => setInputFoto('')} className="absolute inset-0 bg-black/60 text-white font-bold opacity-0 group-hover:opacity-100 transition-opacity text-[14px] rounded-full flex items-center justify-center">✕</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ACCIONES FINALES */}
+              <div className="flex justify-end gap-2 pt-2 text-[10px] font-black uppercase tracking-wider">
+                <button type="button" onClick={() => { setMostrarPersonalizar(false); setInputBanner(bannerCustom); setInputFoto(fotoCustom); }} className="px-4 py-2 rounded-xl text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5">Cancelar</button>
+                <button type="submit" className="bg-blue-600 text-white px-5 py-2 rounded-xl shadow-md hover:bg-blue-500 transition-colors">Guardar Diseño</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* FORMULARIO DE ALTA MULTIMEDIA */}
+      {subVista === 'subir' && (
+        <div className="max-w-4xl mx-auto">
+          <button onClick={() => setSubVista('canal')} className="mb-4 inline-flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-white transition">← Volver</button>
+          <div className={darkMode ? "p-6 md:p-8 rounded-3xl border bg-gray-900 border-white/5 shadow-xl" : "p-6 md:p-8 rounded-3xl border bg-white border-gray-200 shadow-xl"}>
+            <form onSubmit={handlePublicarClase} className="space-y-5 text-left">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Título</label>
+                  <input type="text" required value={tituloLeccion} onChange={(e) => setTituloLeccion(e.target.value)} placeholder="Ej: Introducción a React" className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white" : "w-full p-3 rounded-xl border text-xs bg-gray-50 border-gray-200 text-black"} />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Materia</label>
+                  <select value={especialidad} onChange={(e) => setEspecialidad(e.target.value)} className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white" : "w-full p-3 rounded-xl border text-xs bg-gray-50 border-gray-200 text-black"}>
+                    <option value="Programación">Programación</option>
+                    <option value="Ciberseguridad">Ciberseguridad</option>
+                    <option value="Matemáticas">Matemáticas</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-blue-500 mb-1.5">🔗 URL del Video</label>
+                <input type="url" required value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." className={darkMode ? "w-full p-3 rounded-xl border text-xs font-mono bg-gray-950 border-white/5 text-white" : "w-full p-3 rounded-xl border text-xs font-mono bg-blue-50/10 border-blue-200 text-black"} />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Descripción</label>
+                <textarea rows="3" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white resize-none" : "w-full p-3 rounded-xl border text-xs bg-gray-50 border-gray-200 text-black resize-none"} />
+              </div>
+              <button type="submit" className="w-full font-bold py-3.5 px-4 rounded-xl text-xs uppercase tracking-widest bg-blue-600 text-white shadow-md">Publicar Clase</button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
