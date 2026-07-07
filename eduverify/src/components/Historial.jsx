@@ -1,4 +1,5 @@
 import React from 'react';
+import { History, BookOpen, Clapperboard } from 'lucide-react';
 
 export default function Historial({ historial = [], setVideoSeleccionado }) {
   const obtenerYoutubeId = (url) => {
@@ -12,14 +13,14 @@ export default function Historial({ historial = [], setVideoSeleccionado }) {
     <div className="space-y-6 animate-fade-in select-none">
       <div className="border-b border-gray-200 dark:border-white/[0.04] pb-4">
         <h2 className="text-base font-black uppercase tracking-wider text-blue-500 flex items-center gap-2">
-          🕒 Tu Historial de Aprendizaje
+          <History size={16} /> Tu Historial de Aprendizaje
         </h2>
         <p className="text-xs text-gray-400 mt-0.5">Registro cronológico de tus últimas video-clases reproducidas.</p>
       </div>
 
       {historial.length === 0 ? (
         <div className="min-h-[250px] flex flex-col items-center justify-center border border-dashed rounded-3xl border-gray-300 dark:border-white/5 p-6 text-center">
-          <span className="text-2xl mb-2 opacity-40">📖</span>
+          <BookOpen size={28} className="mb-2 opacity-40 text-gray-400" />
           <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Tu historial está vacío</p>
           <p className="text-[11px] text-gray-500 mt-1 max-w-xs">Las clases que mires en la plataforma se irán organizando en esta sección automáticamente.</p>
         </div>
@@ -42,7 +43,7 @@ export default function Historial({ historial = [], setVideoSeleccionado }) {
                     <img src={urlMiniatura} alt="Portada" className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-900/20 to-gray-950">
-                      <span className="text-lg opacity-30">🎬</span>
+                      <Clapperboard size={22} className="opacity-30 text-white" />
                     </div>
                   )}
                   <span className="absolute bottom-1.5 right-1.5 bg-black/80 text-white font-mono text-[9px] px-1.5 py-0.2 rounded font-bold">

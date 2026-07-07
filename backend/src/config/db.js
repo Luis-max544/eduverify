@@ -3,7 +3,7 @@ import mysql from 'mysql2/promise';
 import { env } from './env.js';
 import * as schema from '../db/schema.js';
 
-const pool = mysql.createPool({
+export const pool = mysql.createPool({
   host: env.db.host,
   port: env.db.port,
   user: env.db.user,

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { Clapperboard, Folder, ListVideo, GraduationCap, Star } from 'lucide-react';
 import { users as usersApi, profesorPlaylists } from '../api';
 
-export default function Canal({ canal, setVideoSeleccionado, darkMode }) {
+export default function Canal({ canal, setVideoSeleccionado, darkMode, abrirCurso }) {
   const [pestanaActiva, setPestanaActiva] = useState('VIDEOS');
   const [perfil, setPerfil] = useState(null);
   const [misVideos, setMisVideos] = useState([]);
@@ -63,7 +64,7 @@ export default function Canal({ canal, setVideoSeleccionado, darkMode }) {
 
       {/* PESTAÑAS DE COMPONENTES DE YOUTUBE */}
       <div className="flex gap-6 border-b border-gray-200 dark:border-white/[0.04] px-2">
-        {['INICIO', 'VIDEOS', 'PLAYLISTS', 'ACERCA DE'].map((tab) => {
+        {['INICIO', 'VIDEOS', 'CURSOS', 'ACERCA DE'].map((tab) => {
           const isActive = pestanaActiva === tab;
           return (
             <button
@@ -99,9 +100,14 @@ export default function Canal({ canal, setVideoSeleccionado, darkMode }) {
                       className="flex flex-col gap-2 cursor-pointer group text-left"
                     >
                       <div className="w-full aspect-video bg-gray-900 rounded-xl overflow-hidden relative border border-gray-200/10 shadow-sm">
-                        {miniatura ? <img src={miniatura} alt="" className="w-full h-full object-cover group-hover:scale-[1.02] transition duration-300" /> : <div className="text-xl opacity-20">🎬</div>}
-                        <span className="absolute bottom-2 right-2 bg-black/80 text-white font-mono text-[9px] px-1.5 py-0.2 rounded font-bold">{v.duracion || '00:00'}</span>
-                      </div>
+                        {miniatura ? <img src={miniatura} alt="" className="w-full h-full object-cover group-hover:scale-[1.02] transition duration-300" /> : <div className="w-full h-full flex items-center justify-center"><Clapperboard size={28} className="opacity-20 text-white" /></div>}
+                      <span className="absolute bottom-2 right-2 bg-black/80 text-white font-mono text-[9px] px-1.5 py-0.2 rounded font-bold">{v.duracion || '00:00'}</span>
+                      {v.es_premium && (
+                        <span className="absolute top-2 left-2 bg-amber-500 text-gray-950 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md shadow-lg inline-flex items-center gap-1">
+                          <Star size={9} className="fill-current" /> Premium
+                        </span>
+                      )}
+                    </div>
                       <div className="space-y-0.5 pr-1">
                         <h4 className={`text-xs font-black uppercase truncate group-hover:text-blue-500 transition-colors ${darkMode ? 'text-white' : 'text-gray-900'}`}>{v.titulo}</h4>
                         <p className="text-[10px] font-mono font-bold text-gray-400 uppercase">{v.vistas || 0} vistas • {v.created_at ? new Date(v.created_at).toLocaleDateString() : ''}</p>
@@ -114,10 +120,10 @@ export default function Canal({ canal, setVideoSeleccionado, darkMode }) {
           </div>
         )}
 
-        {/* PESTAÑA B: PLAYLISTS PÚBLICAS DEL PROFESOR */}
-        {pestanaActiva === 'PLAYLISTS' && (
+        {/* PESTAÑA B: CURSOS PÚBLICOS DEL PROFESOR */}
+        {pestanaActiva === 'CURSOS' && (
           lasPlaylists.length === 0 ? (
-            <p className="text-center py-10 text-xs text-gray-400 uppercase font-mono tracking-wider">Este canal no tiene playlists públicas.</p>
+            <p className="text-center py-10 text-xs text-gray-400 uppercase font-mono tracking-wider">Este canal no tiene cursos públicos.</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
               {lasPlaylists.map((playlist) => {
@@ -129,26 +135,34 @@ export default function Canal({ canal, setVideoSeleccionado, darkMode }) {
                 return (
                   <div
                     key={playlist.id}
-                    onClick={() => { if (videosDeLista.length > 0 && setVideoSeleccionado) setVideoSeleccionado(primerVideo); }}
+                    onClick={() => abrirCurso && abrirCurso(playlist.id)}
                     className="flex flex-col gap-2 cursor-pointer group text-left"
                   >
                     <div className="w-full aspect-video bg-gray-900 rounded-xl overflow-hidden relative border border-gray-200/10 shadow-md">
                       {miniaturaPlaylist ? (
                         <img src={miniaturaPlaylist} alt="" className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-blue-900/20 to-gray-950 flex items-center justify-center opacity-30">📁</div>
+                        <div className="w-full h-full bg-gradient-to-br from-blue-900/20 to-gray-950 flex items-center justify-center opacity-30"><Folder size={28} className="text-white" /></div>
                       )}
 
                       <div className="absolute right-0 top-0 bottom-0 w-2/5 bg-black/70 backdrop-blur-[4px] flex flex-col items-center justify-center text-white border-l border-white/5 space-y-1">
-                        <span className="text-sm">☰</span>
+                        <ListVideo size={16} />
                         <span className="text-[10px] font-black tracking-wider font-mono uppercase">{videosDeLista.length} videos</span>
                       </div>
                     </div>
 
                     <div className="space-y-0.5 px-0.5">
                       <h4 className={`text-xs font-black uppercase tracking-wide truncate ${darkMode ? 'text-white' : 'text-gray-900'}`}>{playlist.nombre}</h4>
-                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Lista de reproducción</p>
-                      <button className="text-[10px] font-bold text-gray-400 hover:text-blue-500 hover:underline block pt-1">Ver playlist completa</button>
+                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider inline-flex items-center gap-1">
+                        <GraduationCap size={11} /> Curso
+                        {playlist.promedio_estrellas != null && (
+                          <span className="text-amber-500 normal-case inline-flex items-center gap-0.5"> • <Star size={10} className="fill-current" /> {playlist.promedio_estrellas} ({playlist.total_reviews})</span>
+                        )}
+                      </p>
+                      {playlist.descripcion && (
+                        <p className="text-[10px] text-gray-400 font-medium truncate">{playlist.descripcion}</p>
+                      )}
+                      <button className="text-[10px] font-bold text-gray-400 hover:text-blue-500 hover:underline block pt-1">Ver curso completo</button>
                     </div>
                   </div>
                 );

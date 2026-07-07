@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import { Clapperboard, Star } from 'lucide-react';
 
-export default function Catalogo({ setVista, setVideoSeleccionado, usuario, videosDemo = [], favoritos = [], setFavoritos, abrirCanalProfesor, darkMode }) {
+export default function Catalogo({ setVista, setVideoSeleccionado, usuario, videosDemo = [], favoritos = [], setFavoritos, abrirCanalProfesor, busqueda = '', darkMode }) {
   // Categorías académicas oficiales de EduVerify
   const categorias = ['Todos', 'Programación', 'Ciberseguridad', 'Matemáticas', 'Electrónica', 'Arte'];
   const [categoriaActiva, setCategoriaActiva] = useState('Todos');
@@ -15,8 +16,10 @@ export default function Catalogo({ setVista, setVideoSeleccionado, usuario, vide
 
   // 🔍 FILTRADO INTELIGENTE: Filtrar los videos según la pestaña de categoría seleccionada
   const videosFiltrados = videosDemo.filter((v) => {
-    if (categoriaActiva === 'Todos') return true;
-    return v.categoria?.toLowerCase().includes(categoriaActiva.toLowerCase());
+    const porCategoria = categoriaActiva === 'Todos' || v.categoria?.toLowerCase().includes(categoriaActiva.toLowerCase());
+    const q = busqueda.trim().toLowerCase();
+    const porBusqueda = !q || v.titulo?.toLowerCase().includes(q) || v.autor?.toLowerCase().includes(q);
+    return porCategoria && porBusqueda;
   });
 
   return (
@@ -58,7 +61,7 @@ export default function Catalogo({ setVista, setVideoSeleccionado, usuario, vide
 
         {videosFiltrados.length === 0 ? (
           <div className="min-h-[300px] flex flex-col items-center justify-center border-2 border-dashed rounded-[2rem] border-gray-200 dark:border-white/5 p-6 text-center">
-            <span className="text-3xl mb-2 opacity-40">🎬</span>
+            <Clapperboard size={32} className="mb-2 opacity-40 text-gray-400" />
             <p className="text-xs font-black uppercase tracking-widest text-gray-400">No hay contenido en esta área</p>
             <p className="text-[11px] text-gray-500 mt-1 max-w-xs">Los profesores de este módulo aún no han publicado video-clases para esta categoría.</p>
           </div>
@@ -85,7 +88,7 @@ export default function Catalogo({ setVista, setVideoSeleccionado, usuario, vide
                       />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-blue-900/20 to-gray-950 flex items-center justify-center">
-                        <span className="text-2xl opacity-20">🎬</span>
+                        <Clapperboard size={28} className="opacity-20 text-white" />
                       </div>
                     )}
                     
@@ -96,8 +99,8 @@ export default function Catalogo({ setVista, setVideoSeleccionado, usuario, vide
 
                     {/* Badge de Nivel si es Premium */}
                     {video.es_premium && (
-                      <span className="absolute top-2.5 left-2.5 bg-amber-500 text-gray-950 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md shadow-lg">
-                        ⭐ Premium
+                      <span className="absolute top-2.5 left-2.5 bg-amber-500 text-gray-950 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md shadow-lg inline-flex items-center gap-1">
+                        <Star size={9} className="fill-current" /> Premium
                       </span>
                     )}
                   </div>

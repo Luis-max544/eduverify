@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import path from 'path';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, desc, and } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../config/db.js';
 import { users, videos, subscriptions } from '../db/schema.js';
-import { verifyToken } from '../middleware/auth.js';
+import { verifyToken, optionalAuth } from '../middleware/auth.js';
 import { uploadAvatar, uploadBanner } from '../middleware/upload.js';
 import { env } from '../config/env.js';
 
@@ -97,16 +97,19 @@ router.post('/me/banner', verifyToken, (req, res, next) => {
 });
 
 // GET /api/users/:id/profile
-router.get('/:id/profile', async (req, res, next) => {
+router.get('/:id/profile', optionalAuth, async (req, res, next) => {
   try {
     const userId = Number(req.params.id);
     const [user] = await db.select().from(users).where(eq(users.id, userId));
     if (!user) return res.status(404).json({ status: 'error', message: 'Usuario no encontrado' });
 
+    const isOwner = req.user?.sub === userId;
+    const vidWhere = isOwner ? eq(videos.usuario_id, userId) : and(eq(videos.usuario_id, userId), eq(videos.visible, true));
+
     const [{ count: videoCount }] = await db
       .select({ count: sql`COUNT(*)` })
       .from(videos)
-      .where(eq(videos.usuario_id, userId));
+      .where(vidWhere);
 
     const [{ count: subCount }] = await db
       .select({ count: sql`COUNT(*)` })
@@ -129,31 +132,36 @@ router.get('/:id/profile', async (req, res, next) => {
 });
 
 // GET /api/users/:id/videos
-router.get('/:id/videos', async (req, res, next) => {
+router.get('/:id/videos', optionalAuth, async (req, res, next) => {
   try {
     const userId = Number(req.params.id);
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = Math.min(50, Number(req.query.limit) || 20);
     const offset = (page - 1) * limit;
 
+    const isOwner = req.user?.sub === userId;
+    const baseWhere = isOwner ? eq(videos.usuario_id, userId) : and(eq(videos.usuario_id, userId), eq(videos.visible, true));
+
     const rows = await db
       .select({
         id: videos.id, titulo: videos.titulo, descripcion: videos.descripcion,
         url_video: videos.url_video, categoria: videos.categoria, tipo: videos.tipo,
-        es_premium: videos.es_premium, vistas: videos.vistas, duracion: videos.duracion,
+        es_premium: videos.es_premium, visible: videos.visible,
+        vistas: videos.vistas, duracion: videos.duracion,
         created_at: videos.created_at,
         autor: users.nombre, autor_id: users.id, author_avatar_url: users.avatar_path,
       })
       .from(videos)
       .innerJoin(users, eq(videos.usuario_id, users.id))
-      .where(eq(videos.usuario_id, userId))
+      .where(baseWhere)
+      .orderBy(desc(videos.id))
       .limit(limit)
       .offset(offset);
 
     const [{ total }] = await db
       .select({ total: sql`COUNT(*)` })
       .from(videos)
-      .where(eq(videos.usuario_id, userId));
+      .where(baseWhere);
 
     const base = uploadsBase();
     const items = rows.map(v => ({

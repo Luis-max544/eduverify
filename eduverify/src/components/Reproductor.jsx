@@ -1,18 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { comments as commentsApi, favorites as favoritesApi, playlists as playlistsApi, videos as videosApi } from '../api';
+import {
+  ArrowLeft, ArrowRight, GraduationCap, BellRing, Heart, Share2, Bookmark,
+  Bot, Reply, Trash2, Check, Clapperboard, FolderOpen, X, Star
+} from 'lucide-react';
+import { comments as commentsApi, favorites as favoritesApi, playlists as playlistsApi, videos as videosApi, cursos as cursosApi } from '../api';
+import TutorIA from './TutorIA';
 
 export default function Reproductor({
-  video, 
-  usuario, 
-  setVista, 
-  darkMode, 
-  favoritos = [], 
-  setFavoritos, 
-  abrirCanalProfesor, 
-  videosGlobales = [], 
+  video,
+  usuario,
+  setVista,
+  darkMode,
+  favoritos = [],
+  setFavoritos,
+  abrirCanalProfesor,
+  videosGlobales = [],
   setVideoSeleccionado,
   suscripciones = [],
-  toggleSuscripcion = () => {}
+  toggleSuscripcion = () => {},
+  cursoActivoId = null,
+  abrirLeccionDeCurso = () => {}
 }) {
   // Estados principales
   const [localVideo, setLocalVideo] = useState(video);
@@ -27,6 +34,17 @@ export default function Reproductor({
   const [nuevoComentarioTexto, setNuevoComentarioTexto] = useState('');
   const [idComentarioRespondiendo, setIdComentarioRespondiendo] = useState(null);
   const [textoRespuesta, setTextoRespuesta] = useState('');
+
+  // 🎓 Contexto de curso (cuando la lección se abrió desde un curso)
+  const [pestanaPanel, setPestanaPanel] = useState('comentarios');
+  const [cursoCtx, setCursoCtx] = useState(null);
+  const [progresoCurso, setProgresoCurso] = useState({ inscrito: false, completadas: [], porcentaje: 0 });
+
+  useEffect(() => {
+    if (!cursoActivoId) { setCursoCtx(null); return; }
+    cursosApi.get(cursoActivoId).then(setCursoCtx).catch(() => setCursoCtx(null));
+    cursosApi.progreso(cursoActivoId).then(setProgresoCurso).catch(() => {});
+  }, [cursoActivoId]);
 
   // 📸 Foto de perfil del usuario actual
   const fotoPerfilUsuarioActual = usuario?.avatar_url || '';
@@ -122,7 +140,7 @@ export default function Reproductor({
     e.preventDefault();
     const nombre = nombreNuevaCarpeta.trim();
     if (!nombre) return;
-    if (misListas.some(l => l.nombre === nombre)) return alert("⚠️ Esa carpeta ya existe.");
+    if (misListas.some(l => l.nombre === nombre)) return alert("Esa carpeta ya existe.");
     try {
       const nueva = await playlistsApi.create(nombre);
       await playlistsApi.addVideo(nueva.id, localVideo.id);
@@ -228,6 +246,30 @@ export default function Reproductor({
   const estaSuscrito = suscripciones.some(s => s.professor_id === localVideo.autor_id);
   const esPropioCanal = localVideo.autor_id === usuario?.id;
 
+  // 🎓 Datos derivados del curso activo
+  const leccionesCurso = cursoCtx?.lecciones || [];
+  const completadasSet = new Set(progresoCurso.completadas);
+  const leccionCompletada = completadasSet.has(localVideo.id);
+  const idxLeccionActual = leccionesCurso.findIndex(l => l.id === localVideo.id);
+  const siguienteLeccion = idxLeccionActual >= 0 ? leccionesCurso[idxLeccionActual + 1] : null;
+
+  const toggleLeccionCompletada = async () => {
+    if (!cursoActivoId) return;
+    try {
+      const accion = leccionCompletada ? cursosApi.descompletarLeccion : cursosApi.completarLeccion;
+      const { porcentaje } = await accion(cursoActivoId, localVideo.id);
+      setProgresoCurso(prev => ({
+        ...prev,
+        porcentaje,
+        completadas: leccionCompletada
+          ? prev.completadas.filter(id => id !== localVideo.id)
+          : [...prev.completadas, localVideo.id],
+      }));
+    } catch (err) {
+      alert(`Error al actualizar el progreso: ${err.message}`);
+    }
+  };
+
   return (
     <div className="animate-fade-in pb-16 select-none relative font-sans">
       
@@ -236,7 +278,7 @@ export default function Reproductor({
         onClick={() => setVista('catalogo')} 
         className="mb-5 inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-blue-500 transition-colors"
       >
-        ← Volver al catálogo principal
+        <ArrowLeft size={12} /> Volver al catálogo principal
       </button>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
@@ -259,10 +301,49 @@ export default function Reproductor({
             )}
           </div>
 
+          {/* 🎓 BARRA DE CURSO (solo con contexto de curso) */}
+          {cursoCtx && (
+            <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center gap-3 justify-between ${darkMode ? 'bg-gray-900/40 border-white/5' : 'bg-white border-gray-200 shadow-sm'}`}>
+              <div className="min-w-0">
+                <p className="text-[9px] font-black uppercase tracking-widest text-blue-500 flex items-center gap-1.5"><GraduationCap size={12} /> {cursoCtx.nombre}</p>
+                <p className="text-[10px] text-gray-400 font-mono font-bold uppercase mt-0.5">
+                  Lección {idxLeccionActual + 1} de {leccionesCurso.length} • Progreso {progresoCurso.porcentaje}%
+                </p>
+              </div>
+              {progresoCurso.inscrito && (
+                <div className="flex gap-2 flex-wrap shrink-0">
+                  <button
+                    onClick={toggleLeccionCompletada}
+                    className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition ${
+                      leccionCompletada
+                        ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                        : 'bg-blue-600 hover:bg-blue-500 text-white shadow-sm'
+                    } inline-flex items-center gap-1.5`}
+                  >
+                    {leccionCompletada ? <><Check size={12} /> Completada</> : 'Marcar completada'}
+                  </button>
+                  {siguienteLeccion && (
+                    <button
+                      onClick={() => abrirLeccionDeCurso(siguienteLeccion, cursoActivoId)}
+                      className="px-4 py-2 rounded-full bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 text-[10px] font-black uppercase tracking-widest hover:opacity-80 inline-flex items-center gap-1.5"
+                    >
+                      Siguiente lección <ArrowRight size={12} />
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* METADATOS */}
           <div className="px-1 text-left">
             <h2 className={`text-base md:text-lg font-black tracking-tight uppercase ${darkMode ? 'text-white' : 'text-gray-900'}`}>
               {localVideo.titulo}
+              {localVideo.es_premium && (
+                <span className="ml-2 bg-amber-500/10 text-amber-500 text-[8px] font-black uppercase px-1.5 py-0.5 rounded inline-flex items-center gap-1 align-middle">
+                  <Star size={10} className="fill-current" /> Premium
+                </span>
+              )}
             </h2>
             
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-3 pb-4 border-b border-gray-200 dark:border-white/[0.04]">
@@ -295,11 +376,11 @@ export default function Reproductor({
                       e.stopPropagation();
                       toggleSuscripcion(localVideo.autor_id);
                     }}
-                    className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition ${
+                    className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition inline-flex items-center gap-1.5 ${
                       estaSuscrito ? 'bg-gray-200 text-gray-800' : 'bg-red-600 text-white'
                     }`}
                   >
-                    {estaSuscrito ? 'Suscrito 🔔' : 'Suscribirse'}
+                    {estaSuscrito ? <>Suscrito <BellRing size={12} /></> : 'Suscribirse'}
                   </button>
                 )}
 
@@ -333,13 +414,13 @@ export default function Reproductor({
                       : 'bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 hover:opacity-80'
                   }`}
                 >
-                  {esFavorito ? '❤️ Le encanta' : '🤍 Corazón'}
+                  <Heart size={13} className={esFavorito ? 'fill-current' : ''} /> {esFavorito ? 'Le encanta' : 'Corazón'}
                 </button>
                 <button 
                   onClick={manejarCompartir} 
                   className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 hover:opacity-80 relative"
                 >
-                  <span>↪️ Compartir</span>
+                  <Share2 size={13} /> <span>Compartir</span>
                   {copiado && (
                     <span className="absolute -top-9 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-[9px] px-2 py-1 rounded shadow-xl animate-bounce">
                       ¡Copiado!
@@ -350,7 +431,7 @@ export default function Reproductor({
                   onClick={() => setMostrarModalGuardar(true)} 
                   className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 hover:opacity-80"
                 >
-                  📥 Guardar
+                  <Bookmark size={13} /> Guardar
                 </button>
               </div>
             </div>
@@ -395,12 +476,31 @@ export default function Reproductor({
             )}
           </div>
 
-          {/* COMENTARIOS */}
+          {/* COMENTARIOS / TUTOR IA */}
           <div className="pt-4 text-left">
-            <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white mb-5 flex items-center gap-2">
-              Comentarios <span className="text-[10px] font-mono bg-gray-100 dark:bg-white/5 text-gray-400 px-2 py-0.5 rounded-lg">{comentarios.length}</span>
-            </h3>
+            <div className="flex gap-5 mb-5 border-b border-gray-200 dark:border-white/[0.04]">
+              <button
+                onClick={() => setPestanaPanel('comentarios')}
+                className={`pb-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all flex items-center gap-2 ${
+                  pestanaPanel === 'comentarios' ? 'border-blue-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
+                }`}
+              >
+                Comentarios <span className="text-[10px] font-mono bg-gray-100 dark:bg-white/5 text-gray-400 px-2 py-0.5 rounded-lg">{comentarios.length}</span>
+              </button>
+              <button
+                onClick={() => setPestanaPanel('tutor')}
+                className={`pb-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all ${
+                  pestanaPanel === 'tutor' ? 'border-blue-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
+                } flex items-center gap-1.5`}
+              >
+                <Bot size={14} /> Tutor IA
+              </button>
+            </div>
 
+            {pestanaPanel === 'tutor' && <TutorIA video={localVideo} darkMode={darkMode} />}
+
+            {pestanaPanel === 'comentarios' && (
+            <>
             {/* Input de comentario */}
             <form onSubmit={handleCrearComentarioRaiz} className="flex gap-3.5 mb-6 items-start">
               <div className="w-9 h-9 rounded-full font-bold text-xs flex items-center justify-center text-white shrink-0 shadow-sm overflow-hidden bg-blue-600">
@@ -467,20 +567,20 @@ export default function Reproductor({
                           onClick={() => handleLikeComentario(c.id)}
                           className={`flex items-center gap-1.5 font-mono hover:text-red-500 ${yaDioLikeC ? 'text-red-500' : ''}`}
                         >
-                          {yaDioLikeC ? '❤️' : '🤍'} <span className="text-[11px] font-semibold text-gray-500">{c.likes}</span>
+                          <Heart size={12} className={yaDioLikeC ? 'fill-current' : ''} /> <span className="text-[11px] font-semibold text-gray-500">{c.likes}</span>
                         </button>
                         <button
                           onClick={() => setIdComentarioRespondiendo(idComentarioRespondiendo === c.id ? null : c.id)}
-                          className="hover:text-gray-900 dark:hover:text-white"
+                          className="hover:text-gray-900 dark:hover:text-white flex items-center gap-1"
                         >
-                          ↳ Responder
+                          <Reply size={12} /> Responder
                         </button>
                         {c.user_id === usuario?.id && (
                           <button
                             onClick={() => handleEliminarComentario(c.id)}
-                            className="hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"
                           >
-                            🗑 Eliminar
+                            <Trash2 size={12} /> Eliminar
                           </button>
                         )}
                       </div>
@@ -532,11 +632,11 @@ export default function Reproductor({
                                   <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mt-0.5 leading-relaxed">{r.texto}</p>
                                   
                                   <div className="flex items-center gap-3 pt-1 text-[9px] font-bold uppercase tracking-wider text-gray-400">
-                                    <button 
-                                      onClick={() => handleLikeRespuestaInterna(c.id, r.id)} 
+                                    <button
+                                      onClick={() => handleLikeRespuestaInterna(c.id, r.id)}
                                       className={`flex items-center gap-1.5 font-mono hover:text-red-500 ${yaDioLikeR ? 'text-red-500' : ''}`}
                                     >
-                                      {yaDioLikeR ? '❤️' : '🤍'} <span className="font-sans font-bold text-gray-500">{r.likes || 0}</span>
+                                      <Heart size={11} className={yaDioLikeR ? 'fill-current' : ''} /> <span className="font-sans font-bold text-gray-500">{r.likes || 0}</span>
                                     </button>
                                   </div>
                                 </div>
@@ -550,11 +650,54 @@ export default function Reproductor({
                 );
               })}
             </div>
+            </>
+            )}
           </div>
         </div>
 
-        {/* COLUMNA LATERAL - Videos sugeridos */}
+        {/* COLUMNA LATERAL - Lecciones del curso o videos sugeridos */}
         <div className="space-y-4 text-left">
+          {cursoCtx ? (
+            <>
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1 flex items-center gap-1.5"><GraduationCap size={13} /> Lecciones del curso</h3>
+              <div className="grid grid-cols-1 gap-2.5">
+                {leccionesCurso.map((l, idx) => {
+                  const esActual = l.id === localVideo.id;
+                  const hecha = completadasSet.has(l.id);
+                  const ytIdL = obtenerYoutubeId(l.url_video);
+                  const miniaturaL = ytIdL ? `https://img.youtube.com/vi/${ytIdL}/hqdefault.jpg` : null;
+                  return (
+                    <div
+                      key={l.id}
+                      onClick={() => !esActual && abrirLeccionDeCurso(l, cursoActivoId)}
+                      className={`p-2 rounded-xl border flex gap-3 items-center transition-all ${
+                        esActual
+                          ? 'border-blue-500/40 bg-blue-600/5 cursor-default'
+                          : `cursor-pointer hover:scale-[1.01] ${darkMode ? 'bg-gray-900/40 border-white/5 hover:bg-gray-900' : 'bg-white border-gray-200 shadow-sm hover:shadow'}`
+                      }`}
+                    >
+                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black shrink-0 ${
+                        hecha ? 'bg-emerald-500 text-white' : darkMode ? 'bg-white/5 text-gray-400' : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        {hecha ? <Check size={11} /> : idx + 1}
+                      </span>
+                      <div className="w-20 aspect-video bg-gray-950 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
+                        {miniaturaL ? <img src={miniaturaL} alt="" className="w-full h-full object-cover" /> : <Clapperboard size={16} className="opacity-30 text-white" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className={`text-[11px] font-black uppercase truncate tracking-wide ${esActual ? 'text-blue-500' : darkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {l.titulo}
+                          {l.es_premium && <span className="ml-1.5 text-amber-500 text-[8px] font-black uppercase inline-flex items-center gap-0.5"><Star size={9} className="fill-current" /> Premium</span>}
+                        </h4>
+                        <p className="text-[9px] text-gray-400 font-mono font-bold uppercase">{l.duracion || '00:00'}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+          <>
           <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">Clases Sugeridas</h3>
           {sugeridos.length === 0 ? (
             <p className="text-[11px] text-gray-400 font-medium italic px-1">No hay más videos sugeridos en este momento.</p>
@@ -577,7 +720,7 @@ export default function Reproductor({
                       {miniatura ? (
                         <img src={miniatura} alt="" className="w-full h-full object-cover" />
                       ) : (
-                        <span className="text-sm opacity-30">🎬</span>
+                        <Clapperboard size={16} className="opacity-30 text-white" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0 space-y-0.5">
@@ -585,6 +728,7 @@ export default function Reproductor({
                         darkMode ? 'text-white' : 'text-gray-900'
                       }`}>
                         {v.titulo}
+                        {v.es_premium && <span className="ml-1.5 text-amber-500 text-[8px] font-black uppercase inline-flex items-center gap-0.5"><Star size={9} className="fill-current" /> Premium</span>}
                       </h4>
                       <p className="text-[10px] text-gray-400 truncate font-semibold">{v.autor}</p>
                     </div>
@@ -592,6 +736,8 @@ export default function Reproductor({
                 );
               })}
             </div>
+          )}
+          </>
           )}
         </div>
       </div>
@@ -604,18 +750,18 @@ export default function Reproductor({
           }`}>
             <div className="flex justify-between items-center pb-4 border-b border-gray-100 dark:border-white/5 mb-5">
               <div className="flex items-center gap-2.5">
-                <span className="text-xl">📂</span>
+                <FolderOpen size={20} className="text-blue-500" />
                 <div>
                   <h3 className="text-sm font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
                     Organizar Asignatura
                   </h3>
                 </div>
               </div>
-              <button 
-                onClick={() => setMostrarModalGuardar(false)} 
-                className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-white/5 text-gray-400 hover:text-red-500 font-bold text-sm"
+              <button
+                onClick={() => setMostrarModalGuardar(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-white/5 text-gray-400 hover:text-red-500 font-bold"
               >
-                ✕
+                <X size={14} />
               </button>
             </div>
             <div className="space-y-2 max-h-60 overflow-y-auto pr-1 mb-5 scrollbar-none">

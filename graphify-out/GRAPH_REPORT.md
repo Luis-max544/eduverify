@@ -1,16 +1,16 @@
-# Graph Report - eduverify  (2026-07-06)
+# Graph Report - eduverify  (2026-07-07)
 
 ## Corpus Check
-- 65 files · ~42,031 words
+- 78 files · ~53,764 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 513 nodes · 676 edges · 53 communities (46 shown, 7 thin omitted)
+- 587 nodes · 812 edges · 59 communities (52 shown, 7 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 10 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `5f7bcc63`
+- Built from commit: `86e7fd71`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -63,28 +63,33 @@
 - [[_COMMUNITY_Community 50|Community 50]]
 - [[_COMMUNITY_Community 51|Community 51]]
 - [[_COMMUNITY_Community 52|Community 52]]
+- [[_COMMUNITY_Community 53|Community 53]]
+- [[_COMMUNITY_Community 54|Community 54]]
+- [[_COMMUNITY_Community 55|Community 55]]
+- [[_COMMUNITY_Community 57|Community 57]]
+- [[_COMMUNITY_Community 58|Community 58]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `/graphify` - 29 edges
-2. `users table` - 17 edges
-3. `env` - 15 edges
-4. `Tables` - 14 edges
-5. `API Specification — EduVerify` - 14 edges
-6. `Migration Phases — EduVerify` - 13 edges
-7. `db` - 12 edges
-8. `What You Must Do When Invoked` - 12 edges
-9. `Views and their data contracts` - 12 edges
-10. `users` - 11 edges
+2. `env` - 17 edges
+3. `users table` - 17 edges
+4. `db` - 15 edges
+5. `users` - 14 edges
+6. `Tables` - 14 edges
+7. `API Specification — EduVerify` - 14 edges
+8. `verifyToken()` - 13 edges
+9. `Migration Phases — EduVerify` - 13 edges
+10. `What You Must Do When Invoked` - 12 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `Simulated client-side auth` --semantically_similar_to--> `Traditional Auth Flow`  [INFERRED] [semantically similar]
-  CLAUDE.md → docs/04-auth-spec.md
-- `Video creation/selection flow` --semantically_similar_to--> `profesor view (PanelProfesor.jsx)`  [INFERRED] [semantically similar]
-  CLAUDE.md → docs/01-feature-spec.md
 - `localStorage persistence keys` --semantically_similar_to--> `Session storage change`  [INFERRED] [semantically similar]
   CLAUDE.md → docs/01-feature-spec.md
+- `Simulated client-side auth` --semantically_similar_to--> `Traditional Auth Flow`  [INFERRED] [semantically similar]
+  CLAUDE.md → docs/04-auth-spec.md
 - `Dark mode toggle (Tailwind class)` --semantically_similar_to--> `Phase 8 - Subscriptions, Notifications, Dark Mode`  [INFERRED] [semantically similar]
   CLAUDE.md → docs/06-migration-phases.md
+- `Video creation/selection flow` --semantically_similar_to--> `profesor view (PanelProfesor.jsx)`  [INFERRED] [semantically similar]
+  CLAUDE.md → docs/01-feature-spec.md
 - `User roles (profesor/estudiante/premium)` --shares_data_with--> `users table`  [INFERRED]
   CLAUDE.md → docs/02-db-schema.md
 
@@ -96,35 +101,35 @@
 - **Auth migration (Phase 1) flow** — docs_06_migration_phases_phase1_auth, docs_04_auth_spec_traditional_auth_flow, docs_04_auth_spec_google_oauth_flow, docs_04_auth_spec_password_reset_flow, docs_04_auth_spec_auth_middleware [INFERRED 0.85]
 - **Avatar/banner upload flow** — docs_05_file_uploads_spec_multer_config, docs_05_file_uploads_spec_avatar_endpoint, docs_05_file_uploads_spec_banner_endpoint, docs_02_db_schema_users_table [INFERRED 0.85]
 
-## Communities (53 total, 7 thin omitted)
+## Communities (59 total, 7 thin omitted)
 
 ### Community 0 - "DB Schema & Backend Tables"
 Cohesion: 0.26
 Nodes (12): comment_likes table, comments table, favorites table, history table, notifications table, playlist_videos table, playlists table (student folders), profesor_playlist_videos table (+4 more)
 
 ### Community 1 - "Frontend Views (vista state)"
-Cohesion: 0.08
-Nodes (29): canal view (Canal.jsx), catalogo view (Catalogo.jsx), configuracion view (Configuracion.jsx), favoritos view (Favoritos.jsx), historial view (Historial.jsx), login view (Login.jsx), profesor view (PanelProfesor.jsx), reproductor view (Reproductor.jsx) (+21 more)
+Cohesion: 0.16
+Nodes (14): canal view (Canal.jsx), catalogo view (Catalogo.jsx), profesor view (PanelProfesor.jsx), reproductor view (Reproductor.jsx), videos-guardados view (Playlists.jsx), /api/comments endpoints, /api/playlists endpoints (student), /api/profesor/playlists endpoints (+6 more)
 
 ### Community 2 - "Frontend View Components"
-Cohesion: 0.08
-Nodes (29): Canal(), Catalogo(), Configuracion(), Favoritos(), Historial(), Login(), Navbar(), CATEGORIAS (+21 more)
+Cohesion: 0.07
+Nodes (34): Canal(), Catalogo(), Configuracion(), CursoDetalle(), Favoritos(), Historial(), Login(), MisCursos() (+26 more)
 
 ### Community 3 - "Graphify Skill Docs"
 Cohesion: 0.06
 Nodes (34): graphify trigger note (.claude/CLAUDE.md), graphify project integration rules, For /graphify add and --watch, For /graphify query, For the commit hook and native CLAUDE.md integration, For --update and --cluster-only, /graphify, Honesty Rules (+26 more)
 
 ### Community 4 - "Frontend Package Config"
-Cohesion: 0.08
-Nodes (25): dependencies, react, react-dom, devDependencies, autoprefixer, eslint, @eslint/js, eslint-plugin-react-hooks (+17 more)
+Cohesion: 0.07
+Nodes (26): dependencies, lucide-react, react, react-dom, devDependencies, autoprefixer, eslint, @eslint/js (+18 more)
 
 ### Community 5 - "Backend Package Config"
-Cohesion: 0.08
-Nodes (24): dependencies, bcrypt, cors, dotenv, drizzle-orm, express, jsonwebtoken, multer (+16 more)
+Cohesion: 0.07
+Nodes (27): dependencies, bcrypt, cors, dotenv, drizzle-orm, express, @google/genai, jsonwebtoken (+19 more)
 
 ### Community 6 - "Drizzle ORM Schema Relations"
-Cohesion: 0.07
-Nodes (51): db, pool, env, required, commentLikes, comments, commentsRelations, favorites (+43 more)
+Cohesion: 0.06
+Nodes (61): db, pool, env, required, commentLikes, comments, commentsRelations, courseEnrollments (+53 more)
 
 ### Community 7 - "Video History DB Module"
 Cohesion: 0.12
@@ -135,12 +140,12 @@ Cohesion: 0.13
 Nodes (15): Part A - Structural extraction for code files, Part B - Semantic extraction (parallel subagents), Part C - Merge AST + semantic into final extraction, Step 0 - GitHub repos and multi-path merge (only if a URL or several paths), Step 1 - Ensure graphify is installed, Step 2.5 - Video and audio (only if video files detected), Step 2 - Detect files, Step 3 - Extract entities and relationships (+7 more)
 
 ### Community 9 - "Comments Backend Module"
-Cohesion: 0.14
-Nodes (13): canal, catalogo, configuracion, configuracion — dark mode, favoritos, Feature Specification — EduVerify, historial, login (+5 more)
+Cohesion: 0.13
+Nodes (14): canal, catalogo, configuracion, configuracion — dark mode, favoritos, Feature Specification — EduVerify, historial, login (+6 more)
 
 ### Community 10 - "File Upload Backend Module"
-Cohesion: 0.33
-Nodes (3): ALLOWED_TYPES, uploadAvatar, uploadBanner
+Cohesion: 0.26
+Nodes (8): ALLOWED_TYPES, uploadAvatar, uploadBanner, avatarUrl(), bannerUrl(), formatUser(), router, uploadsBase()
 
 ### Community 11 - "Notifications & Subscriptions"
 Cohesion: 0.14
@@ -159,24 +164,24 @@ Cohesion: 0.18
 Nodes (10): After, Before (Configuracion.jsx, PanelProfesor.jsx), Endpoints, File Uploads Specification — EduVerify, Frontend changes (replacing base64), Multer Configuration (`middleware/upload.js`), `POST /api/users/me/avatar`, `POST /api/users/me/banner` (+2 more)
 
 ### Community 15 - "Videos Backend Module"
-Cohesion: 0.20
-Nodes (10): Adminer service (docker-compose), MySQL 8 service (docker-compose), premium view (PasarelaPrueba.jsx), /api/premium endpoints, verifyToken auth middleware, requireRol role guard helper, Phase 0 - Backend Foundation, Phase 10 - Cleanup (+2 more)
+Cohesion: 0.50
+Nodes (4): Client side (Login.jsx — unchanged), Google OAuth Flow, Migration change, Server side (`routes/auth.js`)
 
 ### Community 16 - "App Stack & Entry Point"
 Cohesion: 0.67
 Nodes (3): EduVerify stack (React 19 + Vite 8 + Tailwind 3), index.html app entry (#root, main.jsx), React + Vite starter template
 
 ### Community 17 - "Registro Component"
-Cohesion: 0.20
-Nodes (9): Auth Middleware (`middleware/auth.js`), Auth Specification — EduVerify, Client storage, Error codes, JWT, Lifetime, Payload shape, Role guard helper (+1 more)
+Cohesion: 0.14
+Nodes (13): reset_tokens table, Auth Middleware (`middleware/auth.js`), Auth Specification — EduVerify, Client storage, Error codes, JWT, Lifetime, Password Reset Flow (+5 more)
 
 ### Community 18 - "VerMasTarde Component"
 Cohesion: 0.22
 Nodes (8): graphify reference: extra exports and benchmark, Step 6b - Wiki (only if --wiki flag), Step 7 - Neo4j export (only if --neo4j or --neo4j-push flag), Step 7a - FalkorDB export (only if --falkordb or --falkordb-push flag), Step 7b - SVG export (only if --svg flag), Step 7c - GraphML export (only if --graphml flag), Step 7d - MCP server (only if --mcp flag), Step 8 - Token reduction benchmark (only if total_words > 5000)
 
 ### Community 27 - "Community 27"
-Cohesion: 0.25
-Nodes (7): API Specification — EduVerify, `DELETE /api/subscriptions/:professorId`, `GET /api/health`, `GET /api/subscriptions`, Health, `POST /api/subscriptions/:professorId`, Subscriptions — `/api/subscriptions`
+Cohesion: 0.18
+Nodes (10): API Specification — EduVerify, `DELETE /api/favorites/:videoId`, Favorites — `/api/favorites`, `GET /api/favorites`, `GET /api/health`, `GET /api/premium/status`, Health, `POST /api/favorites/:videoId` (+2 more)
 
 ### Community 28 - "Community 28"
 Cohesion: 0.25
@@ -187,16 +192,16 @@ Cohesion: 0.25
 Nodes (8): `GET /api/users/:id/profile`, `GET /api/users/:id/videos`, `GET /api/users/me`, `PATCH /api/users/me`, `PATCH /api/users/me/dark-mode`, `POST /api/users/me/avatar`, `POST /api/users/me/banner`, Users — `/api/users`
 
 ### Community 30 - "Community 30"
-Cohesion: 0.29
-Nodes (7): Session storage change, JWT payload shape, Login, Register, Traditional Auth Flow, localStorage persistence keys, Simulated client-side auth
+Cohesion: 0.14
+Nodes (15): premium view (PasarelaPrueba.jsx), /api/notifications endpoints, /api/premium endpoints, verifyToken auth middleware, JWT payload shape, Login, Register, requireRol role guard helper (+7 more)
 
 ### Community 31 - "Community 31"
 Cohesion: 0.29
 Nodes (7): `DELETE /api/videos/:id`, `GET /api/videos`, `GET /api/videos/:id`, `PATCH /api/videos/:id`, `POST /api/videos`, `POST /api/videos/:id/view`, Videos — `/api/videos`
 
 ### Community 32 - "Community 32"
-Cohesion: 0.29
-Nodes (7): /api/notifications endpoints, Phase 8 - Subscriptions, Notifications, Dark Mode, App.jsx global state management, Dark mode toggle (Tailwind class), User roles (profesor/estudiante/premium), Video creation/selection flow, vista navigation state (App.jsx)
+Cohesion: 0.40
+Nodes (5): App.jsx global state management, Dark mode toggle (Tailwind class), User roles (profesor/estudiante/premium), Video creation/selection flow, vista navigation state (App.jsx)
 
 ### Community 33 - "Community 33"
 Cohesion: 0.33
@@ -223,24 +228,24 @@ Cohesion: 0.40
 Nodes (5): `DELETE /api/history`, `DELETE /api/history/:videoId`, `GET /api/history`, History — `/api/history`, `POST /api/history/:videoId`
 
 ### Community 39 - "Community 39"
-Cohesion: 0.50
-Nodes (4): reset_tokens table, Password Reset Flow, Step 1 — Request reset, Step 2 — Update password
+Cohesion: 0.22
+Nodes (10): configuracion view (Configuracion.jsx), login view (Login.jsx), /api/auth endpoints, /api/users endpoints, POST /api/users/me/avatar endpoint, POST /api/users/me/banner endpoint, base64-to-FormData frontend migration, Multer diskStorage config (+2 more)
 
 ### Community 40 - "Community 40"
-Cohesion: 0.50
-Nodes (4): Auth header, Conventions, Pagination, Response envelope
+Cohesion: 0.22
+Nodes (8): `course_enrollments`, Courses Specification — EduVerify, Endpoints `/api/cursos` (`backend/src/routes/cursos.js`), Frontend, `lesson_progress`, `profesor_playlists` (extendida), Rutas nuevas en `/api/profesor/playlists`, Schema
 
 ### Community 41 - "Community 41"
-Cohesion: 0.50
-Nodes (4): `DELETE /api/favorites/:videoId`, Favorites — `/api/favorites`, `GET /api/favorites`, `POST /api/favorites/:videoId`
+Cohesion: 0.25
+Nodes (13): bulkInsert(), CATEGORIAS, clean(), dedup(), dur(), genComment(), genUser(), genVideo() (+5 more)
 
 ### Community 42 - "Community 42"
 Cohesion: 0.50
 Nodes (4): `GET /api/notifications`, Notifications — `/api/notifications`, `PATCH /api/notifications/:id/read`, `PATCH /api/notifications/read-all`
 
 ### Community 43 - "Community 43"
-Cohesion: 0.50
-Nodes (4): Client side (Login.jsx — unchanged), Google OAuth Flow, Migration change, Server side (`routes/auth.js`)
+Cohesion: 0.29
+Nodes (6): AI Tutor Chat Specification — EduVerify, Configuración, Endpoint — `POST /api/ai/chat` (`backend/src/routes/ai.js`), Errores, Frontend — `TutorIA.jsx`, Implementación
 
 ### Community 44 - "Community 44"
 Cohesion: 0.50
@@ -259,28 +264,48 @@ Cohesion: 0.50
 Nodes (3): For --cluster-only, For --update (incremental re-extraction), graphify reference: incremental update and cluster-only
 
 ### Community 48 - "Community 48"
+Cohesion: 0.40
+Nodes (5): favoritos view (Favoritos.jsx), historial view (Historial.jsx), /api/favorites endpoints, /api/history endpoints, Phase 5 - Favorites & History
+
+### Community 53 - "Community 53"
+Cohesion: 0.40
+Nodes (4): Backlog priorizado, Comparativa, Gap Analysis — EduVerify vs Udemy/YouTube, Implementado en esta fase
+
+### Community 54 - "Community 54"
+Cohesion: 0.40
+Nodes (4): Course Reviews Specification — EduVerify, Endpoints (en `backend/src/routes/cursos.js`), Frontend, Schema — `course_reviews`
+
+### Community 55 - "Community 55"
+Cohesion: 0.50
+Nodes (4): `DELETE /api/subscriptions/:professorId`, `GET /api/subscriptions`, `POST /api/subscriptions/:professorId`, Subscriptions — `/api/subscriptions`
+
+### Community 57 - "Community 57"
+Cohesion: 0.50
+Nodes (4): Auth header, Conventions, Pagination, Response envelope
+
+### Community 58 - "Community 58"
 Cohesion: 0.67
-Nodes (3): `GET /api/premium/status`, `POST /api/premium/activate`, Premium — `/api/premium`
+Nodes (3): Adminer service (docker-compose), MySQL 8 service (docker-compose), Phase 0 - Backend Foundation
 
 ## Knowledge Gaps
-- **263 isolated node(s):** `name`, `version`, `type`, `dev`, `start` (+258 more)
+- **289 isolated node(s):** `name`, `version`, `type`, `dev`, `start` (+284 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **7 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `API Specification — EduVerify` connect `Community 27` to `Community 33`, `Community 34`, `Community 37`, `Community 38`, `Community 40`, `Community 41`, `Community 42`, `Community 48`, `Community 28`, `Community 29`, `Community 31`?**
-  _High betweenness centrality (0.016) - this node is a cross-community bridge._
-- **Why does `users table` connect `DB Schema & Backend Tables` to `Community 32`, `Frontend Views (vista state)`, `Community 39`, `Community 43`, `Videos Backend Module`, `Community 30`?**
-  _High betweenness centrality (0.014) - this node is a cross-community bridge._
-- **Why does `Phase 1 - Auth` connect `Videos Backend Module` to `Community 32`, `Frontend Views (vista state)`, `Community 39`, `Community 43`, `Community 30`?**
+- **Why does `API Specification — EduVerify` connect `Community 27` to `Community 33`, `Community 34`, `Community 37`, `Community 38`, `Community 42`, `Community 55`, `Community 57`, `Community 28`, `Community 29`, `Community 31`?**
   _High betweenness centrality (0.012) - this node is a cross-community bridge._
+- **Why does `users table` connect `DB Schema & Backend Tables` to `Community 32`, `Community 39`, `Videos Backend Module`, `Registro Component`, `Community 58`, `Community 30`?**
+  _High betweenness centrality (0.011) - this node is a cross-community bridge._
+- **Why does `Phase 1 - Auth` connect `Community 30` to `Registro Component`, `Community 58`, `Frontend Views (vista state)`, `Videos Backend Module`?**
+  _High betweenness centrality (0.009) - this node is a cross-community bridge._
 - **Are the 3 inferred relationships involving `users table` (e.g. with `MySQL 8 service (docker-compose)` and `JWT payload shape`) actually correct?**
   _`users table` has 3 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `name`, `version`, `type` to the rest of the system?**
-  _267 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `Frontend Views (vista state)` be split into smaller, more focused modules?**
-  _Cohesion score 0.07881773399014778 - nodes in this community are weakly interconnected._
+  _293 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Frontend View Components` be split into smaller, more focused modules?**
-  _Cohesion score 0.08181818181818182 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07184325108853411 - nodes in this community are weakly interconnected._
+- **Should `Graphify Skill Docs` be split into smaller, more focused modules?**
+  _Cohesion score 0.06050420168067227 - nodes in this community are weakly interconnected._

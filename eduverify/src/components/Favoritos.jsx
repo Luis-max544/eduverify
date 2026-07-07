@@ -1,4 +1,5 @@
 import React from 'react';
+import { Heart, Clapperboard } from 'lucide-react';
 
 export default function Favoritos({ favoritos = [], setVideoSeleccionado }) {
   const obtenerYoutubeId = (url) => {
@@ -12,14 +13,14 @@ export default function Favoritos({ favoritos = [], setVideoSeleccionado }) {
     <div className="space-y-6 animate-fade-in select-none">
       <div className="border-b border-gray-200 dark:border-white/[0.04] pb-4">
         <h2 className="text-base font-black uppercase tracking-wider text-red-500 flex items-center gap-2">
-          ❤️ Tus Clases Favoritas
+          <Heart size={16} className="fill-current" /> Tus Clases Favoritas
         </h2>
         <p className="text-xs text-gray-400 mt-0.5">Lista guardada de tus asignaturas y recursos predilectos.</p>
       </div>
 
       {favoritos.length === 0 ? (
         <div className="min-h-[250px] flex flex-col items-center justify-center border border-dashed rounded-3xl border-gray-300 dark:border-white/5 p-6 text-center">
-          <span className="text-2xl mb-2 opacity-40">❤️</span>
+          <Heart size={28} className="mb-2 opacity-40 text-gray-400" />
           <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Sin favoritos todavía</p>
           <p className="text-[11px] text-gray-500 mt-1 max-w-xs">Haz clic en el botón del "Corazón" dentro del reproductor para coleccionar tus clases aquí.</p>
         </div>
@@ -42,12 +43,12 @@ export default function Favoritos({ favoritos = [], setVideoSeleccionado }) {
                     <img src={urlMiniatura} alt={v.titulo} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-red-900/20 to-gray-950 flex items-center justify-center">
-                      <span className="text-xl opacity-20">🎬</span>
+                      <Clapperboard size={24} className="opacity-20 text-white" />
                     </div>
                   )}
                   {/* Badge de Corazón Absoluto */}
-                  <span className="absolute top-2.5 right-2.5 bg-red-600 text-white p-1.5 rounded-xl shadow-xl text-[10px]">
-                    ❤️
+                  <span className="absolute top-2.5 right-2.5 bg-red-600 text-white p-1.5 rounded-xl shadow-xl">
+                    <Heart size={12} className="fill-current" />
                   </span>
                   <span className="absolute bottom-2 right-2 bg-black/80 text-white font-mono text-[9px] px-1.5 py-0.2 rounded font-bold">
                     {v.duracion || '12:30'}

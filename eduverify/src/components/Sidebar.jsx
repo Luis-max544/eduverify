@@ -1,21 +1,26 @@
 import React from 'react';
+import { Home, Heart, History, Folder, GraduationCap, Clapperboard, Moon, Sun, Star, Gem } from 'lucide-react';
 
-export default function Sidebar({ sidebarAmpliado, vista, setVista, usuario, abrirCanalProfesor, darkMode, setDarkMode }) {
-  
+export default function Sidebar({ sidebarAmpliado, vista, setVista, usuario, darkMode, setDarkMode }) {
+
+  const esProfesor = usuario?.rol === 'profesor' || usuario?.rol === 'creador';
+
   const menuNav = [
-    { id: 'catalogo', nombre: 'Principal', icono: '🏠' },
-    { id: 'favoritos', nombre: 'Mis Favoritos', icono: '❤️' },
-    { id: 'historial', nombre: 'Historial', icono: '🕒' },
-    { id: 'playlists', nombre: 'Videos guardados', icono: '📁' }, 
+    { id: 'catalogo', nombre: 'Principal', icono: Home },
+    { id: 'favoritos', nombre: 'Mis Favoritos', icono: Heart },
+    { id: 'historial', nombre: 'Historial', icono: History },
+    { id: 'playlists', nombre: 'Videos guardados', icono: Folder },
+    { id: 'mis-cursos', nombre: 'Mis Cursos', icono: GraduationCap },
+    ...(esProfesor ? [{ id: 'profesor', nombre: 'Mi Canal', icono: Clapperboard }] : []),
   ];
 
   return (
-    <aside 
-      className={`fixed md:relative z-40 h-[calc(100vh-4rem)] transition-all duration-300 shrink-0 flex flex-col justify-between overflow-hidden
-        ${sidebarAmpliado 
-          ? 'w-64 px-4 border-r' 
+    <aside
+      className={`fixed md:sticky md:top-16 z-40 h-[calc(100vh-4rem)] transition-all duration-300 shrink-0 flex flex-col justify-between overflow-hidden
+        ${sidebarAmpliado
+          ? 'w-64 px-4 border-r'
           : 'w-0 px-0 border-r-0 pointer-events-none opacity-0'
-        } 
+        }
         ${darkMode ? 'bg-gray-950 border-white/[0.04] text-gray-300' : 'bg-white border-gray-200 text-gray-600'}
       `}
     >
@@ -26,22 +31,24 @@ export default function Sidebar({ sidebarAmpliado, vista, setVista, usuario, abr
             Navegación
           </span>
         )}
-        
+
         <nav className="space-y-1">
           {menuNav.map((item) => {
-            const isActive = vista === item.id;
+            const isActive = vista === item.id
+              || (item.id === 'catalogo' && (vista === 'reproductor' || vista === 'curso'));
+            const Icono = item.icono;
             return (
               <button
                 key={item.id}
                 onClick={() => setVista(item.id)}
                 className={`w-full flex items-center gap-3.5 p-3 rounded-2xl text-xs font-bold transition-all uppercase tracking-wider
-                  ${isActive 
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/10' 
+                  ${isActive
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/10'
                     : darkMode ? 'hover:bg-white/5 text-gray-400 hover:text-white' : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
                   }
                 `}
               >
-                <span className="text-base flex items-center justify-center shrink-0">{item.icono}</span>
+                <Icono size={18} className="shrink-0" />
                 {sidebarAmpliado && <span className="truncate">{item.nombre}</span>}
               </button>
             );
@@ -61,7 +68,7 @@ export default function Sidebar({ sidebarAmpliado, vista, setVista, usuario, abr
               ${darkMode ? 'hover:bg-white/5 text-gray-400 hover:text-white' : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'}
             `}
           >
-            <span className="text-base">{darkMode ? '🌙' : '☀️'}</span>
+            {darkMode ? <Moon size={18} className="shrink-0" /> : <Sun size={18} className="shrink-0" />}
             {sidebarAmpliado && <span>{darkMode ? 'Oscuro' : 'Claro'}</span>}
           </button>
         </div>
@@ -72,13 +79,15 @@ export default function Sidebar({ sidebarAmpliado, vista, setVista, usuario, abr
         <button
           onClick={() => setVista('premium')}
           className={`w-full flex items-center gap-3 p-3 rounded-2xl font-black text-[10px] uppercase tracking-widest text-center justify-center transition-all shadow-md
-            ${usuario?.premium 
-              ? 'bg-amber-500 text-gray-950 shadow-amber-500/10' 
+            ${vista === 'premium' ? `ring-2 ring-offset-2 ring-blue-600 scale-[1.02] ${darkMode ? 'ring-offset-gray-950' : 'ring-offset-white'}` : ''}
+            ${usuario?.premium
+              ? 'bg-amber-500 text-gray-950 shadow-amber-500/10'
               : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-90 text-white shadow-blue-600/10'
             }
           `}
         >
-          <span>{usuario?.premium ? '⭐ Premium Activo' : '💎 Membresía'}</span>
+          {usuario?.premium ? <Star size={14} className="shrink-0 fill-current" /> : <Gem size={14} className="shrink-0" />}
+          <span>{usuario?.premium ? 'Premium Activo' : 'Membresía'}</span>
         </button>
       </div>
 

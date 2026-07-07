@@ -12,6 +12,9 @@ import Historial from './components/Historial';
 import Playlists from './components/Playlists'; 
 import Canal from './components/Canal';
 import Configuracion from './components/Configuracion';
+import CursoDetalle from './components/CursoDetalle';
+import MisCursos from './components/MisCursos';
+import Breadcrumbs from './components/Breadcrumbs';
 
 export default function App() {
   // 🌙 Modo oscuro
@@ -38,6 +41,24 @@ export default function App() {
   
   // 🎥 Canal seleccionado
   const [canalSeleccionado, setCanalSeleccionado] = useState(null);
+
+  // 🎓 Cursos: id del curso abierto (vista 'curso') y curso en contexto del reproductor
+  const [cursoSeleccionado, setCursoSeleccionado] = useState(null);
+  const [cursoActivo, setCursoActivo] = useState(null);
+
+  // 👨‍🏫 Subvista del panel profesor ('canal' | 'subir') — elevada para abrir "subir" directo desde el Navbar
+  const [profesorSubVista, setProfesorSubVista] = useState('canal');
+
+  // 🎓 Origen del curso abierto ('mis-cursos' | 'canal') — para breadcrumbs contextuales
+  const [cursoOrigen, setCursoOrigen] = useState('mis-cursos');
+
+  // 🔍 Búsqueda del Navbar → filtra en Catálogo
+  const [busqueda, setBusqueda] = useState('');
+
+  const abrirPanelProfesor = (sub = 'canal') => {
+    setProfesorSubVista(sub);
+    setVista('profesor');
+  };
   
   // 🔄 Parámetros de reset
   const [paramsReset, setParamsReset] = useState(null);
@@ -138,6 +159,8 @@ export default function App() {
     setVista('login');
     setVideoSeleccionado(null);
     setCanalSeleccionado(null);
+    setCursoSeleccionado(null);
+    setCursoActivo(null);
     setFavoritos([]);
     setHistorial([]);
     setSuscripciones([]);
@@ -151,8 +174,37 @@ export default function App() {
     return () => window.removeEventListener('auth:logout', onLogout);
   }, []);
 
-  // 🎬 Seleccionar y registrar video en historial
+  // 🎬 Seleccionar y registrar video en historial (fuera de contexto de curso)
   const seleccionarYRegistrarVideo = (video) => {
+    if (video?.es_premium && !usuario?.premium && usuario?.id !== video?.autor_id) {
+      alert('Este contenido es exclusivo para miembros Premium. ¡Activa tu membresía para verlo!');
+      setVista('premium');
+      return;
+    }
+    setCursoActivo(null);
+    setVideoSeleccionado(video);
+    setVista('reproductor');
+    setHistorial(prev => [video, ...prev.filter(v => v.id !== video.id)]);
+    api.videos.view(video.id).catch(() => {});
+    api.history.add(video.id).catch(() => {});
+  };
+
+  // 🎓 Abrir la vista de detalle de un curso
+  const abrirCurso = (cursoId, origen = 'mis-cursos') => {
+    if (!cursoId) return;
+    setCursoOrigen(origen);
+    setCursoSeleccionado(cursoId);
+    setVista('curso');
+  };
+
+  // 🎓 Abrir una lección manteniendo el contexto del curso en el reproductor
+  const abrirLeccionDeCurso = (video, cursoId) => {
+    if (video?.es_premium && !usuario?.premium && usuario?.id !== video?.autor_id) {
+      alert('Este contenido es exclusivo para miembros Premium. ¡Activa tu membresía para verlo!');
+      setVista('premium');
+      return;
+    }
+    setCursoActivo(cursoId);
     setVideoSeleccionado(video);
     setVista('reproductor');
     setHistorial(prev => [video, ...prev.filter(v => v.id !== video.id)]);
@@ -214,6 +266,9 @@ export default function App() {
           darkMode={darkMode}
           notificaciones={notificaciones}
           marcarNotificacionesLeidas={marcarNotificacionesLeidas}
+          abrirPanelProfesor={abrirPanelProfesor}
+          busqueda={busqueda}
+          setBusqueda={setBusqueda}
         />
 
         <div className="flex flex-1 pt-16 relative">
@@ -221,16 +276,31 @@ export default function App() {
           {/* Sidebar */}
           <Sidebar 
             sidebarAmpliado={sidebarAmpliado}
-            vista={vista === 'videos-guardados' ? 'playlists' : vista} 
-            setVista={(v) => setVista(v === 'playlists' ? 'videos-guardados' : v)}
+            vista={vista === 'videos-guardados' ? 'playlists' : vista}
+            setVista={(v) => {
+              if (v === 'profesor') setProfesorSubVista('canal');
+              setVista(v === 'playlists' ? 'videos-guardados' : v);
+            }}
             usuario={usuario}
-            abrirCanalProfesor={abrirCanalProfesor}
             darkMode={darkMode}
             setDarkMode={cambiarDarkMode}
           />
 
           {/* Contenido principal */}
           <main className="flex-1 p-4 md:p-6 overflow-y-auto w-full">
+            <Breadcrumbs
+              vista={vista}
+              setVista={setVista}
+              videoSeleccionado={videoSeleccionado}
+              cursoSeleccionado={cursoSeleccionado}
+              canalSeleccionado={canalSeleccionado}
+              cursoActivo={cursoActivo}
+              cursoOrigen={cursoOrigen}
+              abrirCurso={abrirCurso}
+              subVista={profesorSubVista}
+              setSubVista={setProfesorSubVista}
+              darkMode={darkMode}
+            />
             {vista === 'catalogo' && (
               <Catalogo 
                 setVista={setVista} 
@@ -240,23 +310,26 @@ export default function App() {
                 favoritos={favoritos}
                 setFavoritos={setFavoritos}
                 abrirCanalProfesor={abrirCanalProfesor}
+                busqueda={busqueda}
                 darkMode={darkMode}
               />
             )}
 
             {vista === 'reproductor' && (
-              <Reproductor 
-                video={videoSeleccionado} 
-                usuario={usuario} 
-                setVista={setVista} 
+              <Reproductor
+                video={videoSeleccionado}
+                usuario={usuario}
+                setVista={setVista}
                 darkMode={darkMode}
-                favoritos={favoritos}       
-                setFavoritos={setFavoritos} 
+                favoritos={favoritos}
+                setFavoritos={setFavoritos}
                 abrirCanalProfesor={abrirCanalProfesor}
                 videosGlobales={videosDemo}
                 setVideoSeleccionado={seleccionarYRegistrarVideo}
                 suscripciones={suscripciones}
                 toggleSuscripcion={toggleSuscripcion}
+                cursoActivoId={cursoActivo}
+                abrirLeccionDeCurso={abrirLeccionDeCurso}
               />
             )}
 
@@ -268,6 +341,8 @@ export default function App() {
                 darkMode={darkMode}
                 videosGlobales={videosDemo}
                 recargarVideos={recargarVideos}
+                subVista={profesorSubVista}
+                setSubVista={setProfesorSubVista}
               />
             )}
 
@@ -314,6 +389,26 @@ export default function App() {
               <Canal
                 canal={canalSeleccionado}
                 setVideoSeleccionado={seleccionarYRegistrarVideo}
+                abrirCurso={(id) => abrirCurso(id, 'canal')}
+              />
+            )}
+
+            {vista === 'curso' && (
+              <CursoDetalle
+                cursoId={cursoSeleccionado}
+                usuario={usuario}
+                setVista={setVista}
+                darkMode={darkMode}
+                abrirCanalProfesor={abrirCanalProfesor}
+                abrirLeccionDeCurso={abrirLeccionDeCurso}
+              />
+            )}
+
+            {vista === 'mis-cursos' && (
+              <MisCursos
+                darkMode={darkMode}
+                abrirCurso={abrirCurso}
+                setVista={setVista}
               />
             )}
           </main>

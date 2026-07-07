@@ -23,3 +23,11 @@ export function requireRol(...roles) {
     next();
   };
 }
+
+export function optionalAuth(req, res, next) {
+  const header = req.headers.authorization;
+  if (header?.startsWith('Bearer ')) {
+    try { req.user = jwt.verify(header.slice(7), env.jwtSecret); } catch { /* sin user */ }
+  }
+  next();
+}

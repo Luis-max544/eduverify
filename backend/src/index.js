@@ -15,6 +15,8 @@ import profesorPlaylistsRouter from './routes/profesorPlaylists.js';
 import subscriptionsRouter from './routes/subscriptions.js';
 import notificationsRouter from './routes/notifications.js';
 import premiumRouter from './routes/premium.js';
+import cursosRouter from './routes/cursos.js';
+import aiRouter from './routes/ai.js';
 
 const app = express();
 
@@ -48,6 +50,8 @@ app.use('/api/profesor/playlists', profesorPlaylistsRouter);
 app.use('/api/subscriptions', subscriptionsRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/premium', premiumRouter);
+app.use('/api/cursos', cursosRouter);
+app.use('/api/ai', aiRouter);
 
 // Global error handler (must be last)
 app.use(errorHandler);

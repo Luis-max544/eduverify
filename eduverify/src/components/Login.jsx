@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { ArrowLeft, AlertTriangle, PartyPopper, MailCheck } from 'lucide-react';
 import { auth, setToken } from '../api';
 
 export default function Login({ setVista, setUsuario, paramsReset, setParamsReset }) {
@@ -35,7 +36,7 @@ export default function Login({ setVista, setUsuario, paramsReset, setParamsRese
         setUsuario(data.user);
         setVista('catalogo');
       } catch (err) {
-        setError("⚠️ Error al autenticar las credenciales con tu cuenta de Google.");
+        setError("Error al autenticar las credenciales con tu cuenta de Google.");
       } finally {
         setLoading(false);
       }
@@ -64,7 +65,7 @@ export default function Login({ setVista, setUsuario, paramsReset, setParamsRese
     // FLUJO 1: REESCRIBIR CONTRASEÑA EN LA BASE DE DATOS
     if (modoNuevoPassword) {
       if (nuevoPassword !== confirmarPassword) {
-        setError("⚠️ Las contraseñas ingresadas no coinciden.");
+        setError("Las contraseñas ingresadas no coinciden.");
         setLoading(false);
         return;
       }
@@ -74,7 +75,7 @@ export default function Login({ setVista, setUsuario, paramsReset, setParamsRese
           token: paramsReset.token,
           password: nuevoPassword
         });
-        setExito("🎉 ¡Contraseña actualizada con éxito! Ya puedes iniciar sesión.");
+        setExito("¡Contraseña actualizada con éxito! Ya puedes iniciar sesión.");
         setModoNuevoPassword(false);
         setEsLogin(true);
         setParamsReset(null);
@@ -90,7 +91,7 @@ export default function Login({ setVista, setUsuario, paramsReset, setParamsRese
     if (modoRecuperar) {
       try {
         await auth.cambiarPassword(email.trim());
-        setExito(`📬 Enlace enviado. Revisa tu bandeja de entrada o Spam en: ${email}`);
+        setExito(`Enlace enviado. Revisa tu bandeja de entrada o Spam en: ${email}`);
         setEmail('');
       } catch (err) {
         setError(err.message || "Error al procesar la solicitud de recuperación.");
@@ -162,8 +163,18 @@ export default function Login({ setVista, setUsuario, paramsReset, setParamsRese
           </div>
         )}
 
-        {exito && <div className="mb-4 bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400 p-3.5 rounded-xl text-center font-semibold text-xs border border-green-200/30 animate-fade-in">{exito}</div>}
-        {error && <div className="mb-4 bg-red-50 dark:bg-red-950/30 text-red-500 p-3.5 rounded-xl text-center font-semibold text-xs border border-red-200/30 animate-fade-in">{error}</div>}
+        {exito && (
+          <div className="mb-4 bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400 p-3.5 rounded-xl font-semibold text-xs border border-green-200/30 animate-fade-in flex items-center justify-center gap-2">
+            {exito.startsWith('Enlace enviado') ? <MailCheck size={14} className="shrink-0" /> : <PartyPopper size={14} className="shrink-0" />}
+            <span>{exito}</span>
+          </div>
+        )}
+        {error && (
+          <div className="mb-4 bg-red-50 dark:bg-red-950/30 text-red-500 p-3.5 rounded-xl font-semibold text-xs border border-red-200/30 animate-fade-in flex items-center justify-center gap-2">
+            <AlertTriangle size={14} className="shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           
@@ -240,8 +251,8 @@ export default function Login({ setVista, setUsuario, paramsReset, setParamsRese
           )}
 
           {(modoRecuperar || modoNuevoPassword) && (
-            <button type="button" onClick={() => { setModoRecuperar(false); setModoNuevoPassword(false); setError(''); setExito(''); }} className="w-full text-center text-[10px] font-bold uppercase tracking-wider text-gray-400 hover:text-gray-600 dark:hover:text-white block pt-2">
-              ← Volver al inicio de sesión
+            <button type="button" onClick={() => { setModoRecuperar(false); setModoNuevoPassword(false); setError(''); setExito(''); }} className="w-full text-[10px] font-bold uppercase tracking-wider text-gray-400 hover:text-gray-600 dark:hover:text-white pt-2 inline-flex items-center justify-center gap-1.5">
+              <ArrowLeft size={12} /> Volver al inicio de sesión
             </button>
           )}
 

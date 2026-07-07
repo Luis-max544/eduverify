@@ -114,11 +114,29 @@ export const profesorPlaylists = {
   list: () => request('/profesor/playlists'),
   publicList: (userId) => request(`/profesor/playlists/public/${userId}`),
   create: (nombre) => request('/profesor/playlists', { method: 'POST', body: { nombre } }),
-  rename: (id, nombre) => request(`/profesor/playlists/${id}`, { method: 'PATCH', body: { nombre } }),
+  update: (id, campos) => request(`/profesor/playlists/${id}`, { method: 'PATCH', body: campos }),
+  reorder: (id, ordenIds) => request(`/profesor/playlists/${id}/orden`, { method: 'PUT', body: { orden: ordenIds } }),
   remove: (id) => request(`/profesor/playlists/${id}`, { method: 'DELETE' }),
   addVideo: (id, videoId, orden) =>
     request(`/profesor/playlists/${id}/videos/${videoId}`, { method: 'POST', body: { orden } }),
   removeVideo: (id, videoId) => request(`/profesor/playlists/${id}/videos/${videoId}`, { method: 'DELETE' }),
+};
+
+export const cursos = {
+  get: (id) => request(`/cursos/${id}`),
+  misCursos: () => request('/cursos/mis-cursos'),
+  progreso: (id) => request(`/cursos/${id}/progreso`),
+  inscribir: (id) => request(`/cursos/${id}/inscripcion`, { method: 'POST' }),
+  desinscribir: (id) => request(`/cursos/${id}/inscripcion`, { method: 'DELETE' }),
+  completarLeccion: (id, videoId) => request(`/cursos/${id}/lecciones/${videoId}/completar`, { method: 'POST' }),
+  descompletarLeccion: (id, videoId) => request(`/cursos/${id}/lecciones/${videoId}/completar`, { method: 'DELETE' }),
+  reviews: (id) => request(`/cursos/${id}/reviews`),
+  upsertReview: (id, { estrellas, texto }) => request(`/cursos/${id}/reviews`, { method: 'PUT', body: { estrellas, texto } }),
+  removeReview: (id) => request(`/cursos/${id}/reviews`, { method: 'DELETE' }),
+};
+
+export const ai = {
+  chat: (video_id, messages) => request('/ai/chat', { method: 'POST', body: { video_id, messages } }),
 };
 
 export const subscriptions = {

@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { eq, sql, and } from 'drizzle-orm';
+import { eq, sql, and, desc } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../config/db.js';
 import { videos, users } from '../db/schema.js';
-import { verifyToken, requireRol } from '../middleware/auth.js';
+import { verifyToken, requireRol, optionalAuth } from '../middleware/auth.js';
 import { env } from '../config/env.js';
 
 const router = Router();
@@ -31,24 +31,28 @@ router.get('/', async (req, res, next) => {
       ? eq(videos.categoria, categoria)
       : undefined;
 
+    const fullWhere = where ? and(where, eq(videos.visible, true)) : eq(videos.visible, true);
+
     const rows = await db
       .select({
         id: videos.id, titulo: videos.titulo, descripcion: videos.descripcion,
         url_video: videos.url_video, categoria: videos.categoria, tipo: videos.tipo,
-        es_premium: videos.es_premium, vistas: videos.vistas, duracion: videos.duracion,
+        es_premium: videos.es_premium, visible: videos.visible,
+        vistas: videos.vistas, duracion: videos.duracion,
         created_at: videos.created_at,
         autor: users.nombre, autor_id: users.id, author_avatar_url: users.avatar_path,
       })
       .from(videos)
       .innerJoin(users, eq(videos.usuario_id, users.id))
-      .where(where)
+      .where(fullWhere)
+      .orderBy(desc(videos.id))
       .limit(limit)
       .offset(offset);
 
     const [{ total }] = await db
       .select({ total: sql`COUNT(*)` })
       .from(videos)
-      .where(where);
+      .where(fullWhere);
 
     res.json({
       status: 'success',
@@ -58,13 +62,14 @@ router.get('/', async (req, res, next) => {
 });
 
 // GET /api/videos/:id
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', verifyToken, async (req, res, next) => {
   try {
     const [row] = await db
       .select({
         id: videos.id, titulo: videos.titulo, descripcion: videos.descripcion,
         url_video: videos.url_video, categoria: videos.categoria, tipo: videos.tipo,
-        es_premium: videos.es_premium, vistas: videos.vistas, duracion: videos.duracion,
+        es_premium: videos.es_premium, visible: videos.visible,
+        usuario_id: videos.usuario_id, vistas: videos.vistas, duracion: videos.duracion,
         created_at: videos.created_at,
         autor: users.nombre, autor_id: users.id, author_avatar_url: users.avatar_path,
       })
@@ -73,6 +78,12 @@ router.get('/:id', async (req, res, next) => {
       .where(eq(videos.id, Number(req.params.id)));
 
     if (!row) return res.status(404).json({ status: 'error', message: 'Video no encontrado' });
+    if (!row.visible && (!req.user || req.user.sub !== row.usuario_id)) {
+      return res.status(404).json({ status: 'error', message: 'Video no encontrado' });
+    }
+    if (row.es_premium && !req.user.premium && req.user.sub !== row.usuario_id) {
+      return res.status(403).json({ status: 'error', message: 'Contenido exclusivo para miembros Premium' });
+    }
     res.json({ status: 'success', data: formatVideo(row) });
   } catch (err) { next(err); }
 });
@@ -87,6 +98,7 @@ router.post('/', verifyToken, requireRol('profesor', 'creador'), async (req, res
       categoria: z.enum(['Programación', 'Ciberseguridad', 'Matemáticas', 'Electrónica', 'Arte']),
       tipo: z.enum(['grabado', 'envivo']).default('grabado'),
       es_premium: z.boolean().default(false),
+      visible: z.boolean().default(true),
       duracion: z.string().optional(),
     }).parse(req.body);
 
@@ -119,6 +131,7 @@ router.patch('/:id', verifyToken, async (req, res, next) => {
       descripcion: z.string().optional(),
       categoria: z.enum(['Programación', 'Ciberseguridad', 'Matemáticas', 'Electrónica', 'Arte']).optional(),
       es_premium: z.boolean().optional(),
+      visible: z.boolean().optional(),
       duracion: z.string().optional(),
     }).parse(req.body);
 

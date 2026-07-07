@@ -1,6 +1,6 @@
 import {
   mysqlTable, int, varchar, text, boolean, timestamp,
-  datetime, mysqlEnum, index, primaryKey
+  datetime, mysqlEnum, index, primaryKey, unique
 } from 'drizzle-orm/mysql-core';
 import { relations } from 'drizzle-orm';
 
@@ -47,6 +47,7 @@ export const videos = mysqlTable('videos', {
   categoria:   mysqlEnum('categoria', ['Programación', 'Ciberseguridad', 'Matemáticas', 'Electrónica', 'Arte']).notNull(),
   tipo:        mysqlEnum('tipo', ['grabado', 'envivo']).notNull().default('grabado'),
   es_premium:  boolean('es_premium').notNull().default(false),
+  visible:      boolean('visible').notNull().default(true),
   vistas:      int('vistas').notNull().default(0),
   duracion:    varchar('duracion', { length: 20 }).default('00:00'),
   created_at:  timestamp('created_at').defaultNow(),
@@ -102,10 +103,11 @@ export const playlistVideos = mysqlTable('playlist_videos', {
 // ─── PROFESOR PLAYLISTS ───────────────────────────────────────────────────────
 
 export const profesorPlaylists = mysqlTable('profesor_playlists', {
-  id:         int('id').primaryKey().autoincrement(),
-  user_id:    int('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  nombre:     varchar('nombre', { length: 255 }).notNull(),
-  created_at: timestamp('created_at').defaultNow(),
+  id:          int('id').primaryKey().autoincrement(),
+  user_id:     int('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  nombre:      varchar('nombre', { length: 255 }).notNull(),
+  descripcion: text('descripcion'),
+  created_at:  timestamp('created_at').defaultNow(),
 }, (t) => [
   index('prof_playlist_user_id_idx').on(t.user_id),
 ]);
@@ -116,6 +118,43 @@ export const profesorPlaylistVideos = mysqlTable('profesor_playlist_videos', {
   orden:       int('orden').notNull().default(0),
 }, (t) => [
   primaryKey({ columns: [t.playlist_id, t.video_id] }),
+]);
+
+// ─── COURSE ENROLLMENTS ───────────────────────────────────────────────────────
+
+export const courseEnrollments = mysqlTable('course_enrollments', {
+  user_id:     int('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  playlist_id: int('playlist_id').notNull().references(() => profesorPlaylists.id, { onDelete: 'cascade' }),
+  enrolled_at: timestamp('enrolled_at').defaultNow(),
+}, (t) => [
+  primaryKey({ columns: [t.user_id, t.playlist_id] }),
+  index('enrollment_playlist_id_idx').on(t.playlist_id),
+]);
+
+// ─── LESSON PROGRESS ──────────────────────────────────────────────────────────
+
+export const lessonProgress = mysqlTable('lesson_progress', {
+  user_id:      int('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  playlist_id:  int('playlist_id').notNull().references(() => profesorPlaylists.id, { onDelete: 'cascade' }),
+  video_id:     int('video_id').notNull().references(() => videos.id, { onDelete: 'cascade' }),
+  completed_at: timestamp('completed_at').defaultNow(),
+}, (t) => [
+  primaryKey({ columns: [t.user_id, t.playlist_id, t.video_id] }),
+]);
+
+// ─── COURSE REVIEWS ───────────────────────────────────────────────────────────
+
+export const courseReviews = mysqlTable('course_reviews', {
+  id:          int('id').primaryKey().autoincrement(),
+  playlist_id: int('playlist_id').notNull().references(() => profesorPlaylists.id, { onDelete: 'cascade' }),
+  user_id:     int('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  estrellas:   int('estrellas').notNull(),
+  texto:       text('texto'),
+  created_at:  timestamp('created_at').defaultNow(),
+  updated_at:  timestamp('updated_at').defaultNow().onUpdateNow(),
+}, (t) => [
+  unique('review_user_playlist_uq').on(t.user_id, t.playlist_id),
+  index('review_playlist_id_idx').on(t.playlist_id),
 ]);
 
 // ─── SUBSCRIPTIONS ────────────────────────────────────────────────────────────
@@ -198,6 +237,24 @@ export const playlistsRelations = relations(playlists, ({ one, many }) => ({
 }));
 
 export const profesorPlaylistsRelations = relations(profesorPlaylists, ({ one, many }) => ({
-  user:   one(users, { fields: [profesorPlaylists.user_id], references: [users.id] }),
-  videos: many(profesorPlaylistVideos),
+  user:        one(users, { fields: [profesorPlaylists.user_id], references: [users.id] }),
+  videos:      many(profesorPlaylistVideos),
+  enrollments: many(courseEnrollments),
+  reviews:     many(courseReviews),
+}));
+
+export const courseEnrollmentsRelations = relations(courseEnrollments, ({ one }) => ({
+  user:     one(users, { fields: [courseEnrollments.user_id], references: [users.id] }),
+  playlist: one(profesorPlaylists, { fields: [courseEnrollments.playlist_id], references: [profesorPlaylists.id] }),
+}));
+
+export const lessonProgressRelations = relations(lessonProgress, ({ one }) => ({
+  user:     one(users, { fields: [lessonProgress.user_id], references: [users.id] }),
+  playlist: one(profesorPlaylists, { fields: [lessonProgress.playlist_id], references: [profesorPlaylists.id] }),
+  video:    one(videos, { fields: [lessonProgress.video_id], references: [videos.id] }),
+}));
+
+export const courseReviewsRelations = relations(courseReviews, ({ one }) => ({
+  user:     one(users, { fields: [courseReviews.user_id], references: [users.id] }),
+  playlist: one(profesorPlaylists, { fields: [courseReviews.playlist_id], references: [profesorPlaylists.id] }),
 }));

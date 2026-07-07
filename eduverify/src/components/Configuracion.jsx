@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ArrowLeft, Camera, Lock, Loader2, MailCheck, AlertTriangle } from 'lucide-react';
 import { auth, users as usersApi } from '../api';
 
 export default function Configuracion({ usuario, setUsuario, setVista, darkMode }) {
@@ -16,7 +17,7 @@ export default function Configuracion({ usuario, setUsuario, setVista, darkMode 
     const file = e.target.files[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
-      alert("⚠️ La imagen es demasiado pesada. Elige una menor a 2MB.");
+      alert("La imagen es demasiado pesada. Elige una menor a 2MB.");
       return;
     }
     try {
@@ -36,12 +37,12 @@ export default function Configuracion({ usuario, setUsuario, setVista, darkMode 
       await auth.cambiarPassword(usuario?.email);
       setStatusMensaje({
         tipo: 'success',
-        texto: `📬 ¡Enlace enviado! Revisa la bandeja de entrada de: ${usuario?.email}`
+        texto: `¡Enlace enviado! Revisa la bandeja de entrada de: ${usuario?.email}`
       });
     } catch (error) {
       setStatusMensaje({
         tipo: 'error',
-        texto: `⚠️ No se pudo enviar el correo: ${error.message}`
+        texto: `No se pudo enviar el correo: ${error.message}`
       });
     } finally {
       setEnviandoEmail(false);
@@ -51,12 +52,12 @@ export default function Configuracion({ usuario, setUsuario, setVista, darkMode 
   // 💾 GUARDAR CAMBIOS DE PERFIL EN EL API
   const handleGuardarConfiguracion = async (e) => {
     e.preventDefault();
-    if (!nombre.trim()) return alert("⚠️ El nombre no puede quedar vacío.");
+    if (!nombre.trim()) return alert("El nombre no puede quedar vacío.");
 
     try {
       const actualizado = await usersApi.updateNombre(nombre.trim());
       setUsuario(actualizado);
-      alert("✔ Perfil actualizado correctamente.");
+      alert("Perfil actualizado correctamente.");
       setVista('catalogo');
     } catch (err) {
       alert(`Error al actualizar el perfil: ${err.message}`);
@@ -69,9 +70,9 @@ export default function Configuracion({ usuario, setUsuario, setVista, darkMode 
       {/* Botón Volver Fiel a image_9235f5.png */}
       <button 
         onClick={() => setVista('catalogo')}
-        className="mb-4 text-left block text-[11px] font-black tracking-widest text-gray-400 hover:text-blue-500 transition-colors uppercase"
+        className="mb-4 text-left text-[11px] font-black tracking-widest text-gray-400 hover:text-blue-500 transition-colors uppercase inline-flex items-center gap-1.5"
       >
-        ← Volver
+        <ArrowLeft size={14} /> Volver
       </button>
 
       <div className="space-y-5">
@@ -96,7 +97,7 @@ export default function Configuracion({ usuario, setUsuario, setVista, darkMode 
             
             {/* Overlay Azul de Cámara para subir fotos de verdad */}
             <label className="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-500 text-white w-8 h-8 rounded-xl flex items-center justify-center shadow-lg transition-all cursor-pointer border-2 border-white dark:border-gray-900">
-              <span className="text-xs">📷</span>
+              <Camera size={14} />
               <input 
                 type="file" 
                 accept="image/*" 
@@ -154,15 +155,16 @@ export default function Configuracion({ usuario, setUsuario, setVista, darkMode 
                 type="button"
                 disabled={enviandoEmail}
                 onClick={handleEnviarCorreoPassword}
-                className={`text-[11px] font-bold px-4 py-2 rounded-xl transition-all border ${darkMode ? 'border-white/10 text-gray-300 hover:bg-white/5' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}
+                className={`text-[11px] font-bold px-4 py-2 rounded-xl transition-all border inline-flex items-center gap-1.5 ${darkMode ? 'border-white/10 text-gray-300 hover:bg-white/5' : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}
               >
-                {enviandoEmail ? '⏳ Solicitando token...' : '🔒 Cambiar Contraseña'}
+                {enviandoEmail ? <><Loader2 size={12} className="animate-spin" /> Solicitando token...</> : <><Lock size={12} /> Cambiar Contraseña</>}
               </button>
 
               {/* Alertas dinámicas flotantes */}
               {statusMensaje.texto && (
-                <div className="mt-3 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-500 text-[11px] font-medium leading-relaxed animate-fade-in">
-                  {statusMensaje.texto}
+                <div className="mt-3 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-500 text-[11px] font-medium leading-relaxed animate-fade-in flex items-center gap-2">
+                  {statusMensaje.tipo === 'success' ? <MailCheck size={14} className="shrink-0" /> : <AlertTriangle size={14} className="shrink-0" />}
+                  <span>{statusMensaje.texto}</span>
                 </div>
               )}
             </div>

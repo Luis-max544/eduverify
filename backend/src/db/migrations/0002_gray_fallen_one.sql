@@ -1,0 +1,1 @@
+ALTER TABLE `videos` ADD `visible` boolean DEFAULT true NOT NULL;

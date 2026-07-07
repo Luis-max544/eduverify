@@ -27,4 +27,6 @@ export const env = {
     from: process.env.EMAIL_FROM || 'EduVerify <noreply@eduverify.com>',
   },
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+  geminiKey: process.env.GEMINI_API_KEY || '',
+  aiModel: process.env.AI_MODEL || 'gemini-2.5-flash',
 };
