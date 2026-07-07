@@ -7,7 +7,7 @@ export default function Modal({ open, onClose, title, icon: Icon, maxWidth = 'ma
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-fade-in" onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`w-full ${maxWidth} p-6 rounded-[2rem] border shadow-2xl ${darkMode ? 'bg-gray-900 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
+        className={`w-full ${maxWidth} max-h-[85vh] overflow-y-auto p-6 rounded-[2rem] border shadow-2xl ${darkMode ? 'bg-gray-900 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
       >
         {(title || Icon) && (
           <div className="flex justify-between items-center pb-4 border-b border-gray-100 dark:border-white/5 mb-5">

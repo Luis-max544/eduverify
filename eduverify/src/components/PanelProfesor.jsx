@@ -285,7 +285,10 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
           titulo: existente.titulo || '',
           min_aprobacion: existente.min_aprobacion,
           preguntas: (existente.preguntas || []).length > 0
-            ? existente.preguntas.map(p => ({ pregunta: p.pregunta, opciones: p.opciones, correcta: p.correcta }))
+            ? existente.preguntas.map(p => {
+                const opts = typeof p.opciones === 'string' ? JSON.parse(p.opciones) : p.opciones;
+                return { pregunta: p.pregunta, opciones: Array.isArray(opts) ? opts : [], correcta: p.correcta };
+              })
             : [{ pregunta: '', opciones: ['', ''], correcta: 0 }],
         });
       }
