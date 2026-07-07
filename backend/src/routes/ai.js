@@ -1,11 +1,13 @@
 import { Router } from 'express';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
 import { GoogleGenAI } from '@google/genai';
 import { db } from '../config/db.js';
-import { videos, users } from '../db/schema.js';
+import { videos, users, pdfResources, profesorPlaylistVideos } from '../db/schema.js';
 import { verifyToken } from '../middleware/auth.js';
 import { env } from '../config/env.js';
+import fs from 'fs';
+import path from 'path';
 
 const router = Router();
 
@@ -66,6 +68,38 @@ router.post('/chat', verifyToken, async (req, res, next) => {
       (video.descripcion ? ` Descripción de la clase: ${video.descripcion}.` : '') +
       ` Responde en español, de forma breve, clara y pedagógica. ` +
       `Si la pregunta no tiene relación con la clase o su temática, redirige amablemente al tema.`;
+
+    // Buscar PDFs del curso/lección e inyectarlos como contexto extra
+    let pdfParts = [];
+    try {
+      const [ppv] = await db.select({ playlist_id: profesorPlaylistVideos.playlist_id })
+        .from(profesorPlaylistVideos)
+        .where(eq(profesorPlaylistVideos.video_id, video_id))
+        .limit(1);
+      if (ppv) {
+        const docs = await db.select().from(pdfResources).where(
+          and(eq(pdfResources.playlist_id, ppv.playlist_id), eq(pdfResources.video_id, video_id))
+        );
+        const courseDocs = docs.length === 0
+          ? await db.select().from(pdfResources).where(and(eq(pdfResources.playlist_id, ppv.playlist_id)))
+          : [];
+        const all = [...docs, ...courseDocs];
+        for (const doc of all) {
+          const filePath = path.join(process.cwd(), 'uploads', 'pdfs', doc.filename);
+          if (!fs.existsSync(filePath)) continue;
+          const buf = fs.readFileSync(filePath);
+          if (buf.length > 8 * 1024 * 1024) continue; // skip >8MB
+          pdfParts.push({
+            inlineData: { mimeType: 'application/pdf', data: buf.toString('base64') },
+          });
+        }
+        if (pdfParts.length > 0) {
+          // ponytail: inject after the last user message as context
+          contents[contents.length - 1]?.parts.push({ text: '(Ver documento PDF adjunto como material complementario de la clase. Úsalo para responder con más precisión.)' });
+          contents.push({ role: 'user', parts: pdfParts });
+        }
+      }
+    } catch { /* si falla la resolución de PDF, ignorar y seguir sin contexto extra */ }
 
     const ai = new GoogleGenAI({ apiKey: env.geminiKey });
     const contents = messages.map(m => ({

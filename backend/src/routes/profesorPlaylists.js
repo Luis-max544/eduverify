@@ -2,9 +2,12 @@ import { Router } from 'express';
 import { eq, and, sql, inArray, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../config/db.js';
-import { profesorPlaylists, profesorPlaylistVideos, videos, users, courseReviews, quizzes, quizQuestions } from '../db/schema.js';
+import { profesorPlaylists, profesorPlaylistVideos, videos, users, courseReviews, quizzes, quizQuestions, pdfResources } from '../db/schema.js';
 import { verifyToken, requireRol } from '../middleware/auth.js';
+import { uploadPdf } from '../middleware/upload.js';
 import { env } from '../config/env.js';
+import fs from 'fs';
+import path from 'path';
 
 const router = Router();
 
@@ -271,6 +274,79 @@ router.delete('/:id/quizzes/:quizId', verifyToken, async (req, res, next) => {
 
     await db.delete(quizzes).where(eq(quizzes.id, quizId));
     res.json({ status: 'success', data: { message: 'Quiz eliminado' } });
+  } catch (err) { next(err); }
+});
+
+// ─── PDF RESOURCES (owner only) ─────────────────────────────────────────────
+
+// GET /api/profesor/playlists/:id/pdfs — lista PDFs del curso (owner)
+router.get('/:id/pdfs', verifyToken, async (req, res, next) => {
+  try {
+    const playlistId = Number(req.params.id);
+    if (!await ownerCheck(playlistId, req.user.sub, res)) return;
+    const items = await db.select().from(pdfResources).where(eq(pdfResources.playlist_id, playlistId));
+    res.json({ status: 'success', data: items });
+  } catch (err) { next(err); }
+});
+
+// PUT /api/profesor/playlists/:id/pdf — crea/reemplaza PDF (multipart)
+router.put('/:id/pdf', verifyToken, (req, res, next) => {
+  uploadPdf(req, res, async (err) => {
+    if (err) return next(err);
+    try {
+      const playlistId = Number(req.params.id);
+      if (!await ownerCheck(playlistId, req.user.sub, res)) return;
+
+      const videoId = req.body.video_id ? Number(req.body.video_id) : null;
+      const file = req.file;
+      if (!file) return res.status(400).json({ status: 'error', message: 'Archivo PDF requerido' });
+
+      // Buscar existente y borrar archivo viejo en disco
+      const conditions = [eq(pdfResources.playlist_id, playlistId)];
+      if (videoId !== null) conditions.push(eq(pdfResources.video_id, videoId));
+      else conditions.push(sql`${pdfResources.video_id} IS NULL`);
+
+      const [existing] = await db.select().from(pdfResources).where(and(...conditions));
+      if (existing) {
+        const oldPath = path.join(process.cwd(), 'uploads', 'pdfs', existing.filename);
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+        await db.delete(pdfResources).where(eq(pdfResources.id, existing.id));
+      }
+
+      await db.insert(pdfResources).values({
+        playlist_id: playlistId,
+        video_id: videoId,
+        filename: file.filename,
+        original_name: file.originalname,
+      });
+
+      const [created] = await db.select().from(pdfResources).where(and(
+        eq(pdfResources.playlist_id, playlistId),
+        videoId !== null ? eq(pdfResources.video_id, videoId) : sql`${pdfResources.video_id} IS NULL`
+      ));
+
+      res.status(201).json({ status: 'success', data: created });
+    } catch (e) { next(e); }
+  });
+});
+
+// DELETE /api/profesor/playlists/:id/pdfs/:pdfId
+router.delete('/:id/pdfs/:pdfId', verifyToken, async (req, res, next) => {
+  try {
+    const playlistId = Number(req.params.id);
+    const pdfId = Number(req.params.pdfId);
+    if (!await ownerCheck(playlistId, req.user.sub, res)) return;
+
+    const [row] = await db.select().from(pdfResources).where(and(
+      eq(pdfResources.id, pdfId),
+      eq(pdfResources.playlist_id, playlistId),
+    ));
+    if (!row) return res.status(404).json({ status: 'error', message: 'PDF no encontrado' });
+
+    const filePath = path.join(process.cwd(), 'uploads', 'pdfs', row.filename);
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    await db.delete(pdfResources).where(eq(pdfResources.id, pdfId));
+    res.json({ status: 'success', data: { message: 'PDF eliminado' } });
   } catch (err) { next(err); }
 });
 

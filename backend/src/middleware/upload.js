@@ -37,3 +37,31 @@ export const uploadBanner = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter,
 }).single('banner');
+
+// PDF upload middleware
+const ALLOWED_PDF = ['application/pdf'];
+
+function makePdfStorage() {
+  return multer.diskStorage({
+    destination(req, file, cb) {
+      const dir = path.join(process.cwd(), 'uploads', 'pdfs');
+      fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename(req, file, cb) {
+      const uniq = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      cb(null, `${uniq}.pdf`);
+    },
+  });
+}
+
+const pdfFilter = (req, file, cb) => {
+  if (ALLOWED_PDF.includes(file.mimetype)) cb(null, true);
+  else cb(new Error('Solo se permiten archivos PDF'));
+};
+
+export const uploadPdf = multer({
+  storage: makePdfStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: pdfFilter,
+}).single('pdf');

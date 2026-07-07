@@ -123,6 +123,14 @@ export const profesorPlaylists = {
   getQuizzes: (id) => request(`/profesor/playlists/${id}/quizzes`),
   saveQuiz: (id, body) => request(`/profesor/playlists/${id}/quiz`, { method: 'PUT', body }),
   removeQuiz: (id, quizId) => request(`/profesor/playlists/${id}/quizzes/${quizId}`, { method: 'DELETE' }),
+  getPdfs: (id) => request(`/profesor/playlists/${id}/pdfs`),
+  uploadPdf: (id, file, videoId = null) => {
+    const form = new FormData();
+    form.append('pdf', file);
+    if (videoId !== null) form.append('video_id', videoId);
+    return request(`/profesor/playlists/${id}/pdf`, { method: 'PUT', body: form, isForm: true });
+  },
+  removePdf: (id, pdfId) => request(`/profesor/playlists/${id}/pdfs/${pdfId}`, { method: 'DELETE' }),
 };
 
 export const cursos = {
@@ -138,6 +146,7 @@ export const cursos = {
   removeReview: (id) => request(`/cursos/${id}/reviews`, { method: 'DELETE' }),
   getQuiz: (id, quizId) => request(`/cursos/${id}/quizzes/${quizId}`),
   submitQuiz: (id, quizId, respuestas) => request(`/cursos/${id}/quizzes/${quizId}/intento`, { method: 'POST', body: { respuestas } }),
+  getPdfs: (id) => request(`/cursos/${id}/pdfs`),
 };
 
 export const ai = {

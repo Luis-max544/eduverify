@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GraduationCap, Star, Play, Check, Clapperboard, ArrowRight, HelpCircle } from 'lucide-react';
+import { GraduationCap, Star, Play, Check, Clapperboard, ArrowRight, HelpCircle, FileText } from 'lucide-react';
 import { cursos as cursosApi } from '../api';
 import { useToast } from './Toast';
 import QuizModal from './QuizModal';
@@ -11,6 +11,7 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
   const [reviews, setReviews] = useState({ items: [], promedio: null, total: 0 });
   const [cargando, setCargando] = useState(true);
   const [quizModal, setQuizModal] = useState(null);
+  const [pdfsCurso, setPdfsCurso] = useState([]);
 
   // Formulario de reseña propia
   const [estrellasForm, setEstrellasForm] = useState(0);
@@ -22,6 +23,7 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
     cursosApi.get(cursoId).then(setCurso).catch(() => setCurso(null)).finally(() => setCargando(false));
     cursosApi.progreso(cursoId).then(setProgreso).catch(() => {});
     cursosApi.reviews(cursoId).then(setReviews).catch(() => {});
+    cursosApi.getPdfs(cursoId).then(setPdfsCurso).catch(() => setPdfsCurso([]));
   };
 
   useEffect(() => {
@@ -224,6 +226,11 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
                           <HelpCircle size={9} /> Quiz
                         </span>
                       )}
+                      {pdfsCurso.some(p => p.video_id === leccion.id) && (
+                        <span className="ml-2 bg-emerald-500/10 text-emerald-500 text-[8px] font-black uppercase px-1.5 py-0.5 rounded inline-flex items-center gap-0.5 align-middle">
+                          <FileText size={9} /> PDF
+                        </span>
+                      )}
                     </h4>
                     <p className="text-[10px] text-gray-400 font-mono font-bold uppercase mt-0.5">{leccion.duracion || '00:00'} • {leccion.categoria}</p>
                   </div>
@@ -255,6 +262,25 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
             >
               {progreso.inscrito ? 'Realizar examen' : 'Inscríbete primero'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* MATERIALES DEL CURSO */}
+      {pdfsCurso.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white px-1">Materiales del curso</h3>
+          <div className={`p-4 rounded-2xl border space-y-2 ${darkMode ? 'bg-gray-900/40 border-white/5' : 'bg-white border-gray-200 shadow-sm'}`}>
+            {pdfsCurso.map(p => (
+              <a key={p.id} href={`http://localhost:3001/uploads/pdfs/${p.filename}`} target="_blank" rel="noreferrer" className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-colors ${darkMode ? 'hover:bg-white/5 text-gray-300' : 'hover:bg-gray-50 text-gray-700'}`}>
+                <FileText size={18} className="text-emerald-500 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-black uppercase truncate">{p.original_name}</p>
+                  <p className="text-[9px] text-gray-400 font-bold uppercase mt-0.5">{p.video_id ? 'PDF de lección' : 'Documento del curso'}</p>
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500 shrink-0">Abrir</span>
+              </a>
+            ))}
           </div>
         </div>
       )}

@@ -6,6 +6,7 @@ import {
   profesorPlaylists, profesorPlaylistVideos, videos, users,
   courseEnrollments, lessonProgress, courseReviews,
   quizzes, quizQuestions, quizAttempts,
+  pdfResources,
 } from '../db/schema.js';
 import { verifyToken } from '../middleware/auth.js';
 import { env } from '../config/env.js';
@@ -599,6 +600,16 @@ router.delete('/:id/reviews', verifyToken, async (req, res, next) => {
       eq(courseReviews.playlist_id, playlistId), eq(courseReviews.user_id, req.user.sub)
     ));
     res.json({ status: 'success', data: { message: 'Reseña eliminada' } });
+  } catch (err) { next(err); }
+});
+
+// GET /api/cursos/:id/pdfs — lista pública de PDFs (metadata)
+router.get('/:id/pdfs', async (req, res, next) => {
+  try {
+    const playlistId = Number(req.params.id);
+    if (!await getCurso(playlistId)) return res.status(404).json({ status: 'error', message: 'Curso no encontrado' });
+    const items = await db.select().from(pdfResources).where(eq(pdfResources.playlist_id, playlistId));
+    res.json({ status: 'success', data: items });
   } catch (err) { next(err); }
 });
 

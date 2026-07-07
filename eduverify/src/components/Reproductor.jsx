@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft, ArrowRight, GraduationCap, BellRing, Heart, Share2, Bookmark,
-  Bot, Reply, Trash2, Check, Clapperboard, FolderOpen, X, Star
+  Bot, Reply, Trash2, Check, Clapperboard, FolderOpen, X, Star, FileText
 } from 'lucide-react';
 import { comments as commentsApi, favorites as favoritesApi, playlists as playlistsApi, videos as videosApi, cursos as cursosApi } from '../api';
 import TutorIA from './TutorIA';
@@ -44,11 +44,13 @@ export default function Reproductor({
   const [cursoCtx, setCursoCtx] = useState(null);
   const [progresoCurso, setProgresoCurso] = useState({ inscrito: false, completadas: [], porcentaje: 0 });
   const [quizModal, setQuizModal] = useState(null);
+  const [pdfsCurso, setPdfsCurso] = useState([]);
 
   useEffect(() => {
-    if (!cursoActivoId) { setCursoCtx(null); return; }
+    if (!cursoActivoId) { setCursoCtx(null); setPdfsCurso([]); return; }
     cursosApi.get(cursoActivoId).then(setCursoCtx).catch(() => setCursoCtx(null));
     cursosApi.progreso(cursoActivoId).then(setProgresoCurso).catch(() => {});
+    cursosApi.getPdfs(cursoActivoId).then(setPdfsCurso).catch(() => setPdfsCurso([]));
   }, [cursoActivoId]);
 
   // 📸 Foto de perfil del usuario actual
@@ -333,6 +335,22 @@ export default function Reproductor({
                       <button onClick={() => setQuizModal(quizId)} className="px-4 py-2 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[10px] font-black uppercase tracking-widest hover:bg-amber-500 hover:text-white transition-colors inline-flex items-center gap-1.5">
                         <GraduationCap size={12} /> Quiz
                       </button>
+                    ) : null;
+                  })()}
+                  {(() => {
+                    const pdfLeccion = pdfsCurso.find(p => p.video_id === localVideo.id);
+                    return pdfLeccion ? (
+                      <a href={`http://localhost:3001/uploads/pdfs/${pdfLeccion.filename}`} target="_blank" rel="noreferrer" className="px-4 py-2 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-colors inline-flex items-center gap-1.5">
+                        <FileText size={12} /> PDF de la lección
+                      </a>
+                    ) : null;
+                  })()}
+                  {(() => {
+                    const pdfCurso = pdfsCurso.find(p => p.video_id === null);
+                    return pdfCurso ? (
+                      <a href={`http://localhost:3001/uploads/pdfs/${pdfCurso.filename}`} target="_blank" rel="noreferrer" className="px-4 py-2 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-colors inline-flex items-center gap-1.5">
+                        <FileText size={12} /> PDF del curso
+                      </a>
                     ) : null;
                   })()}
                   {siguienteLeccion && (

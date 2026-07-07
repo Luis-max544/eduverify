@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Palette, Clapperboard, Folder, ListVideo, GraduationCap, ChevronUp, ChevronDown,
-  Image, User, X, ArrowLeft, Link, Star, Plus, Eye, EyeOff, ClipboardCheck
+  Image, User, X, ArrowLeft, Link, Star, Plus, Eye, EyeOff, ClipboardCheck, FileText
 } from 'lucide-react';
 import { videos as videosApi, users as usersApi, profesorPlaylists } from '../api';
 import { useToast } from './Toast';
@@ -41,6 +41,10 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
   const [editandoQuiz, setEditandoQuiz] = useState(null); // { playlistId, videoId }
   const [quizForm, setQuizForm] = useState({ titulo: '', min_aprobacion: 70, preguntas: [{ pregunta: '', opciones: ['', ''], correcta: 0 }] });
   const [cargandoQuiz, setCargandoQuiz] = useState(false);
+
+  const [pdfsCurso, setPdfsCurso] = useState([]);
+  const [subiendoPdf, setSubiendoPdf] = useState(false);
+  const fileRef = React.useRef();
 
   const abrirEditor = (v) => {
     setEditForm({
@@ -162,6 +166,7 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
     } else {
       setPlaylistExpandida(playlist.id);
       setDescEdit(playlist.descripcion || '');
+      cargarPdfs(playlist.id);
     }
   };
 
@@ -335,6 +340,37 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
 
   const eliminarPregunta = (idx) => {
     setQuizForm(prev => ({ ...prev, preguntas: prev.preguntas.filter((_, i) => i !== idx) }));
+  };
+
+  const cargarPdfs = (playlistId) => {
+    profesorPlaylists.getPdfs(playlistId).then(setPdfsCurso).catch(() => {});
+  };
+
+  const handleUploadPdf = async (playlistId, videoId = null) => {
+    const file = fileRef.current?.files?.[0];
+    if (!file) return notify.error('Selecciona un archivo PDF.');
+    setSubiendoPdf(true);
+    try {
+      await profesorPlaylists.uploadPdf(playlistId, file, videoId);
+      cargarPdfs(playlistId);
+      notify.success('PDF subido.');
+      if (fileRef.current) fileRef.current.value = '';
+    } catch (err) {
+      notify.error(`Error al subir PDF: ${err.message}`);
+    } finally {
+      setSubiendoPdf(false);
+    }
+  };
+
+  const handleRemovePdf = async (playlistId, pdfId) => {
+    if (!confirm('¿Eliminar este PDF?')) return;
+    try {
+      await profesorPlaylists.removePdf(playlistId, pdfId);
+      cargarPdfs(playlistId);
+      notify.success('PDF eliminado.');
+    } catch (err) {
+      notify.error(`Error al eliminar: ${err.message}`);
+    }
   };
 
   return (
@@ -551,6 +587,20 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
                                         className="w-6 h-6 rounded-md bg-gray-500/10 text-gray-500 hover:bg-blue-500/20 hover:text-blue-500 disabled:opacity-30 shrink-0 inline-flex items-center justify-center"
                                       ><ChevronDown size={14} /></button>
                                       <button onClick={() => abrirQuizEditor(playlist, v.id)} className="w-6 h-6 rounded-md bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white shrink-0 inline-flex items-center justify-center" title="Editar quiz"><ClipboardCheck size={12} /></button>
+                                      {(() => {
+                                        const pdfLeccion = pdfsCurso.find(p => p.video_id === v.id);
+                                        if (pdfLeccion) return (
+                                          <span className="flex items-center gap-1 text-[9px] font-bold text-blue-500">
+                                            <a href={`http://localhost:3001/uploads/pdfs/${pdfLeccion.filename}`} target="_blank" rel="noreferrer" className="hover:underline" title={pdfLeccion.original_name}><FileText size={12} /></a>
+                                            <button onClick={() => handleRemovePdf(playlist.id, pdfLeccion.id)} className="text-red-400 hover:text-red-500"><X size={10} /></button>
+                                          </span>
+                                        );
+                                        return (
+                                          <button onClick={() => { fileRef.current?.click(); if (fileRef.current) fileRef.current.onchange = () => handleUploadPdf(playlist.id, v.id); }} className="w-6 h-6 rounded-md bg-gray-500/10 text-gray-400 hover:text-blue-500 shrink-0 inline-flex items-center justify-center" title="Subir PDF de lección">
+                                            <FileText size={11} />
+                                          </button>
+                                        );
+                                      })()}
                                     </div>
                                   ))
                                 )}
@@ -579,6 +629,29 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
                                   </div>
                                 ) : null;
                               })()}
+
+                              {/* Documento del curso (PDF) */}
+                              <div className="space-y-1.5">
+                                <label className="block text-[9px] font-black uppercase text-gray-400">Documento del curso (PDF)</label>
+                                {(() => {
+                                  const pdfCurso = pdfsCurso.find(p => p.video_id === null);
+                                  return pdfCurso ? (
+                                    <div className="flex items-center gap-2 text-[10px] font-bold">
+                                      <FileText size={12} className="text-blue-500 shrink-0" />
+                                      <span className={`flex-1 truncate ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>{pdfCurso.original_name}</span>
+                                      <a href={`http://localhost:3001/uploads/pdfs/${pdfCurso.filename}`} target="_blank" rel="noreferrer" className="text-blue-500 text-[9px] font-black uppercase hover:underline shrink-0">Ver</a>
+                                      <button onClick={() => handleRemovePdf(playlist.id, pdfCurso.id)} className="text-red-500 text-[9px] font-black uppercase hover:underline shrink-0">Eliminar</button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex gap-2">
+                                      <input type="file" accept="application/pdf" ref={fileRef} className={`text-[10px] ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                                      <button type="button" disabled={subiendoPdf} onClick={() => handleUploadPdf(playlist.id)} className="bg-blue-600 hover:bg-blue-500 text-white font-black text-[9px] uppercase tracking-widest px-3 py-1.5 rounded-lg disabled:opacity-40 shrink-0">
+                                        {subiendoPdf ? 'Subiendo...' : 'Subir'}
+                                      </button>
+                                    </div>
+                                  );
+                                })()}
+                              </div>
 
                             </div>
                           )}

@@ -198,6 +198,20 @@ export const quizAttempts = mysqlTable('quiz_attempts', {
   index('qa_quiz_user_idx').on(t.quiz_id, t.user_id),
 ]);
 
+// ─── PDF RESOURCES ───────────────────────────────────────────────────────────
+
+export const pdfResources = mysqlTable('pdf_resources', {
+  id:            int('id').primaryKey().autoincrement(),
+  playlist_id:   int('playlist_id').notNull().references(() => profesorPlaylists.id, { onDelete: 'cascade' }),
+  video_id:      int('video_id').references(() => videos.id, { onDelete: 'cascade' }),
+  filename:      varchar('filename', { length: 500 }).notNull(),
+  original_name: varchar('original_name', { length: 255 }).notNull(),
+  created_at:    timestamp('created_at').defaultNow(),
+}, (t) => [
+  unique('pdf_playlist_video_uq').on(t.playlist_id, t.video_id),
+  index('pdf_playlist_id_idx').on(t.playlist_id),
+]);
+
 // ─── SUBSCRIPTIONS ────────────────────────────────────────────────────────────
 
 export const subscriptions = mysqlTable('subscriptions', {
@@ -283,6 +297,7 @@ export const profesorPlaylistsRelations = relations(profesorPlaylists, ({ one, m
   enrollments: many(courseEnrollments),
   reviews:     many(courseReviews),
   quizzes:     many(quizzes),
+  pdfs:         many(pdfResources),
 }));
 
 export const quizzesRelations = relations(quizzes, ({ one, many }) => ({
