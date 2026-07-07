@@ -1,6 +1,6 @@
 import {
   mysqlTable, int, varchar, text, boolean, timestamp,
-  datetime, mysqlEnum, index, primaryKey, unique
+  datetime, mysqlEnum, index, primaryKey, unique, json
 } from 'drizzle-orm/mysql-core';
 import { relations } from 'drizzle-orm';
 
@@ -157,6 +157,47 @@ export const courseReviews = mysqlTable('course_reviews', {
   index('review_playlist_id_idx').on(t.playlist_id),
 ]);
 
+// ─── QUIZZES ──────────────────────────────────────────────────────────────────
+
+export const quizzes = mysqlTable('quizzes', {
+  id:             int('id').primaryKey().autoincrement(),
+  playlist_id:    int('playlist_id').notNull().references(() => profesorPlaylists.id, { onDelete: 'cascade' }),
+  video_id:       int('video_id').references(() => videos.id, { onDelete: 'cascade' }), // NULL = examen final del curso
+  titulo:         varchar('titulo', { length: 255 }),
+  min_aprobacion: int('min_aprobacion').notNull().default(70),
+  created_at:     timestamp('created_at').defaultNow(),
+  updated_at:     timestamp('updated_at').defaultNow().onUpdateNow(),
+}, (t) => [
+  index('quiz_playlist_id_idx').on(t.playlist_id),
+  // MySQL no deduplica NULLs en unique: la unicidad del examen final se garantiza en código
+  unique('quiz_playlist_video_uq').on(t.playlist_id, t.video_id),
+]);
+
+export const quizQuestions = mysqlTable('quiz_questions', {
+  id:       int('id').primaryKey().autoincrement(),
+  quiz_id:  int('quiz_id').notNull().references(() => quizzes.id, { onDelete: 'cascade' }),
+  pregunta: text('pregunta').notNull(),
+  opciones: json('opciones').notNull(), // array de 2-6 strings (validado en zod)
+  correcta: int('correcta').notNull(),  // índice 0-based (validado en zod)
+  orden:    int('orden').notNull().default(0),
+}, (t) => [
+  index('qq_quiz_id_idx').on(t.quiz_id),
+]);
+
+export const quizAttempts = mysqlTable('quiz_attempts', {
+  id:         int('id').primaryKey().autoincrement(),
+  quiz_id:    int('quiz_id').notNull().references(() => quizzes.id, { onDelete: 'cascade' }),
+  user_id:    int('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  correctas:  int('correctas').notNull(),
+  total:      int('total').notNull(),
+  score:      int('score').notNull(), // 0-100 redondeado
+  passed:     boolean('passed').notNull().default(false),
+  respuestas: json('respuestas').notNull(), // { [question_id]: opcion_index }
+  created_at: timestamp('created_at').defaultNow(),
+}, (t) => [
+  index('qa_quiz_user_idx').on(t.quiz_id, t.user_id),
+]);
+
 // ─── SUBSCRIPTIONS ────────────────────────────────────────────────────────────
 
 export const subscriptions = mysqlTable('subscriptions', {
@@ -241,6 +282,23 @@ export const profesorPlaylistsRelations = relations(profesorPlaylists, ({ one, m
   videos:      many(profesorPlaylistVideos),
   enrollments: many(courseEnrollments),
   reviews:     many(courseReviews),
+  quizzes:     many(quizzes),
+}));
+
+export const quizzesRelations = relations(quizzes, ({ one, many }) => ({
+  playlist:  one(profesorPlaylists, { fields: [quizzes.playlist_id], references: [profesorPlaylists.id] }),
+  video:     one(videos, { fields: [quizzes.video_id], references: [videos.id] }),
+  questions: many(quizQuestions),
+  attempts:  many(quizAttempts),
+}));
+
+export const quizQuestionsRelations = relations(quizQuestions, ({ one }) => ({
+  quiz: one(quizzes, { fields: [quizQuestions.quiz_id], references: [quizzes.id] }),
+}));
+
+export const quizAttemptsRelations = relations(quizAttempts, ({ one }) => ({
+  quiz: one(quizzes, { fields: [quizAttempts.quiz_id], references: [quizzes.id] }),
+  user: one(users, { fields: [quizAttempts.user_id], references: [users.id] }),
 }));
 
 export const courseEnrollmentsRelations = relations(courseEnrollments, ({ one }) => ({

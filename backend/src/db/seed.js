@@ -9,6 +9,7 @@ import {
   profesorPlaylists, profesorPlaylistVideos,
   courseEnrollments, lessonProgress, courseReviews,
   subscriptions, notifications, favorites, history,
+  quizzes, quizQuestions,
 } from './schema.js';
 
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
@@ -240,6 +241,55 @@ async function main() {
   await bulkInsert(profesorPlaylistVideos, ppvRows);
   console.log(`   ✓ ${ppIds.length} cursos + ${ppvRows.length} lecciones`);
 
+  // ── Quizzes ──
+  console.log('📝 Generando quizzes...');
+  const quizRows = [];
+  const questionRows = [];
+
+  for (let ppi = 0; ppi < ppIds.length; ppi++) {
+    const playlistId = ppIds[ppi];
+    const myVids = vidsByAuthor[ppRows[ppi].user_id] || [];
+    if (myVids.length < 2) continue;
+
+    if (faker.datatype.boolean(0.3)) {
+      const qCount = faker.number.int({ min: 3, max: 5 });
+      quizRows.push({ playlist_id: playlistId, video_id: null, titulo: pick(['Examen final', 'Evaluación del curso', 'Certificación del módulo', 'Prueba integral', null]), min_aprobacion: pick([60, 70, 80]), qCount });
+      for (let q = 0; q < qCount; q++) {
+        const cat = pick(CATEGORIAS);
+        const opciones = [faker.lorem.sentence(), faker.lorem.sentence(), faker.lorem.sentence(), faker.lorem.sentence()];
+        questionRows.push({ quizRef: quizRows.length - 1, pregunta: `¿Cuál de las siguientes afirmaciones sobre ${cat.toLowerCase()} es correcta?`, opciones, correcta: faker.number.int({ min: 0, max: 3 }) });
+      }
+    }
+
+    for (const vid of myVids.slice(0, Math.ceil(myVids.length * 0.2))) {
+      const qCount = faker.number.int({ min: 2, max: 4 });
+      quizRows.push({ playlist_id: playlistId, video_id: vid, titulo: null, min_aprobacion: pick([60, 70, 80]), qCount });
+      for (let q = 0; q < qCount; q++) {
+        const cat = pick(CATEGORIAS);
+        const opciones = [faker.lorem.sentence(), faker.lorem.sentence(), faker.lorem.sentence()];
+        questionRows.push({ quizRef: quizRows.length - 1, pregunta: `¿Cuál concepto describe mejor ${cat.toLowerCase()}?`, opciones, correcta: faker.number.int({ min: 0, max: 2 }) });
+      }
+    }
+  }
+
+  // Insert quizzes one by one to capture IDs (ponytail: ~40 inserts, negligible)
+  const quizIds = [];
+  for (const r of quizRows) {
+    const { qCount, ...row } = r;
+    const result = await db.insert(quizzes).values(row);
+    quizIds.push(Number(result[0].insertId));
+  }
+
+  const qqRows = questionRows.map(q => ({
+    quiz_id: quizIds[q.quizRef],
+    pregunta: q.pregunta,
+    opciones: JSON.stringify(q.opciones),
+    correcta: q.correcta,
+    orden: 0,
+  }));
+  if (qqRows.length > 0) await bulkInsert(quizQuestions, qqRows);
+  console.log(`   ✓ ${quizIds.length} quizzes + ${qqRows.length} preguntas`);
+
   // ── Enrollments + Progress + Reviews ──
   console.log('📝 Inscripciones...');
   const ceRows = [];
@@ -343,6 +393,7 @@ async function main() {
     ['course_reviews', crRows.length], ['subscriptions', subRows.length],
     ['notifications', notifRows.length], ['favorites', favRows.length],
     ['history', histRows.length],
+    ['quizzes', quizIds.length], ['quiz_questions', qqRows.length],
   ];
   for (const [table, expected] of checks) {
     const [row] = await pool.execute(`SELECT COUNT(*) as c FROM ${table}`);

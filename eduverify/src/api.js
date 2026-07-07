@@ -120,6 +120,9 @@ export const profesorPlaylists = {
   addVideo: (id, videoId, orden) =>
     request(`/profesor/playlists/${id}/videos/${videoId}`, { method: 'POST', body: { orden } }),
   removeVideo: (id, videoId) => request(`/profesor/playlists/${id}/videos/${videoId}`, { method: 'DELETE' }),
+  getQuizzes: (id) => request(`/profesor/playlists/${id}/quizzes`),
+  saveQuiz: (id, body) => request(`/profesor/playlists/${id}/quiz`, { method: 'PUT', body }),
+  removeQuiz: (id, quizId) => request(`/profesor/playlists/${id}/quizzes/${quizId}`, { method: 'DELETE' }),
 };
 
 export const cursos = {
@@ -133,6 +136,8 @@ export const cursos = {
   reviews: (id) => request(`/cursos/${id}/reviews`),
   upsertReview: (id, { estrellas, texto }) => request(`/cursos/${id}/reviews`, { method: 'PUT', body: { estrellas, texto } }),
   removeReview: (id) => request(`/cursos/${id}/reviews`, { method: 'DELETE' }),
+  getQuiz: (id, quizId) => request(`/cursos/${id}/quizzes/${quizId}`),
+  submitQuiz: (id, quizId, respuestas) => request(`/cursos/${id}/quizzes/${quizId}/intento`, { method: 'POST', body: { respuestas } }),
 };
 
 export const ai = {

@@ -7,6 +7,7 @@ import { comments as commentsApi, favorites as favoritesApi, playlists as playli
 import TutorIA from './TutorIA';
 import { useToast } from './Toast';
 import Modal from './Modal';
+import QuizModal from './QuizModal';
 
 export default function Reproductor({
   video,
@@ -42,6 +43,7 @@ export default function Reproductor({
   const [pestanaPanel, setPestanaPanel] = useState('comentarios');
   const [cursoCtx, setCursoCtx] = useState(null);
   const [progresoCurso, setProgresoCurso] = useState({ inscrito: false, completadas: [], porcentaje: 0 });
+  const [quizModal, setQuizModal] = useState(null);
 
   useEffect(() => {
     if (!cursoActivoId) { setCursoCtx(null); return; }
@@ -325,6 +327,14 @@ export default function Reproductor({
                   >
                     {leccionCompletada ? <><Check size={12} /> Completada</> : 'Marcar completada'}
                   </button>
+                  {(() => {
+                    const quizId = cursoCtx?.quiz_por_video?.[localVideo.id];
+                    return quizId ? (
+                      <button onClick={() => setQuizModal(quizId)} className="px-4 py-2 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[10px] font-black uppercase tracking-widest hover:bg-amber-500 hover:text-white transition-colors inline-flex items-center gap-1.5">
+                        <GraduationCap size={12} /> Quiz
+                      </button>
+                    ) : null;
+                  })()}
                   {siguienteLeccion && (
                     <button
                       onClick={() => abrirLeccionDeCurso(siguienteLeccion, cursoActivoId)}
@@ -795,6 +805,9 @@ export default function Reproductor({
               </button>
             </form>
       </Modal>
+
+      <QuizModal open={Boolean(quizModal)} onClose={() => setQuizModal(null)} cursoId={cursoActivoId} quizId={quizModal} darkMode={darkMode} />
+
     </div>
   );
 }

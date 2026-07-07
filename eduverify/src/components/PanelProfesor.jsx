@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Palette, Clapperboard, Folder, ListVideo, GraduationCap, ChevronUp, ChevronDown,
-  Image, User, X, ArrowLeft, Link, Star, Plus, Eye, EyeOff
+  Image, User, X, ArrowLeft, Link, Star, Plus, Eye, EyeOff, ClipboardCheck
 } from 'lucide-react';
 import { videos as videosApi, users as usersApi, profesorPlaylists } from '../api';
 import { useToast } from './Toast';
@@ -38,6 +38,9 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
   const [videoSeleccionadoCurso, setVideoSeleccionadoCurso] = useState(null);
   const [editando, setEditando] = useState(null);
   const [editForm, setEditForm] = useState({ titulo: '', descripcion: '', categoria: 'Programación', es_premium: false, visible: true });
+  const [editandoQuiz, setEditandoQuiz] = useState(null); // { playlistId, videoId }
+  const [quizForm, setQuizForm] = useState({ titulo: '', min_aprobacion: 70, preguntas: [{ pregunta: '', opciones: ['', ''], correcta: 0 }] });
+  const [cargandoQuiz, setCargandoQuiz] = useState(false);
 
   const abrirEditor = (v) => {
     setEditForm({
@@ -265,6 +268,75 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
     }
   };
 
+  const abrirQuizEditor = async (playlist, videoId) => {
+    setEditandoQuiz({ playlistId: playlist.id, videoId });
+    setQuizForm({ titulo: '', min_aprobacion: 70, preguntas: [{ pregunta: '', opciones: ['', ''], correcta: 0 }] });
+    setCargandoQuiz(true);
+    try {
+      const quizzes = await profesorPlaylists.getQuizzes(playlist.id);
+      const existente = quizzes.find(q => q.video_id === videoId);
+      if (existente) {
+        setQuizForm({
+          titulo: existente.titulo || '',
+          min_aprobacion: existente.min_aprobacion,
+          preguntas: (existente.preguntas || []).length > 0
+            ? existente.preguntas.map(p => ({ pregunta: p.pregunta, opciones: p.opciones, correcta: p.correcta }))
+            : [{ pregunta: '', opciones: ['', ''], correcta: 0 }],
+        });
+      }
+    } catch {
+      notify.error('No se pudo cargar el quiz existente.');
+    } finally {
+      setCargandoQuiz(false);
+    }
+  };
+
+  const handleGuardarQuiz = async (e) => {
+    e.preventDefault();
+    if (!editandoQuiz) return;
+    const { titulo, min_aprobacion, preguntas } = quizForm;
+    const validas = preguntas.filter(p => p.pregunta.trim() && p.opciones.every(o => o.trim()));
+    if (validas.length === 0) return notify.error('Añade al menos una pregunta con opciones.');
+    if (validas.some(p => p.correcta < 0 || p.correcta >= p.opciones.length)) return notify.error('Marca una opción correcta en cada pregunta.');
+    try {
+      await profesorPlaylists.saveQuiz(editandoQuiz.playlistId, {
+        video_id: editandoQuiz.videoId,
+        titulo: titulo.trim() || null,
+        min_aprobacion,
+        preguntas: validas.map((p, i) => ({ pregunta: p.pregunta.trim(), opciones: p.opciones.map(o => o.trim()), correcta: p.correcta, orden: i })),
+      });
+      cargarPlaylists();
+      setEditandoQuiz(null);
+      notify.success('Quiz guardado.');
+    } catch (err) {
+      notify.error(`Error al guardar el quiz: ${err.message}`);
+    }
+  };
+
+  const handleEliminarQuiz = async () => {
+    if (!editandoQuiz) return;
+    if (!confirm('¿Eliminar el quiz de esta lección?')) return;
+    try {
+      const quizzes = await profesorPlaylists.getQuizzes(editandoQuiz.playlistId);
+      const existente = quizzes.find(q => q.video_id === editandoQuiz.videoId);
+      if (!existente) return;
+      await profesorPlaylists.removeQuiz(editandoQuiz.playlistId, existente.id);
+      cargarPlaylists();
+      setEditandoQuiz(null);
+      notify.success('Quiz eliminado.');
+    } catch (err) {
+      notify.error(`Error al eliminar: ${err.message}`);
+    }
+  };
+
+  const agregarPregunta = () => {
+    setQuizForm(prev => ({ ...prev, preguntas: [...prev.preguntas, { pregunta: '', opciones: ['', ''], correcta: 0 }] }));
+  };
+
+  const eliminarPregunta = (idx) => {
+    setQuizForm(prev => ({ ...prev, preguntas: prev.preguntas.filter((_, i) => i !== idx) }));
+  };
+
   return (
     <div className="relative min-h-screen pb-20 animate-fade-in select-none text-left">
       {subVista === 'canal' && (
@@ -478,6 +550,7 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
                                         disabled={idx === videosDeLista.length - 1}
                                         className="w-6 h-6 rounded-md bg-gray-500/10 text-gray-500 hover:bg-blue-500/20 hover:text-blue-500 disabled:opacity-30 shrink-0 inline-flex items-center justify-center"
                                       ><ChevronDown size={14} /></button>
+                                      <button onClick={() => abrirQuizEditor(playlist, v.id)} className="w-6 h-6 rounded-md bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white shrink-0 inline-flex items-center justify-center" title="Editar quiz"><ClipboardCheck size={12} /></button>
                                     </div>
                                   ))
                                 )}
@@ -616,6 +689,67 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
           </div>
         </div>
       )}
+
+      {/* Modal de edición de quiz */}
+      <Modal open={Boolean(editandoQuiz)} onClose={() => setEditandoQuiz(null)} title="Quiz de la lección" icon={ClipboardCheck} darkMode={darkMode} maxWidth="max-w-lg">
+        {cargandoQuiz ? (
+          <p className="text-center py-8 text-xs text-gray-400 uppercase tracking-wider animate-pulse">Cargando quiz...</p>
+        ) : (
+          <form onSubmit={handleGuardarQuiz} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Título (opcional)</label>
+                <input type="text" value={quizForm.titulo} onChange={(e) => setQuizForm(prev => ({ ...prev, titulo: e.target.value }))} placeholder="Quiz de la lección..."
+                  className={darkMode ? "w-full p-2.5 rounded-xl border text-xs bg-gray-950 border-white/5 text-white" : "w-full p-2.5 rounded-xl border text-xs bg-gray-50 border-gray-200 text-black"} />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Aprobación mínima %</label>
+                <input type="number" min="1" max="100" value={quizForm.min_aprobacion} onChange={(e) => setQuizForm(prev => ({ ...prev, min_aprobacion: Number(e.target.value) }))}
+                  className={darkMode ? "w-full p-2.5 rounded-xl border text-xs bg-gray-950 border-white/5 text-white" : "w-full p-2.5 rounded-xl border text-xs bg-gray-50 border-gray-200 text-black"} />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="block text-[10px] font-bold text-gray-400 uppercase">Preguntas</label>
+                <button type="button" onClick={agregarPregunta} className="text-[9px] font-black uppercase tracking-wider text-blue-500 hover:text-blue-400">+ Añadir pregunta</button>
+              </div>
+
+              {quizForm.preguntas.map((p, pi) => (
+                <div key={pi} className={`p-3 rounded-2xl border ${darkMode ? 'border-white/5 bg-gray-950/40' : 'border-gray-200 bg-gray-50'}`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[10px] font-bold text-gray-400">{pi + 1}.</span>
+                    <input type="text" value={p.pregunta} onChange={(e) => { const n = [...quizForm.preguntas]; n[pi] = { ...n[pi], pregunta: e.target.value }; setQuizForm(prev => ({ ...prev, preguntas: n })); }} placeholder="Escribe la pregunta..."
+                      className={darkMode ? "flex-1 p-2 rounded-xl border text-[11px] bg-gray-950 border-white/5 text-white" : "flex-1 p-2 rounded-xl border text-[11px] bg-white border-gray-200 text-black"} />
+                    <button type="button" onClick={() => eliminarPregunta(pi)} className="text-red-500 hover:text-red-400 shrink-0"><X size={14} /></button>
+                  </div>
+                  {p.opciones.map((opt, oi) => (
+                    <div key={oi} className="flex items-center gap-2 ml-5 mt-1">
+                      <input type="radio" name={`correcta_${pi}`} checked={p.correcta === oi} onChange={() => { const n = [...quizForm.preguntas]; n[pi] = { ...n[pi], correcta: oi }; setQuizForm(prev => ({ ...prev, preguntas: n })); }}
+                        className="w-3 h-3 accent-amber-500 cursor-pointer" />
+                      <input type="text" value={opt} onChange={(e) => { const n = [...quizForm.preguntas]; n[pi].opciones[oi] = e.target.value; setQuizForm(prev => ({ ...prev, preguntas: n })); }} placeholder={`Opción ${oi + 1}`}
+                        className={darkMode ? "flex-1 p-1.5 rounded-lg border text-[10px] bg-gray-950 border-white/5 text-white" : "flex-1 p-1.5 rounded-lg border text-[10px] bg-white border-gray-200 text-black"} />
+                      {p.opciones.length > 2 && (
+                        <button type="button" onClick={() => { const n = [...quizForm.preguntas]; n[pi].opciones.splice(oi, 1); if (n[pi].correcta >= n[pi].opciones.length) n[pi].correcta = 0; setQuizForm(prev => ({ ...prev, preguntas: n })); }} className="text-gray-400 hover:text-red-500 shrink-0"><X size={12} /></button>
+                      )}
+                    </div>
+                  ))}
+                  {p.opciones.length < 6 && (
+                    <button type="button" onClick={() => { const n = [...quizForm.preguntas]; n[pi].opciones.push(''); setQuizForm(prev => ({ ...prev, preguntas: n })); }} className="text-[9px] font-bold text-blue-500 uppercase ml-5 mt-1.5 hover:text-blue-400">+ Añadir opción</button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 text-[10px] font-black uppercase tracking-wider">
+              <button type="button" onClick={handleEliminarQuiz} className="px-4 py-2 rounded-xl text-red-500 hover:bg-red-500/10">Eliminar Quiz</button>
+              <button type="button" onClick={() => setEditandoQuiz(null)} className="px-4 py-2 rounded-xl text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5">Cancelar</button>
+              <button type="submit" className="bg-blue-600 text-white px-5 py-2 rounded-xl shadow-md hover:bg-blue-500 transition-colors">Guardar Quiz</button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
     </div>
   );
 }

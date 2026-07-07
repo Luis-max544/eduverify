@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { eq, and, sql, inArray } from 'drizzle-orm';
+import { eq, and, sql, inArray, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../config/db.js';
-import { profesorPlaylists, profesorPlaylistVideos, videos, users, courseReviews } from '../db/schema.js';
+import { profesorPlaylists, profesorPlaylistVideos, videos, users, courseReviews, quizzes, quizQuestions } from '../db/schema.js';
 import { verifyToken, requireRol } from '../middleware/auth.js';
 import { env } from '../config/env.js';
 
@@ -167,7 +167,110 @@ router.delete('/:id/videos/:videoId', verifyToken, async (req, res, next) => {
     await db.delete(profesorPlaylistVideos).where(
       and(eq(profesorPlaylistVideos.playlist_id, playlistId), eq(profesorPlaylistVideos.video_id, videoId))
     );
+    // El quiz de la lección queda huérfano al sacar el video de la playlist — se borra aquí
+    await db.delete(quizzes).where(
+      and(eq(quizzes.playlist_id, playlistId), eq(quizzes.video_id, videoId))
+    );
     res.json({ status: 'success', data: { message: 'Video eliminado' } });
+  } catch (err) { next(err); }
+});
+
+// ─── QUIZZES (owner) ─────────────────────────────────────────────────────────
+
+const preguntaSchema = z.object({
+  pregunta: z.string().min(1).max(2000),
+  opciones: z.array(z.string().min(1).max(500)).min(2).max(6),
+  correcta: z.number().int().min(0),
+}).refine(p => p.correcta < p.opciones.length, { message: 'correcta fuera de rango' });
+
+async function getQuizConPreguntas(quizId) {
+  const [quiz] = await db.select().from(quizzes).where(eq(quizzes.id, quizId));
+  if (!quiz) return null;
+  const preguntas = await db
+    .select({
+      id: quizQuestions.id, pregunta: quizQuestions.pregunta,
+      opciones: quizQuestions.opciones, correcta: quizQuestions.correcta,
+      orden: quizQuestions.orden,
+    })
+    .from(quizQuestions)
+    .where(eq(quizQuestions.quiz_id, quizId))
+    .orderBy(quizQuestions.orden);
+  return { ...quiz, preguntas };
+}
+
+// GET /api/profesor/playlists/:id/quizzes — todos los quizzes del curso, con respuestas (owner)
+router.get('/:id/quizzes', verifyToken, async (req, res, next) => {
+  try {
+    const playlistId = Number(req.params.id);
+    if (!await ownerCheck(playlistId, req.user.sub, res)) return;
+
+    const qs = await db.select().from(quizzes).where(eq(quizzes.playlist_id, playlistId));
+    const data = await Promise.all(qs.map(q => getQuizConPreguntas(q.id)));
+    res.json({ status: 'success', data });
+  } catch (err) { next(err); }
+});
+
+// PUT /api/profesor/playlists/:id/quiz — crea/reemplaza el quiz de una lección o el examen final (video_id null)
+router.put('/:id/quiz', verifyToken, async (req, res, next) => {
+  try {
+    const playlistId = Number(req.params.id);
+    if (!await ownerCheck(playlistId, req.user.sub, res)) return;
+
+    const { video_id, titulo, min_aprobacion, preguntas } = z.object({
+      video_id: z.number().int().positive().nullable(),
+      titulo: z.string().max(255).nullable().optional(),
+      min_aprobacion: z.number().int().min(1).max(100).default(70),
+      preguntas: z.array(preguntaSchema).min(1).max(50),
+    }).parse(req.body);
+
+    if (video_id !== null) {
+      const [pertenece] = await db.select({ video_id: profesorPlaylistVideos.video_id })
+        .from(profesorPlaylistVideos)
+        .where(and(eq(profesorPlaylistVideos.playlist_id, playlistId), eq(profesorPlaylistVideos.video_id, video_id)));
+      if (!pertenece) {
+        return res.status(400).json({ status: 'error', message: 'El video no pertenece a este curso' });
+      }
+    }
+
+    // select-then-update: el unique de MySQL no deduplica video_id NULL (examen final)
+    const [existente] = await db.select({ id: quizzes.id }).from(quizzes).where(and(
+      eq(quizzes.playlist_id, playlistId),
+      video_id === null ? isNull(quizzes.video_id) : eq(quizzes.video_id, video_id),
+    ));
+
+    let quizId;
+    if (existente) {
+      quizId = existente.id;
+      await db.update(quizzes).set({ titulo: titulo ?? null, min_aprobacion }).where(eq(quizzes.id, quizId));
+      await db.delete(quizQuestions).where(eq(quizQuestions.quiz_id, quizId));
+    } else {
+      const [result] = await db.insert(quizzes).values({
+        playlist_id: playlistId, video_id, titulo: titulo ?? null, min_aprobacion,
+      });
+      quizId = result.insertId;
+    }
+
+    await db.insert(quizQuestions).values(preguntas.map((p, i) => ({
+      quiz_id: quizId, pregunta: p.pregunta, opciones: p.opciones, correcta: p.correcta, orden: i,
+    })));
+
+    res.json({ status: 'success', data: await getQuizConPreguntas(quizId) });
+  } catch (err) { next(err); }
+});
+
+// DELETE /api/profesor/playlists/:id/quizzes/:quizId
+router.delete('/:id/quizzes/:quizId', verifyToken, async (req, res, next) => {
+  try {
+    const playlistId = Number(req.params.id);
+    const quizId = Number(req.params.quizId);
+    if (!await ownerCheck(playlistId, req.user.sub, res)) return;
+
+    const [quiz] = await db.select({ id: quizzes.id }).from(quizzes)
+      .where(and(eq(quizzes.id, quizId), eq(quizzes.playlist_id, playlistId)));
+    if (!quiz) return res.status(404).json({ status: 'error', message: 'Quiz no encontrado en este curso' });
+
+    await db.delete(quizzes).where(eq(quizzes.id, quizId));
+    res.json({ status: 'success', data: { message: 'Quiz eliminado' } });
   } catch (err) { next(err); }
 });
 

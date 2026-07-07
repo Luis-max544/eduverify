@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { GraduationCap, Star, Play, Check, Clapperboard, ArrowRight } from 'lucide-react';
+import { GraduationCap, Star, Play, Check, Clapperboard, ArrowRight, HelpCircle } from 'lucide-react';
 import { cursos as cursosApi } from '../api';
 import { useToast } from './Toast';
+import QuizModal from './QuizModal';
 
 export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abrirCanalProfesor, abrirLeccionDeCurso }) {
   const [curso, setCurso] = useState(null);
@@ -9,6 +10,7 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
   const [progreso, setProgreso] = useState({ inscrito: false, completadas: [], porcentaje: 0 });
   const [reviews, setReviews] = useState({ items: [], promedio: null, total: 0 });
   const [cargando, setCargando] = useState(true);
+  const [quizModal, setQuizModal] = useState(null);
 
   // Formulario de reseña propia
   const [estrellasForm, setEstrellasForm] = useState(0);
@@ -217,6 +219,11 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
                           <Star size={9} className="fill-current" /> Premium
                         </span>
                       )}
+                      {leccion.quiz_id && (
+                        <span className="ml-2 bg-amber-500/10 text-amber-500 text-[8px] font-black uppercase px-1.5 py-0.5 rounded inline-flex items-center gap-0.5 align-middle">
+                          <HelpCircle size={9} /> Quiz
+                        </span>
+                      )}
                     </h4>
                     <p className="text-[10px] text-gray-400 font-mono font-bold uppercase mt-0.5">{leccion.duracion || '00:00'} • {leccion.categoria}</p>
                   </div>
@@ -227,6 +234,30 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
           </div>
         )}
       </div>
+
+      {/* EXAMEN FINAL DEL CURSO */}
+      {curso.quiz_final && (
+        <div className={`p-5 rounded-3xl border ${darkMode ? 'bg-amber-500/5 border-amber-500/20' : 'bg-amber-50 border-amber-200'}`}>
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+                <GraduationCap size={20} className="text-amber-500" />
+              </div>
+              <div>
+                <h3 className="text-xs font-black uppercase tracking-wider text-amber-500">{curso.quiz_final.titulo || 'Examen final del curso'}</h3>
+                <p className="text-[10px] text-gray-400 font-bold mt-0.5">{curso.quiz_final.num_preguntas} preguntas &middot; Mínimo {curso.quiz_final.min_aprobacion}% para aprobar</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setQuizModal(curso.quiz_final.id)}
+              disabled={!progreso.inscrito}
+              className="px-5 py-2.5 rounded-full bg-amber-500 hover:bg-amber-400 disabled:opacity-30 text-white text-[10px] font-black uppercase tracking-widest shadow-md shrink-0 inline-flex items-center gap-1.5"
+            >
+              {progreso.inscrito ? 'Realizar examen' : 'Inscríbete primero'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* RESEÑAS */}
       <div className="space-y-4">
@@ -309,6 +340,8 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
           </div>
         )}
       </div>
+
+      <QuizModal open={Boolean(quizModal)} onClose={() => setQuizModal(null)} cursoId={cursoId} quizId={quizModal} darkMode={darkMode} />
     </div>
   );
 }
