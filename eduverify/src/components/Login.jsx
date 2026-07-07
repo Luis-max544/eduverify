@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { auth, setToken } from '../api';
 
 export default function Login({ setVista, setUsuario, paramsReset, setParamsReset }) {
   const [esLogin, setEsLogin] = useState(true);
@@ -24,34 +25,14 @@ export default function Login({ setVista, setUsuario, paramsReset, setParamsRese
       setModoRecuperar(false);
     }
 
-    // Inicializar el SDK de Google de forma dinámica y segura
+    // El credential de Google se valida en el servidor (POST /api/auth/google)
     const handleCredentialResponse = async (response) => {
       setLoading(true);
       setError('');
       try {
-        // En producción, puedes enviar response.credential a tu api/login_google.php para validar el JWT
-        // Aquí decodificamos el payload de forma simulada y segura para persistir la sesión inmediatamente
-        const base64Url = response.credential.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
-          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-
-        const googleUser = JSON.parse(jsonPayload);
-
-        // Crear el objeto de usuario adaptado a la arquitectura de EduVerify
-        const usuarioLogueado = {
-          id: googleUser.sub,
-          nombre: googleUser.name,
-          email: googleUser.email,
-          correo: googleUser.email,
-          foto: googleUser.picture,
-          rol: 'estudiante', // Rol predeterminado para accesos rápidos con Google
-          premium: false
-        };
-
-        localStorage.setItem('usuario_eduverify', JSON.stringify(usuarioLogueado));
-        setUsuario(usuarioLogueado);
+        const data = await auth.google(response.credential);
+        setToken(data.token);
+        setUsuario(data.user);
         setVista('catalogo');
       } catch (err) {
         setError("⚠️ Error al autenticar las credenciales con tu cuenta de Google.");
@@ -61,9 +42,10 @@ export default function Login({ setVista, setUsuario, paramsReset, setParamsRese
     };
 
     // Cargar e inicializar el botón de Google si existe el SDK en la ventana global
-    if (window.google && !modoNuevoPassword && !modoRecuperar) {
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (window.google && googleClientId && !modoNuevoPassword && !modoRecuperar) {
       window.google.accounts.id.initialize({
-        client_id: "TU_CLIENT_ID_DE_GOOGLE.apps.googleusercontent.com", // Reemplazar por tu Client ID de Google Cloud Console
+        client_id: googleClientId,
         callback: handleCredentialResponse
       });
       window.google.accounts.id.renderButton(
@@ -87,26 +69,17 @@ export default function Login({ setVista, setUsuario, paramsReset, setParamsRese
         return;
       }
       try {
-        const response = await fetch('./api/actualizar_password.php', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            id: paramsReset.id, 
-            token: paramsReset.token, 
-            password: nuevoPassword 
-          })
+        await auth.actualizarPassword({
+          id: paramsReset.id,
+          token: paramsReset.token,
+          password: nuevoPassword
         });
-        const data = await response.json();
-        if (data.status === 'success') {
-          setExito("🎉 ¡Contraseña actualizada con éxito! Ya puedes iniciar sesión.");
-          setModoNuevoPassword(false);
-          setEsLogin(true);
-          setParamsReset(null); 
-        } else {
-          setError(data.message || "El enlace ya expiró o no es válido.");
-        }
+        setExito("🎉 ¡Contraseña actualizada con éxito! Ya puedes iniciar sesión.");
+        setModoNuevoPassword(false);
+        setEsLogin(true);
+        setParamsReset(null);
       } catch (err) {
-        setError("Error al procesar la actualización en el servidor.");
+        setError(err.message || "El enlace ya expiró o no es válido.");
       } finally {
         setLoading(false);
       }
@@ -116,20 +89,11 @@ export default function Login({ setVista, setUsuario, paramsReset, setParamsRese
     // FLUJO 2: PETICIÓN DE ENVÍO DE TOKEN AL CORREO
     if (modoRecuperar) {
       try {
-        const response = await fetch('./api/cambiar_password.php', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: email.trim() })
-        });
-        const data = await response.json();
-        if (data.status === 'success') {
-          setExito(`📬 Enlace enviado. Revisa tu bandeja de entrada o Spam en: ${email}`);
-          setEmail('');
-        } else {
-          setError(data.message || "El correo electrónico no está registrado.");
-        }
+        await auth.cambiarPassword(email.trim());
+        setExito(`📬 Enlace enviado. Revisa tu bandeja de entrada o Spam en: ${email}`);
+        setEmail('');
       } catch (err) {
-        setError("Error al procesar la solicitud de recuperación.");
+        setError(err.message || "Error al procesar la solicitud de recuperación.");
       } finally {
         setLoading(false);
       }
@@ -139,55 +103,30 @@ export default function Login({ setVista, setUsuario, paramsReset, setParamsRese
     // FLUJO 3: LOGUEAR USUARIO TRADICIONAL
     if (esLogin) {
       try {
-        const response = await fetch('./api/login.php', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ correo: email, password })
-        });
-        
-        const data = await response.json();
-
-        if (data.status === 'success') {
-          localStorage.setItem('usuario_eduverify', JSON.stringify(data.user));
-          setUsuario(data.user);
-          setVista('catalogo');
-        } else {
-          setError(data.message || "Credenciales incorrectas.");
-        }
+        const data = await auth.login({ correo: email, password });
+        setToken(data.token);
+        setUsuario(data.user);
+        setVista('catalogo');
       } catch (err) {
-        setError("Error al comunicar con el login de Hostinger.");
+        setError(err.message || "Credenciales incorrectas.");
       } finally {
         setLoading(false);
       }
     } else {
-      // FLUJO 4: REGISTRAR CUENTA NUEVA
+      // FLUJO 4: REGISTRAR CUENTA NUEVA (el registro no devuelve token — se encadena login)
       try {
-        const response = await fetch('./api/registro.php', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            nombre: nombre || email.split('@')[0], 
-            correo: email, 
-            password, 
-            rol 
-          })
+        await auth.registro({
+          nombre: nombre || email.split('@')[0],
+          correo: email,
+          password,
+          rol
         });
-        
-        const data = await response.json();
-
-        if (data.status === 'success') {
-          setExito(`🎉 ¡Cuenta de ${rol === 'profesor' ? 'Docente' : 'Estudiante'} registrada con éxito!`);
-          setNombre('');
-          setPassword('');
-          setTimeout(() => {
-            setEsLogin(true);
-            setExito('');
-          }, 2500);
-        } else {
-          setError(data.message || "Error al registrar.");
-        }
+        const data = await auth.login({ correo: email, password });
+        setToken(data.token);
+        setUsuario(data.user);
+        setVista('catalogo');
       } catch (err) {
-        setError("Error al comunicar con el registro de Hostinger.");
+        setError(err.message || "Error al registrar.");
       } finally {
         setLoading(false);
       }
@@ -232,7 +171,7 @@ export default function Login({ setVista, setUsuario, paramsReset, setParamsRese
             <div className="space-y-4 animate-fade-in">
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-widest mb-2 text-gray-500 dark:text-gray-400">Nueva Contraseña</label>
-                <input type="password" required value={nuevoPassword} onChange={(e) => setNuevoPassword(e.target.value)} placeholder="Mínimo 6 caracteres" className="w-full rounded-xl px-4 py-3 text-sm outline-none transition bg-gray-50 border border-gray-200 text-gray-900 focus:border-blue-500 dark:bg-gray-950/60 dark:border-white/[0.05] dark:text-white" />
+                <input type="password" required value={nuevoPassword} onChange={(e) => setNuevoPassword(e.target.value)} placeholder="Mínimo 8 caracteres" className="w-full rounded-xl px-4 py-3 text-sm outline-none transition bg-gray-50 border border-gray-200 text-gray-900 focus:border-blue-500 dark:bg-gray-950/60 dark:border-white/[0.05] dark:text-white" />
               </div>
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-widest mb-2 text-gray-500 dark:text-gray-400">Confirmar Nueva Contraseña</label>

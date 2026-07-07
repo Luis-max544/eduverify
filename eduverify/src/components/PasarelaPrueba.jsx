@@ -1,14 +1,29 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { premium } from '../api';
 
 export default function PasarelaPrueba({ usuario, setUsuario, setVista, darkMode }) {
   const esPremium = usuario?.premium === true;
+  const [fechaPago, setFechaPago] = useState(null);
 
-  const activarMembresiaSimulada = () => {
-    const usuarioPremium = { ...usuario, premium: true, fechaPago: Date.now() };
-    localStorage.setItem('usuario_eduverify', JSON.stringify(usuarioPremium));
-    setUsuario(usuarioPremium);
-    alert("💎 ¡Membresía Premium Universitaria activada con éxito!");
-    setVista('catalogo');
+  useEffect(() => {
+    if (esPremium) {
+      premium.status().then(d => setFechaPago(d.fecha_pago)).catch(() => {});
+    }
+  }, [esPremium]);
+
+  const fechaCaducidad = fechaPago
+    ? new Date(new Date(fechaPago).getTime() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
+    : '—';
+
+  const activarMembresia = async () => {
+    try {
+      await premium.activate();
+      setUsuario({ ...usuario, premium: true });
+      alert("💎 ¡Membresía Premium Universitaria activada con éxito!");
+      setVista('catalogo');
+    } catch (err) {
+      alert(`Error al activar la membresía: ${err.message}`);
+    }
   };
 
   return (
@@ -23,7 +38,7 @@ export default function PasarelaPrueba({ usuario, setUsuario, setVista, darkMode
           </div>
           <div className={darkMode ? "p-4 rounded-2xl border bg-gray-950/60 border-white/5" : "p-4 rounded-2xl border bg-gray-50 border-gray-100"}>
             <span className="text-[9px] uppercase font-bold text-gray-400 tracking-wider block">Fecha de caducidad</span>
-            <span className="text-sm font-black text-blue-500 font-mono mt-0.5 block">23 de julio de 2026</span>
+            <span className="text-sm font-black text-blue-500 font-mono mt-0.5 block">{fechaCaducidad}</span>
           </div>
           <button type="button" onClick={() => alert("Generando recibo oficial PDF...")} className={darkMode ? "w-full py-2.5 rounded-xl text-xs font-bold bg-gray-950 border border-white/10 text-white" : "w-full py-2.5 rounded-xl text-xs font-bold bg-white border border-gray-300 text-gray-700"}>📄 Recibo PDF</button>
         </div>
@@ -35,7 +50,7 @@ export default function PasarelaPrueba({ usuario, setUsuario, setVista, darkMode
             <span className="text-3xl font-black font-mono text-blue-500">$149.00</span>
             <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider ml-1">/ Mes</span>
           </div>
-          <button onClick={activarMembresiaSimulada} className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl text-xs uppercase tracking-widest shadow-md">💳 Activar Membresía de Prueba</button>
+          <button onClick={activarMembresia} className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl text-xs uppercase tracking-widest shadow-md">💳 Activar Membresía de Prueba</button>
         </div>
       )}
     </div>

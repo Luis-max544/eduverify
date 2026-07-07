@@ -1,26 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
-export default function Navbar({ 
-  usuario, 
-  setVista, 
-  cerrarSesion, 
-  notificaciones = [], 
+export default function Navbar({
+  usuario,
+  setVista,
+  cerrarSesion,
+  notificaciones = [],
+  marcarNotificacionesLeidas,
   darkMode,
   sidebarAmpliado,
   setSidebarAmpliado
 }) {
   const [mostrarMenu, setMostrarMenu] = useState(false);
-  const [fotoPerfil, setFotoPerfil] = useState('');
+  const fotoPerfil = usuario?.avatar_url || '';
 
-  // Sincronización en tiempo real con la foto guardada en el navegador
-  useEffect(() => {
-    if (usuario?.email) {
-      const fotoGuardada = localStorage.getItem(`eduverify_foto_${usuario.email}`);
-      setFotoPerfil(fotoGuardada || usuario.foto || '');
-    }
-  }, [usuario]);
-
-  // Contar notificaciones no leídas (ejemplo)
   const notificacionesNoLeidas = notificaciones.filter(n => !n.leida).length;
 
   return (
@@ -78,8 +70,9 @@ export default function Navbar({
       {/* SECCIÓN DERECHA */}
       <div className="flex items-center gap-3 relative">
         {/* Campana de notificaciones */}
-        <button 
-          type="button" 
+        <button
+          type="button"
+          onClick={() => marcarNotificacionesLeidas && marcarNotificacionesLeidas()}
           className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 text-gray-400 dark:text-gray-500 relative transition-colors"
         >
           🔔

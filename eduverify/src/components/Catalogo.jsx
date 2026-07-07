@@ -65,7 +65,7 @@ export default function Catalogo({ setVista, setVideoSeleccionado, usuario, vide
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-8">
             {videosFiltrados.map((video) => {
-              const ytId = obtenerYoutubeId(video.url_video || video.url);
+              const ytId = obtenerYoutubeId(video.url_video);
               const urlMiniatura = ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : null;
               
               return (
@@ -104,9 +104,13 @@ export default function Catalogo({ setVista, setVideoSeleccionado, usuario, vide
 
                   {/* Fila de Metadatos Inferiores estilo YouTube */}
                   <div className="flex gap-3 px-1 min-w-0 items-start">
-                    {/* Inicial del Profesor Flotante */}
-                    <div className="w-8 h-8 rounded-full bg-blue-600 font-bold text-xs flex items-center justify-center text-white shadow shadow-blue-500/10 shrink-0 uppercase mt-0.5">
-                      {video.autor ? video.autor.charAt(0) : 'P'}
+                    {/* Avatar del Profesor */}
+                    <div className="w-8 h-8 rounded-full bg-blue-600 font-bold text-xs flex items-center justify-center text-white shadow shadow-blue-500/10 shrink-0 uppercase mt-0.5 overflow-hidden">
+                      {video.author_avatar_url ? (
+                        <img src={video.author_avatar_url} alt={video.autor} className="w-full h-full object-cover" />
+                      ) : (
+                        video.autor ? video.autor.charAt(0) : 'P'
+                      )}
                     </div>
 
                     <div className="min-w-0 flex-1 space-y-0.5">
@@ -119,7 +123,7 @@ export default function Catalogo({ setVista, setVideoSeleccionado, usuario, vide
                       <p 
                         onClick={(e) => {
                           e.stopPropagation(); // Evita que se reproduzca el video al dar clic en el nombre
-                          if (abrirCanalProfesor) abrirCanalProfesor(video.autor);
+                          if (abrirCanalProfesor) abrirCanalProfesor(video.autor_id);
                         }}
                         className="text-[11px] text-gray-400 font-bold hover:text-blue-500 transition-colors inline-block"
                       >
@@ -128,7 +132,7 @@ export default function Catalogo({ setVista, setVideoSeleccionado, usuario, vide
 
                       {/* Contador de Reproducciones */}
                       <p className="text-[10px] text-gray-400 font-medium font-mono">
-                        {video.vistas || '0'} vistas • {video.fecha_subida || 'Recién publicado'}
+                        {video.vistas || '0'} vistas • {video.created_at ? new Date(video.created_at).toLocaleDateString() : 'Recién publicado'}
                       </p>
                     </div>
                   </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { comments as commentsApi, favorites as favoritesApi, playlists as playlistsApi, videos as videosApi } from '../api';
 
-export default function Reproductor({ 
+export default function Reproductor({
   video, 
   usuario, 
   setVista, 
@@ -13,27 +14,12 @@ export default function Reproductor({
   suscripciones = [],
   toggleSuscripcion = () => {}
 }) {
-  // Si no hay video seleccionado
-  if (!video) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-sm text-gray-500">No se ha seleccionado ninguna video-clase.</p>
-        <button 
-          onClick={() => setVista('catalogo')} 
-          className="mt-4 text-xs font-bold text-blue-500 uppercase"
-        >
-          Volver al catálogo
-        </button>
-      </div>
-    );
-  }
-
   // Estados principales
   const [localVideo, setLocalVideo] = useState(video);
   const [panelAdmin, setPanelAdmin] = useState(null);
-  const [editTitulo, setEditTitulo] = useState(video.titulo);
-  const [editDescripcion, setEditDescripcion] = useState(video.descripcion || '');
-  const [editCategoria, setEditCategoria] = useState(video.categoria || 'Programación');
+  const [editTitulo, setEditTitulo] = useState(video?.titulo || '');
+  const [editDescripcion, setEditDescripcion] = useState(video?.descripcion || '');
+  const [editCategoria, setEditCategoria] = useState(video?.categoria || 'Programación');
   const [copiado, setCopiado] = useState(false);
   const [mostrarModalGuardar, setMostrarModalGuardar] = useState(false);
   const [nombreNuevaCarpeta, setNombreNuevaCarpeta] = useState('');
@@ -43,22 +29,27 @@ export default function Reproductor({
   const [textoRespuesta, setTextoRespuesta] = useState('');
 
   // 📸 Foto de perfil del usuario actual
-  const fotoPerfilUsuarioActual = localStorage.getItem(`eduverify_foto_${usuario?.email}`) || '';
+  const fotoPerfilUsuarioActual = usuario?.avatar_url || '';
 
-  // 📂 Listas guardadas del usuario
-  const [misListas, setMisListas] = useState(() => {
-    const guardadas = localStorage.getItem(`eduverify_listas_${usuario?.email}`);
-    return guardadas ? JSON.parse(guardadas) : { "Clases Guardadas": [] };
-  });
+  // 📂 Carpetas (playlists) del usuario desde el API
+  const [misListas, setMisListas] = useState([]);
+
+  const cargarListas = () => {
+    playlistsApi.list().then(setMisListas).catch(() => {});
+  };
+
+  const cargarComentarios = (videoId) => {
+    commentsApi.list(videoId).then(setComentarios).catch(() => setComentarios([]));
+  };
+
+  useEffect(() => {
+    cargarListas();
+  }, []);
 
   // 🔄 Sincronizar con cambios de video
   useEffect(() => {
-    const forosGuardados = localStorage.getItem(`eduverify_foros_video_${video.id}`);
-    if (forosGuardados) {
-      setComentarios(JSON.parse(forosGuardados));
-    } else {
-      setComentarios([]); 
-    }
+    if (!video) return;
+    cargarComentarios(video.id);
     setPanelAdmin(null);
     setLocalVideo(video);
     setEditTitulo(video.titulo);
@@ -66,17 +57,20 @@ export default function Reproductor({
     setEditCategoria(video.categoria || 'Programación');
   }, [video]);
 
-  // 💾 Guardar comentarios
-  useEffect(() => {
-    if (video?.id) {
-      localStorage.setItem(`eduverify_foros_video_${video.id}`, JSON.stringify(comentarios));
-    }
-  }, [comentarios, video]);
-
-  // 💾 Guardar listas
-  useEffect(() => {
-    localStorage.setItem(`eduverify_listas_${usuario?.email}`, JSON.stringify(misListas));
-  }, [misListas, usuario]);
+  // Si no hay video seleccionado (después de los hooks, por reglas de React)
+  if (!video || !localVideo) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-sm text-gray-500">No se ha seleccionado ninguna video-clase.</p>
+        <button
+          onClick={() => setVista('catalogo')}
+          className="mt-4 text-xs font-bold text-blue-500 uppercase"
+        >
+          Volver al catálogo
+        </button>
+      </div>
+    );
+  }
 
   // 🎯 Funciones auxiliares
   const obtenerYoutubeId = (url) => {
@@ -86,17 +80,19 @@ export default function Reproductor({
     return (match && match[2].length === 11) ? match[2] : null;
   };
 
-  const urlFinal = localVideo.url_video || localVideo.url;
+  const urlFinal = localVideo.url_video;
   const youtubeId = obtenerYoutubeId(urlFinal);
   const esContenidoEnVivo = localVideo.tipo === 'envivo' || youtubeId !== null;
 
-  // ❤️ Favoritos
+  // ❤️ Favoritos (optimista + persistencia en el API)
   const esFavorito = favoritos.some(f => f.id === localVideo.id);
   const manejarCorazon = () => {
     if (esFavorito) {
       setFavoritos(favoritos.filter(f => f.id !== localVideo.id));
+      favoritesApi.remove(localVideo.id).catch(() => {});
     } else {
       setFavoritos([localVideo, ...favoritos]);
+      favoritesApi.add(localVideo.id).catch(() => {});
     }
   };
 
@@ -107,103 +103,109 @@ export default function Reproductor({
     setTimeout(() => setCopiado(false), 2500);
   };
 
-  // 📁 Guardar en carpeta
-  const toggleVideoEnCarpeta = (nombreCarpeta) => {
-    const listaActual = misListas[nombreCarpeta] || [];
-    const existe = listaActual.some(v => v.id === localVideo.id);
-    let nuevaLista = existe ? listaActual.filter(v => v.id !== localVideo.id) : [localVideo, ...listaActual];
-    setMisListas({ ...misListas, [nombreCarpeta]: nuevaLista });
+  // 📁 Guardar en carpeta (playlists del API)
+  const toggleVideoEnCarpeta = async (lista) => {
+    const existe = (lista.videos || []).some(v => v.id === localVideo.id);
+    try {
+      if (existe) {
+        await playlistsApi.removeVideo(lista.id, localVideo.id);
+      } else {
+        await playlistsApi.addVideo(lista.id, localVideo.id);
+      }
+      cargarListas();
+    } catch (err) {
+      alert(`Error al actualizar la carpeta: ${err.message}`);
+    }
   };
 
-  const crearNuevaCarpeta = (e) => {
+  const crearNuevaCarpeta = async (e) => {
     e.preventDefault();
-    if (!nombreNuevaCarpeta.trim()) return;
-    if (misListas[nombreNuevaCarpeta.trim()]) return alert("⚠️ Esa carpeta ya existe.");
-    setMisListas({ ...misListas, [nombreNuevaCarpeta.trim()]: [localVideo] });
-    setNombreNuevaCarpeta('');
+    const nombre = nombreNuevaCarpeta.trim();
+    if (!nombre) return;
+    if (misListas.some(l => l.nombre === nombre)) return alert("⚠️ Esa carpeta ya existe.");
+    try {
+      const nueva = await playlistsApi.create(nombre);
+      await playlistsApi.addVideo(nueva.id, localVideo.id);
+      cargarListas();
+      setNombreNuevaCarpeta('');
+    } catch (err) {
+      alert(`Error al crear la carpeta: ${err.message}`);
+    }
   };
 
-  // 💬 Manejo de comentarios
-  const handleCrearComentarioRaiz = (e) => {
+  // 💬 Manejo de comentarios (persisten en el API)
+  const handleCrearComentarioRaiz = async (e) => {
     e.preventDefault();
     if (!nuevoComentarioTexto.trim()) return;
-
-    const nuevoC = {
-      id: Date.now(),
-      autor: usuario?.nombre || "Usuario Anónimo",
-      email: usuario?.email || "",
-      foto: fotoPerfilUsuarioActual, // Usamos la foto del usuario actual
-      rol: usuario?.rol || "estudiante",
-      texto: nuevoComentarioTexto.trim(),
-      fecha: "Hace 1 minuto",
-      likes: 0,
-      usuariosLiked: [],
-      respuestas: []
-    };
-
-    setComentarios([nuevoC, ...comentarios]);
-    setNuevoComentarioTexto('');
+    try {
+      await commentsApi.create(localVideo.id, { texto: nuevoComentarioTexto.trim() });
+      setNuevoComentarioTexto('');
+      cargarComentarios(localVideo.id);
+    } catch (err) {
+      alert(`Error al publicar el comentario: ${err.message}`);
+    }
   };
 
-  const handleCrearRespuesta = (e, comentarioId) => {
+  const handleCrearRespuesta = async (e, comentarioId) => {
     e.preventDefault();
     if (!textoRespuesta.trim()) return;
-
-    const nuevaR = {
-      id: Date.now(),
-      autor: usuario?.nombre || "Usuario Anónimo",
-      email: usuario?.email || "",
-      rol: usuario?.rol || "estudiante",
-      foto: fotoPerfilUsuarioActual, // Usamos la foto del usuario actual
-      texto: textoRespuesta.trim(),
-      fecha: "Hace 1 minuto",
-      likes: 0,
-      usuariosLiked: []
-    };
-
-    setComentarios(comentarios.map(c => {
-      if (c.id === comentarioId) {
-        return { ...c, respuestas: [...(c.respuestas || []), nuevaR] };
-      }
-      return c;
-    }));
-
-    setTextoRespuesta('');
-    setIdComentarioRespondiendo(null);
+    try {
+      await commentsApi.create(localVideo.id, { texto: textoRespuesta.trim(), parent_id: comentarioId });
+      setTextoRespuesta('');
+      setIdComentarioRespondiendo(null);
+      cargarComentarios(localVideo.id);
+    } catch (err) {
+      alert(`Error al publicar la respuesta: ${err.message}`);
+    }
   };
 
-  const handleLikeComentario = (comentarioId) => {
-    setComentarios(comentarios.map(c => {
-      if (c.id === comentarioId) {
-        const yaDioLike = c.usuariosLiked?.includes(usuario?.email);
-        const nuevosLikes = yaDioLike ? c.likes - 1 : c.likes + 1;
-        const nuevosUsuarios = yaDioLike 
-          ? (c.usuariosLiked || []).filter(e => e !== usuario?.email)
-          : [...(c.usuariosLiked || []), usuario?.email];
-        return { ...c, likes: nuevosLikes, usuariosLiked: nuevosUsuarios };
-      }
-      return c;
-    }));
+  // El GET público no marca `liked`, así que el estado se actualiza con la respuesta del toggle
+  const handleLikeComentario = async (comentarioId) => {
+    try {
+      const { likes, liked } = await commentsApi.like(comentarioId);
+      setComentarios(prev => prev.map(c => c.id === comentarioId ? { ...c, likes, liked } : c));
+    } catch (err) {
+      console.error('Error al dar like:', err.message);
+    }
   };
 
-  const handleLikeRespuestaInterna = (comentarioId, respuestaId) => {
-    setComentarios(comentarios.map(c => {
-      if (c.id === comentarioId) {
-        const respuestasActualizadas = c.respuestas.map(r => {
-          if (r.id === respuestaId) {
-            const yaDioLike = r.usuariosLiked?.includes(usuario?.email);
-            const nuevosLikes = yaDioLike ? r.likes - 1 : r.likes + 1;
-            const nuevosUsuarios = yaDioLike 
-              ? (r.usuariosLiked || []).filter(e => e !== usuario?.email)
-              : [...(r.usuariosLiked || []), usuario?.email];
-            return { ...r, likes: nuevosLikes, usuariosLiked: nuevosUsuarios };
-          }
-          return r;
-        });
-        return { ...c, respuestas: respuestasActualizadas };
-      }
-      return c;
-    }));
+  const handleLikeRespuestaInterna = async (comentarioId, respuestaId) => {
+    try {
+      const { likes, liked } = await commentsApi.like(respuestaId);
+      setComentarios(prev => prev.map(c => {
+        if (c.id !== comentarioId) return c;
+        return { ...c, respuestas: (c.respuestas || []).map(r => r.id === respuestaId ? { ...r, likes, liked } : r) };
+      }));
+    } catch (err) {
+      console.error('Error al dar like:', err.message);
+    }
+  };
+
+  const handleEliminarComentario = async (comentarioId) => {
+    if (!window.confirm('¿Eliminar este comentario?')) return;
+    try {
+      await commentsApi.remove(comentarioId);
+      cargarComentarios(localVideo.id);
+    } catch (err) {
+      alert(`Error al eliminar el comentario: ${err.message}`);
+    }
+  };
+
+  // ✏️ Guardar edición del video (solo dueño); PATCH devuelve fila cruda → refetch
+  const handleGuardarEdicion = async (e) => {
+    e.preventDefault();
+    try {
+      await videosApi.update(localVideo.id, {
+        titulo: editTitulo,
+        descripcion: editDescripcion,
+        categoria: editCategoria,
+      });
+      const actualizado = await videosApi.get(localVideo.id);
+      setLocalVideo(actualizado);
+      setPanelAdmin(null);
+    } catch (err) {
+      alert(`Error al guardar los cambios: ${err.message}`);
+    }
   };
 
   // 📋 Videos sugeridos
@@ -216,16 +218,15 @@ export default function Reproductor({
     });
 
   // 👨‍🏫 Verificar si es dueño del video
-  const esDuenoDelVideo = usuario?.rol === 'profesor' && (
-    String(localVideo.usuario_id) === String(usuario?.id) || 
-    localVideo.autor === usuario?.nombre
-  );
+  const esDuenoDelVideo = ['profesor', 'creador'].includes(usuario?.rol) &&
+    localVideo.autor_id === usuario?.id;
 
   // 📸 Foto del creador del video
-  const fotoCreadorVideo = localStorage.getItem(`eduverify_foto_${localVideo.email_autor}`) || '';
+  const fotoCreadorVideo = localVideo.author_avatar_url || '';
 
   // 🔔 Estado de suscripción
-  const estaSuscrito = suscripciones.some(s => s.nombre === localVideo.autor);
+  const estaSuscrito = suscripciones.some(s => s.professor_id === localVideo.autor_id);
+  const esPropioCanal = localVideo.autor_id === usuario?.id;
 
   return (
     <div className="animate-fade-in pb-16 select-none relative font-sans">
@@ -267,8 +268,8 @@ export default function Reproductor({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-3 pb-4 border-b border-gray-200 dark:border-white/[0.04]">
               
               {/* Información del autor con botón de suscripción */}
-              <div 
-                onClick={() => abrirCanalProfesor && abrirCanalProfesor(localVideo.autor)}
+              <div
+                onClick={() => abrirCanalProfesor && abrirCanalProfesor(localVideo.autor_id)}
                 className="flex items-center gap-3 cursor-pointer group select-none flex-wrap"
               >
                 <div className="w-10 h-10 rounded-full bg-blue-600 font-black text-white text-sm shadow-md overflow-hidden shrink-0 flex items-center justify-center">
@@ -283,22 +284,24 @@ export default function Reproductor({
                     {localVideo.autor || 'Docente EduVerify'}
                   </h4>
                   <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
-                    {localVideo.rol === 'estudiante' || localVideo.rol === 'alumno' ? 'Alumno' : 'Docente'}
+                    Docente
                   </p>
                 </div>
 
-                {/* Botón de Suscripción */}
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleSuscripcion(localVideo.autor);
-                  }}
-                  className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition ${
-                    estaSuscrito ? 'bg-gray-200 text-gray-800' : 'bg-red-600 text-white'
-                  }`}
-                >
-                  {estaSuscrito ? 'Suscrito 🔔' : 'Suscribirse'}
-                </button>
+                {/* Botón de Suscripción (oculto en el propio canal) */}
+                {!esPropioCanal && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleSuscripcion(localVideo.autor_id);
+                    }}
+                    className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition ${
+                      estaSuscrito ? 'bg-gray-200 text-gray-800' : 'bg-red-600 text-white'
+                    }`}
+                  >
+                    {estaSuscrito ? 'Suscrito 🔔' : 'Suscribirse'}
+                  </button>
+                )}
 
                 {/* Botón Editar (solo dueño) */}
                 {esDuenoDelVideo && (
@@ -357,10 +360,39 @@ export default function Reproductor({
               <div className="flex gap-3 font-mono text-[10px] font-bold text-gray-400 mb-1.5">
                 <span>{localVideo.vistas || '0'} vistas</span>
                 <span>•</span>
-                <span>{localVideo.fecha_subida || '2026-06-25'}</span>
+                <span>{localVideo.created_at ? new Date(localVideo.created_at).toLocaleDateString() : 'Recién publicado'}</span>
               </div>
               <p className="font-medium">{localVideo.descripcion || 'Sin descripción adicional para esta clase académica.'}</p>
             </div>
+
+            {/* Panel de edición (solo dueño) */}
+            {panelAdmin === 'editar' && (
+              <form onSubmit={handleGuardarEdicion} className={`mt-4 p-4 rounded-2xl border space-y-3 animate-fade-in ${darkMode ? 'bg-gray-900/40 border-white/10' : 'bg-white border-gray-200 shadow-sm'}`}>
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-blue-500">Editar Clase</h4>
+                <input
+                  type="text" required minLength={3} value={editTitulo} onChange={(e) => setEditTitulo(e.target.value)}
+                  placeholder="Título de la clase"
+                  className={`w-full rounded-xl px-3 py-2 text-xs outline-none border bg-transparent focus:border-blue-500 ${darkMode ? 'border-white/10 text-white' : 'border-gray-200 text-gray-900'}`}
+                />
+                <textarea
+                  rows={3} value={editDescripcion} onChange={(e) => setEditDescripcion(e.target.value)}
+                  placeholder="Descripción"
+                  className={`w-full rounded-xl px-3 py-2 text-xs outline-none border bg-transparent focus:border-blue-500 resize-none ${darkMode ? 'border-white/10 text-white' : 'border-gray-200 text-gray-900'}`}
+                />
+                <select
+                  value={editCategoria} onChange={(e) => setEditCategoria(e.target.value)}
+                  className={`w-full rounded-xl px-3 py-2 text-xs outline-none border focus:border-blue-500 ${darkMode ? 'bg-gray-900 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
+                >
+                  {['Programación', 'Ciberseguridad', 'Matemáticas', 'Electrónica', 'Arte'].map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+                <div className="flex justify-end gap-2">
+                  <button type="button" onClick={() => setPanelAdmin(null)} className="px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wide text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5">Cancelar</button>
+                  <button type="submit" className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold uppercase tracking-wide shadow-sm">Guardar cambios</button>
+                </div>
+              </form>
+            )}
           </div>
 
           {/* COMENTARIOS */}
@@ -411,38 +443,46 @@ export default function Reproductor({
             {/* Feed de comentarios */}
             <div className="space-y-5">
               {comentarios.map((c) => {
-                const yaDioLikeC = c.usuariosLiked?.includes(usuario?.email);
+                const yaDioLikeC = Boolean(c.liked);
                 return (
                   <div key={c.id} className="flex gap-3.5 group relative">
                     <div className="w-9 h-9 rounded-full font-bold text-xs flex items-center justify-center text-white shrink-0 shadow overflow-hidden bg-gray-600">
-                      {c.foto ? (
-                        <img src={c.foto} alt="" className="w-full h-full object-cover" />
+                      {c.autor_avatar_url ? (
+                        <img src={c.autor_avatar_url} alt="" className="w-full h-full object-cover" />
                       ) : (
-                        <span>{c.autor.charAt(0).toUpperCase()}</span>
+                        <span>{c.autor?.charAt(0).toUpperCase()}</span>
                       )}
                     </div>
 
                     <div className="flex-1 min-w-0 space-y-0.5">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs font-black text-gray-900 dark:text-white truncate">{c.autor}</span>
-                        <span className="text-[9px] text-gray-400 font-medium font-mono">{c.fecha}</span>
+                        <span className="text-[9px] text-gray-400 font-medium font-mono">{c.created_at ? new Date(c.created_at).toLocaleDateString() : ''}</span>
                       </div>
-                      
+
                       <p className="text-xs text-gray-700 dark:text-gray-300 font-medium whitespace-pre-wrap leading-relaxed">{c.texto}</p>
 
                       <div className="flex items-center gap-4 pt-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                        <button 
-                          onClick={() => handleLikeComentario(c.id)} 
+                        <button
+                          onClick={() => handleLikeComentario(c.id)}
                           className={`flex items-center gap-1.5 font-mono hover:text-red-500 ${yaDioLikeC ? 'text-red-500' : ''}`}
                         >
                           {yaDioLikeC ? '❤️' : '🤍'} <span className="text-[11px] font-semibold text-gray-500">{c.likes}</span>
                         </button>
-                        <button 
-                          onClick={() => setIdComentarioRespondiendo(idComentarioRespondiendo === c.id ? null : c.id)} 
+                        <button
+                          onClick={() => setIdComentarioRespondiendo(idComentarioRespondiendo === c.id ? null : c.id)}
                           className="hover:text-gray-900 dark:hover:text-white"
                         >
                           ↳ Responder
                         </button>
+                        {c.user_id === usuario?.id && (
+                          <button
+                            onClick={() => handleEliminarComentario(c.id)}
+                            className="hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            🗑 Eliminar
+                          </button>
+                        )}
                       </div>
 
                       {/* Respuesta input */}
@@ -474,20 +514,20 @@ export default function Reproductor({
                       {c.respuestas?.length > 0 && (
                         <div className="mt-3 space-y-3.5 pl-3 border-l-2 border-gray-200 dark:border-white/10">
                           {c.respuestas.map((r) => {
-                            const yaDioLikeR = r.usuariosLiked?.includes(usuario?.email);
+                            const yaDioLikeR = Boolean(r.liked);
                             return (
                               <div key={r.id} className="flex gap-2.5 pt-1">
                                 <div className="w-6 h-6 rounded-full font-bold text-[10px] flex items-center justify-center text-white shrink-0 overflow-hidden bg-blue-500">
-                                  {r.foto ? (
-                                    <img src={r.foto} alt="" className="w-full h-full object-cover" />
+                                  {r.autor_avatar_url ? (
+                                    <img src={r.autor_avatar_url} alt="" className="w-full h-full object-cover" />
                                   ) : (
-                                    <span>{r.autor.charAt(0).toUpperCase()}</span>
+                                    <span>{r.autor?.charAt(0).toUpperCase()}</span>
                                   )}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5 flex-wrap">
                                     <span className="text-[11px] font-black text-gray-900 dark:text-white truncate">{r.autor}</span>
-                                    <span className="text-[9px] text-gray-400 font-mono">{r.fecha}</span>
+                                    <span className="text-[9px] text-gray-400 font-mono">{r.created_at ? new Date(r.created_at).toLocaleDateString() : ''}</span>
                                   </div>
                                   <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mt-0.5 leading-relaxed">{r.texto}</p>
                                   
@@ -521,7 +561,7 @@ export default function Reproductor({
           ) : (
             <div className="grid grid-cols-1 gap-3">
               {sugeridos.map((v) => {
-                const ytId = obtenerYoutubeId(v.url_video || v.url);
+                const ytId = obtenerYoutubeId(v.url_video);
                 const miniatura = ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : null;
                 return (
                   <div 
@@ -579,30 +619,52 @@ export default function Reproductor({
               </button>
             </div>
             <div className="space-y-2 max-h-60 overflow-y-auto pr-1 mb-5 scrollbar-none">
-              {Object.keys(misListas).map((nombreCarpeta) => {
-                const estaGuardado = misListas[nombreCarpeta].some(v => v.id === localVideo.id);
+              {misListas.length === 0 && (
+                <p className="text-xs italic text-gray-400 px-1">Aún no tienes carpetas. Crea la primera abajo.</p>
+              )}
+              {misListas.map((lista) => {
+                const estaGuardado = (lista.videos || []).some(v => v.id === localVideo.id);
                 return (
-                  <label 
-                    key={nombreCarpeta} 
+                  <label
+                    key={lista.id}
                     className={`flex items-center gap-3.5 p-3.5 rounded-2xl cursor-pointer transition-all border ${
-                      estaGuardado 
-                        ? 'bg-blue-600/5 border-blue-500/20 text-blue-600 dark:text-blue-400 font-bold' 
+                      estaGuardado
+                        ? 'bg-blue-600/5 border-blue-500/20 text-blue-600 dark:text-blue-400 font-bold'
                         : 'bg-transparent border-transparent hover:bg-gray-100 dark:hover:bg-white/5'
                     }`}
                   >
-                    <input 
-                      type="checkbox" 
-                      checked={estaGuardado} 
-                      onChange={() => toggleVideoEnCarpeta(nombreCarpeta)} 
-                      className="w-5 h-5 rounded-md text-blue-600 border-gray-300 accent-blue-600 cursor-pointer" 
+                    <input
+                      type="checkbox"
+                      checked={estaGuardado}
+                      onChange={() => toggleVideoEnCarpeta(lista)}
+                      className="w-5 h-5 rounded-md text-blue-600 border-gray-300 accent-blue-600 cursor-pointer"
                     />
                     <div className="flex-1 truncate text-xs tracking-wide">
-                      <span>{nombreCarpeta}</span>
+                      <span>{lista.nombre}</span>
                     </div>
                   </label>
                 );
               })}
             </div>
+
+            {/* Crear carpeta nueva */}
+            <form onSubmit={crearNuevaCarpeta} className="flex gap-2 pt-3 border-t border-gray-100 dark:border-white/5">
+              <input
+                type="text"
+                value={nombreNuevaCarpeta}
+                onChange={(e) => setNombreNuevaCarpeta(e.target.value)}
+                placeholder="Nombre de la carpeta nueva..."
+                className={`flex-1 rounded-xl px-3 py-2 text-xs outline-none border bg-transparent focus:border-blue-500 ${
+                  darkMode ? 'border-white/10 text-white' : 'border-gray-200 text-gray-900'
+                }`}
+              />
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold uppercase tracking-wide shadow-sm"
+              >
+                + Crear
+              </button>
+            </form>
           </div>
         </div>
       )}

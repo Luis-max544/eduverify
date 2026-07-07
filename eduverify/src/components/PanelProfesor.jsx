@@ -1,71 +1,41 @@
 import React, { useState, useEffect } from 'react';
+import { videos as videosApi, users as usersApi, profesorPlaylists } from '../api';
 
-export default function PanelProfesor({ usuario, setVista, darkMode, setVideosGlobales, videosGlobales = [], setVideoSeleccionado }) {
+const CATEGORIAS = ['Programación', 'Ciberseguridad', 'Matemáticas', 'Electrónica', 'Arte'];
+
+export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode, videosGlobales = [], recargarVideos, setVideoSeleccionado }) {
   const [subVista, setSubVista] = useState('canal');
-  const [pestanaStudio, setPestanaStudio] = useState('VIDEOS'); 
-  const [misVideos, setMisVideos] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [pestanaStudio, setPestanaStudio] = useState('VIDEOS');
 
-  // ESTADOS PARA PERSONALIZACIÓN DE CANAL (BANNER Y AVATAR)
+  // PERSONALIZACIÓN DE CANAL (banner y avatar viven en el usuario del API)
   const [mostrarPersonalizar, setMostrarPersonalizar] = useState(false);
-  const [bannerCustom, setBannerCustom] = useState(() => {
-    return localStorage.getItem(`eduverify_banner_${usuario?.email}`) || '';
-  });
-  const [fotoCustom, setFotoCustom] = useState(() => {
-    return localStorage.getItem(`eduverify_foto_${usuario?.email}`) || '';
-  });
-  
-  // Guardarán las cadenas de imagen temporales de la computadora
-  const [inputBanner, setInputBanner] = useState(bannerCustom);
-  const [inputFoto, setInputFoto] = useState(fotoCustom);
+  const bannerCustom = usuario?.banner_url || '';
+  const fotoCustom = usuario?.avatar_url || '';
 
-  // Estados para el CRUD de Playlists del Profesor
+  // Archivos seleccionados (File) + previsualización local
+  const [archivoBanner, setArchivoBanner] = useState(null);
+  const [archivoFoto, setArchivoFoto] = useState(null);
+  const [inputBanner, setInputBanner] = useState('');
+  const [inputFoto, setInputFoto] = useState('');
+
+  // CRUD de Playlists del Profesor (API)
   const [nuevaPlaylistNombre, setNuevaPlaylistNombre] = useState('');
-  const [misPlaylists, setMisPlaylists] = useState(() => {
-    const creadas = localStorage.getItem(`eduverify_playlists_creadas_${usuario?.email}`);
-    return creadas ? JSON.parse(creadas) : { "Módulo 1: Fundamentos": [], "Módulo 2: Base de Datos": [] };
-  });
+  const [misPlaylists, setMisPlaylists] = useState([]);
 
-  // Estados para el CRUD de Edición de Videos Individuales
-  const [videoEditando, setVideoEditando] = useState(null);
-  const [editTitulo, setEditTitulo] = useState('');
-  const [editEspecialidad, setEditEspecialidad] = useState('Programación');
-  const [editDescripcion, setEditDescripcion] = useState('');
-  const [editVideoUrl, setEditVideoUrl] = useState('');
-  const [editVisibilidad, setEditVisibilidad] = useState('Público');
-
-  // Estados del Formulario de Alta de Videos Nuevos
-  const [tipoContenido, setTipoContenido] = useState('grabado'); 
+  // Formulario de Alta de Videos Nuevos
   const [tituloLeccion, setTituloLeccion] = useState('');
-  const [especialidad, setEspecialidad] = useState('Programación Avanzada Web');
-  const [especialidadOtro, setEspecialidadOtro] = useState(''); 
+  const [especialidad, setEspecialidad] = useState('Programación');
   const [videoUrl, setVideoUrl] = useState('');
-  const [descripcion, setDescripcion] = useState(''); 
-  const [editVisibilidadAlta, setEditVisibilidadAlta] = useState('Público');
+  const [descripcion, setDescripcion] = useState('');
+  const [esPremiumAlta, setEsPremiumAlta] = useState(false);
 
-  const [tipoPdf, setTipoPdf] = useState('link'); 
-  const [pdfUrl, setPdfUrl] = useState('');
-  const [pdfNombreArchivo, setPdfNombreArchivo] = useState('');
-  const [subiendo, setSubiendo] = useState(false);
-  const [progreso, setProgreso] = useState(0);
+  const cargarPlaylists = () => {
+    profesorPlaylists.list().then(setMisPlaylists).catch(() => {});
+  };
 
-  // Sincronizar videos desde Hostinger
   useEffect(() => {
-    fetch('./api/videos.php')
-      .then(response => response.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setMisVideos(data);
-        }
-      })
-      .catch(error => console.error("Error al sincronizar canal:", error))
-      .finally(() => setLoading(false));
-  }, [subVista]);
-
-  // Persistir Playlists del Profesor de forma aislada
-  useEffect(() => {
-    localStorage.setItem(`eduverify_playlists_creadas_${usuario?.email}`, JSON.stringify(misPlaylists));
-  }, [misPlaylists, usuario]);
+    cargarPlaylists();
+  }, []);
 
   const obtenerYoutubeId = (url) => {
     if (!url) return null;
@@ -74,34 +44,16 @@ export default function PanelProfesor({ usuario, setVista, darkMode, setVideosGl
     return (match && match[2].length === 11) ? match[2] : null;
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) setPdfNombreArchivo(file.name);
-  };
+  // Videos propios desde el catálogo global (el API identifica al autor por autor_id)
+  const videosPropios = videosGlobales.filter(v => v.autor_id === usuario?.id);
 
-  const specialtyTracker = (val) => {
-    if (val.toLowerCase().includes('progra')) return 'Programación';
-    if (val.toLowerCase().includes('ciber')) return 'Ciberseguridad';
-    if (val.toLowerCase().includes('mate')) return 'Matemáticas';
-    if (val.toLowerCase().includes('elec')) return 'Electrónica';
-    return 'Arte';
-  };
-
-  // Filtrar videos propios para el CRUD
-  const videosPropios = (misVideos.length > 0 ? misVideos : videosGlobales).filter(v => {
-    const coincideId = v.usuario_id && String(v.usuario_id) === String(usuario?.id);
-    const coincideAutor = v.autor && String(v.autor).toLowerCase() === String(usuario?.nombre).toLowerCase();
-    return coincideId || coincideAutor;
-  });
-
-  // Procesador de imágenes locales de la computadora
+  // Selección de imágenes locales: se guarda el File para subirlo y un dataURL para previsualizar
   const manejarCambioArchivoBanner = (e) => {
     const archivo = e.target.files[0];
     if (archivo) {
+      setArchivoBanner(archivo);
       const lector = new FileReader();
-      lector.onloadend = () => {
-        setInputBanner(lector.result); 
-      };
+      lector.onloadend = () => setInputBanner(lector.result);
       lector.readAsDataURL(archivo);
     }
   };
@@ -109,114 +61,104 @@ export default function PanelProfesor({ usuario, setVista, darkMode, setVideosGl
   const manejarCambioArchivoFoto = (e) => {
     const archivo = e.target.files[0];
     if (archivo) {
+      setArchivoFoto(archivo);
       const lector = new FileReader();
-      lector.onloadend = () => {
-        setInputFoto(lector.result); 
-      };
+      lector.onloadend = () => setInputFoto(lector.result);
       lector.readAsDataURL(archivo);
     }
   };
 
-  const handleGuardarPersonalizacion = (e) => {
+  const handleGuardarPersonalizacion = async (e) => {
     e.preventDefault();
-    localStorage.setItem(`eduverify_banner_${usuario?.email}`, inputBanner);
-    localStorage.setItem(`eduverify_foto_${usuario?.email}`, inputFoto);
-    setBannerCustom(inputBanner);
-    setFotoCustom(inputFoto);
-    setMostrarPersonalizar(false);
-    alert("🎉 ¡Diseño del canal guardado y actualizado con éxito!");
+    try {
+      let nuevoUsuario = { ...usuario };
+      if (archivoBanner) {
+        const { banner_url } = await usersApi.uploadBanner(archivoBanner);
+        nuevoUsuario.banner_url = banner_url;
+      }
+      if (archivoFoto) {
+        const { avatar_url } = await usersApi.uploadAvatar(archivoFoto);
+        nuevoUsuario.avatar_url = avatar_url;
+      }
+      setUsuario(nuevoUsuario);
+      setArchivoBanner(null);
+      setArchivoFoto(null);
+      setInputBanner('');
+      setInputFoto('');
+      setMostrarPersonalizar(false);
+      alert("🎉 ¡Diseño del canal guardado y actualizado con éxito!");
+    } catch (err) {
+      alert(`Error al guardar el diseño: ${err.message}`);
+    }
   };
 
-  // CRUD PLAYLISTS: Crear, Renombrar, Eliminar
-  const handleCrearPlaylistVacia = (e) => {
+  // CRUD PLAYLISTS: Crear, Renombrar, Eliminar (API)
+  const handleCrearPlaylistVacia = async (e) => {
     e.preventDefault();
     const nombre = nuevaPlaylistNombre.trim();
     if (!nombre) return;
-    if (misPlaylists[nombre]) return alert("⚠️ Ya tienes una playlist con ese nombre.");
-    setMisPlaylists({ ...misPlaylists, [nombre]: [] });
-    setNuevaPlaylistNombre('');
+    if (misPlaylists.some(p => p.nombre === nombre)) return alert("⚠️ Ya tienes una playlist con ese nombre.");
+    try {
+      await profesorPlaylists.create(nombre);
+      cargarPlaylists();
+      setNuevaPlaylistNombre('');
+    } catch (err) {
+      alert(`Error al crear la playlist: ${err.message}`);
+    }
   };
 
-  const handleRenombrarPlaylist = (nombreActual) => {
-    const nuevoNombre = prompt(`Modificar nombre de la playlist "${nombreActual}" a:`, nombreActual);
-    if (!nuevoNombre || !nuevoNombre.trim() || nuevoNombre.trim() === nombreActual) return;
+  const handleRenombrarPlaylist = async (playlist) => {
+    const nuevoNombre = prompt(`Modificar nombre de la playlist "${playlist.nombre}" a:`, playlist.nombre);
+    if (!nuevoNombre || !nuevoNombre.trim() || nuevoNombre.trim() === playlist.nombre) return;
     const nombreLimpio = nuevoNombre.trim();
-    if (misPlaylists[nombreLimpio]) return alert("⚠️ Ya existe otra playlist con ese nombre.");
-    const copiaPlaylists = { ...misPlaylists };
-    copiaPlaylists[nombreLimpio] = copiaPlaylists[nombreActual];
-    delete copiaPlaylists[nombreActual];
-    setMisPlaylists(copiaPlaylists);
+    if (misPlaylists.some(p => p.nombre === nombreLimpio)) return alert("⚠️ Ya existe otra playlist con ese nombre.");
+    try {
+      await profesorPlaylists.rename(playlist.id, nombreLimpio);
+      cargarPlaylists();
+    } catch (err) {
+      alert(`Error al renombrar la playlist: ${err.message}`);
+    }
   };
 
-  const handleEliminarPlaylist = (nombrePlaylist) => {
-    if (!confirm(`¿Estás seguro de eliminar la playlist "${nombrePlaylist}"?`)) return;
-    const copiaPlaylists = { ...misPlaylists };
-    delete copiaPlaylists[nombrePlaylist];
-    setMisPlaylists(copiaPlaylists);
+  const handleEliminarPlaylist = async (playlist) => {
+    if (!confirm(`¿Estás seguro de eliminar la playlist "${playlist.nombre}"?`)) return;
+    try {
+      await profesorPlaylists.remove(playlist.id);
+      cargarPlaylists();
+    } catch (err) {
+      alert(`Error al eliminar la playlist: ${err.message}`);
+    }
   };
 
-  // CRUD VIDEOS
+  // CRUD VIDEOS (el API deduce autor y usuario_id del token)
   const handlePublicarClase = async (e) => {
     e.preventDefault();
     if (!tituloLeccion.trim() || !videoUrl.trim()) return;
 
-    setSubiendo(true);
-    setProgreso(30);
-
-    const categoriaFinal = specialtyTracker(especialidad);
-    const payload = {
-      titulo: tituloLeccion.trim(),
-      descripcion: descripcion.trim(),
-      url_video: videoUrl.trim(),
-      categoria: categoriaFinal,
-      usuario_id: usuario?.id,
-      autor: usuario?.nombre || "Profesor"
-    };
-
     try {
-      setProgreso(70);
-      const response = await fetch('./api/videos.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await response.json();
-      setProgreso(100);
-
-      const nuevoContenido = {
-        id: data.id || Date.now(),
-        usuario_id: usuario?.id,
+      await videosApi.create({
         titulo: tituloLeccion.trim(),
-        categoria: categoriaFinal,
-        vistas: "0",
-        fecha_subida: "Recién subido",
-        url_video: videoUrl.trim(),
-        autor: usuario?.nombre || "Profesor",
         descripcion: descripcion.trim(),
-        es_premium: editVisibilidadAlta === 'Privado'
-      };
-
-      setMisVideos([nuevoContenido, ...misVideos]);
-      if (setVideosGlobales) setVideosGlobales([nuevoContenido, ...videosGlobales]);
-      
-      setTimeout(() => {
-        setSubiendo(false); setProgreso(0);
-        setTituloLeccion(''); setDescripcion(''); setVideoUrl('');
-        setSubVista('canal');
-      }, 400);
-    } catch (error) {
-      setSubiendo(false);
+        url_video: videoUrl.trim(),
+        categoria: especialidad,
+        es_premium: esPremiumAlta,
+      });
+      if (recargarVideos) recargarVideos();
+      setTituloLeccion(''); setDescripcion(''); setVideoUrl(''); setEsPremiumAlta(false);
       setSubVista('canal');
+    } catch (err) {
+      alert(`Error al publicar la clase: ${err.message}`);
     }
   };
 
   const handleEliminarVideo = async (idVideo) => {
     if (!confirm("¿Deseas eliminar este video de tu canal definitivamente?")) return;
-    setMisVideos(misVideos.filter(v => v.id !== idVideo));
-    if (setVideosGlobales) setVideosGlobales(videosGlobales.filter(v => v.id !== idVideo));
     try {
-      await fetch(`./api/videos.php?id=${idVideo}`, { method: 'DELETE' });
-    } catch (err) { console.log(err); }
+      await videosApi.remove(idVideo);
+      if (recargarVideos) recargarVideos();
+    } catch (err) {
+      alert(`Error al eliminar el video: ${err.message}`);
+    }
   };
 
   return (
@@ -260,8 +202,8 @@ export default function PanelProfesor({ usuario, setVista, darkMode, setVideosGl
             </div>
 
             <div className="flex gap-2.5 w-full md:w-auto flex-wrap">
-              <button 
-                onClick={() => { setInputBanner(bannerCustom); setInputFoto(fotoCustom); setMostrarPersonalizar(true); }}
+              <button
+                onClick={() => { setArchivoBanner(null); setArchivoFoto(null); setInputBanner(''); setInputFoto(''); setMostrarPersonalizar(true); }}
                 className="flex-1 md:flex-none bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white font-bold py-2.5 px-6 rounded-full text-xs transition-all active:scale-95"
               >
                 🎨 Personalizar canal
@@ -289,8 +231,7 @@ export default function PanelProfesor({ usuario, setVista, darkMode, setVideosGl
                   <p className="text-center py-10 text-xs text-gray-400 uppercase font-mono tracking-wider">No has publicado ningún video todavía.</p>
                 ) : (
                   videosPropios.map((v) => {
-                    const videoUrlReal = v.url_video || v.url;
-                    const ytId = obtenerYoutubeId(videoUrlReal);
+                    const ytId = obtenerYoutubeId(v.url_video);
                     const urlMiniatura = ytId ? "https://img.youtube.com/vi/" + ytId + "/hqdefault.jpg" : null;
 
                     return (
@@ -319,14 +260,14 @@ export default function PanelProfesor({ usuario, setVista, darkMode, setVideosGl
                   <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white font-black text-[10px] uppercase tracking-widest px-5 py-2 rounded-xl">Crear</button>
                 </form>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-                  {Object.keys(misPlaylists).map((playlistName) => {
-                    const videosDeLista = misPlaylists[playlistName] || [];
+                  {misPlaylists.map((playlist) => {
+                    const videosDeLista = playlist.videos || [];
                     const primerVideo = videosDeLista[0] || {};
-                    const ytId = obtenerYoutubeId(primerVideo.url_video || primerVideo.url);
-                    const miniaturaPlaylist = ytId ? `https://img.youtube.com/vi/" + ytId + "/hqdefault.jpg` : null;
+                    const ytId = obtenerYoutubeId(primerVideo.url_video);
+                    const miniaturaPlaylist = ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : null;
 
                     return (
-                      <div key={playlistName} className="flex flex-col gap-2 p-3 rounded-2xl border border-gray-100 dark:border-white/[0.04] bg-gray-50/40 dark:bg-gray-900/10">
+                      <div key={playlist.id} className="flex flex-col gap-2 p-3 rounded-2xl border border-gray-100 dark:border-white/[0.04] bg-gray-50/40 dark:bg-gray-900/10">
                         <div onClick={() => { if (videosDeLista.length > 0 && setVideoSeleccionado) { setVideoSeleccionado(primerVideo); setVista('reproductor'); } }} className="w-full aspect-video bg-gray-900 rounded-xl overflow-hidden relative border border-gray-200/10 shadow-md cursor-pointer hover:opacity-95">
                           {miniaturaPlaylist ? <img src={miniaturaPlaylist} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gradient-to-br from-blue-900/20 to-gray-950 flex items-center justify-center opacity-30 font-bold text-lg">📁</div>}
                           <div className="absolute right-0 top-0 bottom-0 w-2/5 bg-black/70 backdrop-blur-[4px] flex flex-col items-center justify-center text-white border-l border-white/5 space-y-1">
@@ -335,12 +276,12 @@ export default function PanelProfesor({ usuario, setVista, darkMode, setVideosGl
                         </div>
                         <div className="space-y-1 pt-1 flex flex-col flex-1 justify-between">
                           <div>
-                            <h4 className={`text-xs font-black uppercase tracking-wide truncate ${darkMode ? 'text-white' : 'text-gray-900'}`}>{playlistName}</h4>
+                            <h4 className={`text-xs font-black uppercase tracking-wide truncate ${darkMode ? 'text-white' : 'text-gray-900'}`}>{playlist.nombre}</h4>
                             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Creada por ti</p>
                           </div>
                           <div className="grid grid-cols-2 gap-2 pt-3 border-t border-gray-100 dark:border-white/5 mt-3">
-                            <button onClick={() => handleRenombrarPlaylist(playlistName)} className="text-[9px] font-black uppercase py-1.5 px-2 bg-blue-500/10 text-blue-500 rounded-md hover:bg-blue-600 transition-colors">Renombrar</button>
-                            <button onClick={() => handleEliminarPlaylist(playlistName)} className="text-[9px] font-black uppercase py-1.5 px-2 bg-red-500/10 text-red-500 rounded-md hover:bg-red-600 transition-colors">Eliminar</button>
+                            <button onClick={() => handleRenombrarPlaylist(playlist)} className="text-[9px] font-black uppercase py-1.5 px-2 bg-blue-500/10 text-blue-500 rounded-md hover:bg-blue-600 transition-colors">Renombrar</button>
+                            <button onClick={() => handleEliminarPlaylist(playlist)} className="text-[9px] font-black uppercase py-1.5 px-2 bg-red-500/10 text-red-500 rounded-md hover:bg-red-600 transition-colors">Eliminar</button>
                           </div>
                         </div>
                       </div>
@@ -407,7 +348,7 @@ export default function PanelProfesor({ usuario, setVista, darkMode, setVideosGl
 
               {/* ACCIONES FINALES */}
               <div className="flex justify-end gap-2 pt-2 text-[10px] font-black uppercase tracking-wider">
-                <button type="button" onClick={() => { setMostrarPersonalizar(false); setInputBanner(bannerCustom); setInputFoto(fotoCustom); }} className="px-4 py-2 rounded-xl text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5">Cancelar</button>
+                <button type="button" onClick={() => { setMostrarPersonalizar(false); setArchivoBanner(null); setArchivoFoto(null); setInputBanner(''); setInputFoto(''); }} className="px-4 py-2 rounded-xl text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5">Cancelar</button>
                 <button type="submit" className="bg-blue-600 text-white px-5 py-2 rounded-xl shadow-md hover:bg-blue-500 transition-colors">Guardar Diseño</button>
               </div>
             </form>
@@ -429,9 +370,9 @@ export default function PanelProfesor({ usuario, setVista, darkMode, setVideosGl
                 <div>
                   <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Materia</label>
                   <select value={especialidad} onChange={(e) => setEspecialidad(e.target.value)} className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white" : "w-full p-3 rounded-xl border text-xs bg-gray-50 border-gray-200 text-black"}>
-                    <option value="Programación">Programación</option>
-                    <option value="Ciberseguridad">Ciberseguridad</option>
-                    <option value="Matemáticas">Matemáticas</option>
+                    {CATEGORIAS.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -443,6 +384,10 @@ export default function PanelProfesor({ usuario, setVista, darkMode, setVideosGl
                 <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Descripción</label>
                 <textarea rows="3" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white resize-none" : "w-full p-3 rounded-xl border text-xs bg-gray-50 border-gray-200 text-black resize-none"} />
               </div>
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <input type="checkbox" checked={esPremiumAlta} onChange={(e) => setEsPremiumAlta(e.target.checked)} className="w-4 h-4 rounded accent-amber-500 cursor-pointer" />
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">⭐ Contenido exclusivo Premium</span>
+              </label>
               <button type="submit" className="w-full font-bold py-3.5 px-4 rounded-xl text-xs uppercase tracking-widest bg-blue-600 text-white shadow-md">Publicar Clase</button>
             </form>
           </div>

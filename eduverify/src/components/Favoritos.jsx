@@ -27,7 +27,7 @@ export default function Favoritos({ favoritos = [], setVideoSeleccionado }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-8">
           {favoritos.map((v) => {
             if (!v) return null;
-            const ytId = obtenerYoutubeId(v.url_video || v.url);
+            const ytId = obtenerYoutubeId(v.url_video);
             const urlMiniatura = ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : null;
 
             return (

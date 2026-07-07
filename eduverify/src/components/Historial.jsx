@@ -27,7 +27,7 @@ export default function Historial({ historial = [], setVideoSeleccionado }) {
         <div className="max-w-4xl space-y-3">
           {historial.map((v, index) => {
             if (!v) return null;
-            const ytId = obtenerYoutubeId(v.url_video || v.url);
+            const ytId = obtenerYoutubeId(v.url_video);
             const urlMiniatura = ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : null;
 
             return (
@@ -60,7 +60,7 @@ export default function Historial({ historial = [], setVideoSeleccionado }) {
                   </h4>
                   <p className="text-[11px] text-gray-400 font-semibold">{v.autor || 'Docente EduVerify'}</p>
                   <p className="text-[10px] text-gray-400 font-mono flex items-center gap-1">
-                    <span>• Visto recientemente</span>
+                    <span>• {v.watched_at ? `Visto el ${new Date(v.watched_at).toLocaleDateString()}` : 'Visto recientemente'}</span>
                   </p>
                 </div>
               </div>

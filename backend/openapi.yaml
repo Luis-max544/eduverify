@@ -1,0 +1,1353 @@
+openapi: 3.0.3
+info:
+  title: EduVerify API
+  version: "1.0.0"
+  description: >
+    API REST del backend de EduVerify. Todas las respuestas siguen el envelope
+    { status: 'success', data } / { status: 'error', message }.
+    Ver backend/README.md para setup y arquitectura.
+servers:
+  - url: http://localhost:3001
+
+security: []
+
+tags:
+  - name: health
+  - name: auth
+  - name: users
+  - name: videos
+  - name: comments
+  - name: favorites
+  - name: history
+  - name: playlists
+  - name: profesor-playlists
+  - name: subscriptions
+  - name: notifications
+  - name: premium
+
+paths:
+  /api/health:
+    get:
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+
+  # ── AUTH ──────────────────────────────────────────────────────────────────
+  /api/auth/login:
+    post:
+      tags: [auth]
+      summary: Login con email/password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [correo, password]
+              properties:
+                correo: { type: string, format: email }
+                password: { type: string }
+      responses:
+        "200":
+          description: Login exitoso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        "400": { $ref: '#/components/responses/BadRequest' }
+        "401":
+          description: Credenciales inválidas
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/auth/registro:
+    post:
+      tags: [auth]
+      summary: Crear cuenta
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nombre, correo, password]
+              properties:
+                nombre: { type: string, minLength: 2, maxLength: 120 }
+                correo: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+                rol:
+                  type: string
+                  enum: [estudiante, profesor, creador]
+                  default: estudiante
+      responses:
+        "201":
+          description: Usuario creado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessMessage' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+        "409":
+          description: Email ya registrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/auth/google:
+    post:
+      tags: [auth]
+      summary: Login/registro vía Google Identity Services
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [credential]
+              properties:
+                credential:
+                  type: string
+                  description: JWT credential emitido por Google GSI
+      responses:
+        "200":
+          description: Login exitoso (crea la cuenta si no existía)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthResponse' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+
+  /api/auth/cambiar-password:
+    post:
+      tags: [auth]
+      summary: Solicitar email de recuperación de contraseña
+      description: Siempre responde 200 exista o no el email, para no filtrar qué cuentas existen.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        "200":
+          description: Email enviado si la cuenta existe
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessMessage' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+
+  /api/auth/actualizar-password:
+    post:
+      tags: [auth]
+      summary: Confirmar reseteo de contraseña con token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id, token, password]
+              properties:
+                id: { type: integer, description: user id (viene del link del email) }
+                token: { type: string }
+                password: { type: string, minLength: 8 }
+      responses:
+        "200":
+          description: Contraseña actualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessMessage' }
+        "400":
+          description: Token inválido/expirado o body inválido
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  # ── USERS ─────────────────────────────────────────────────────────────────
+  /api/users/me:
+    get:
+      tags: [users]
+      summary: Perfil del usuario autenticado
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: success }
+                  data: { $ref: '#/components/schemas/User' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "404": { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [users]
+      summary: Actualizar nombre del usuario autenticado
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nombre: { type: string, minLength: 2, maxLength: 120 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/User' }
+        "400":
+          description: Nada que actualizar o body inválido
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/users/me/dark-mode:
+    patch:
+      tags: [users]
+      summary: Actualizar preferencia de dark mode
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dark_mode]
+              properties:
+                dark_mode: { type: boolean }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      dark_mode: { type: boolean }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/users/me/avatar:
+    post:
+      tags: [users]
+      summary: Subir avatar
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [avatar]
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+                  description: JPEG/PNG/WebP, máx 2MB
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      avatar_url: { type: string, format: uri, nullable: true }
+        "400":
+          description: Sin archivo, tipo no permitido o supera el tamaño máximo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/users/me/banner:
+    post:
+      tags: [users]
+      summary: Subir banner
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [banner]
+              properties:
+                banner:
+                  type: string
+                  format: binary
+                  description: JPEG/PNG/WebP, máx 5MB
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      banner_url: { type: string, format: uri, nullable: true }
+        "400":
+          description: Sin archivo, tipo no permitido o supera el tamaño máximo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/users/{id}/profile:
+    get:
+      tags: [users]
+      summary: Perfil público de un usuario (con conteo de videos y suscriptores)
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id: { type: integer }
+                      nombre: { type: string }
+                      rol: { type: string, enum: [estudiante, profesor, creador] }
+                      avatar_url: { type: string, format: uri, nullable: true }
+                      banner_url: { type: string, format: uri, nullable: true }
+                      video_count: { type: integer }
+                      subscriber_count: { type: integer }
+        "404": { $ref: '#/components/responses/NotFound' }
+
+  /api/users/{id}/videos:
+    get:
+      tags: [users]
+      summary: Videos publicados por un usuario (paginado)
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VideoListResponse' }
+
+  # ── VIDEOS ────────────────────────────────────────────────────────────────
+  /api/videos:
+    get:
+      tags: [videos]
+      summary: Listar videos (paginado, filtro opcional por categoría)
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - name: categoria
+          in: query
+          schema: { $ref: '#/components/schemas/Categoria' }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VideoListResponse' }
+    post:
+      tags: [videos]
+      summary: Crear video (solo profesor/creador)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [titulo, url_video, categoria]
+              properties:
+                titulo: { type: string, minLength: 3, maxLength: 255 }
+                descripcion: { type: string }
+                url_video: { type: string, format: uri }
+                categoria: { $ref: '#/components/schemas/Categoria' }
+                tipo: { type: string, enum: [grabado, envivo], default: grabado }
+                es_premium: { type: boolean, default: false }
+                duracion: { type: string }
+      responses:
+        "201":
+          description: Video creado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Video' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+
+  /api/videos/{id}:
+    get:
+      tags: [videos]
+      summary: Detalle de un video
+      parameters:
+        - $ref: '#/components/parameters/VideoId'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Video' }
+        "404": { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [videos]
+      summary: Editar video (solo el autor)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/VideoId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                titulo: { type: string, minLength: 3, maxLength: 255 }
+                descripcion: { type: string }
+                categoria: { $ref: '#/components/schemas/Categoria' }
+                es_premium: { type: boolean }
+                duracion: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Video' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403":
+          description: No es el autor del video
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        "404": { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [videos]
+      summary: Eliminar video (solo el autor)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/VideoId'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessMessage' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403":
+          description: No es el autor del video
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        "404": { $ref: '#/components/responses/NotFound' }
+
+  /api/videos/{id}/view:
+    post:
+      tags: [videos]
+      summary: Incrementar contador de vistas
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/VideoId'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      vistas: { type: integer }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  # ── COMMENTS ──────────────────────────────────────────────────────────────
+  /api/videos/{videoId}/comments:
+    get:
+      tags: [comments]
+      summary: Listar comentarios de un video (anidados por parent_id)
+      description: >
+        Si se envía Authorization, cada comentario incluye `liked` según los likes
+        del usuario autenticado; sin token, `liked` es siempre false.
+      security: [{ bearerAuth: [] }, {}]
+      parameters:
+        - name: videoId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Comment' }
+    post:
+      tags: [comments]
+      summary: Crear comentario o respuesta
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: videoId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [texto]
+              properties:
+                texto: { type: string, minLength: 1, maxLength: 2000 }
+                parent_id:
+                  type: integer
+                  nullable: true
+                  description: id del comentario padre para responder
+      responses:
+        "201":
+          description: Comentario creado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Comment' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/comments/{id}/like:
+    post:
+      tags: [comments]
+      summary: Toggle like de un comentario
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      likes: { type: integer }
+                      liked: { type: boolean }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/comments/{id}:
+    delete:
+      tags: [comments]
+      summary: Eliminar comentario (solo el autor)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessMessage' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403":
+          description: No es el autor del comentario
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        "404": { $ref: '#/components/responses/NotFound' }
+
+  # ── FAVORITES ─────────────────────────────────────────────────────────────
+  /api/favorites:
+    get:
+      tags: [favorites]
+      summary: Listar videos favoritos del usuario autenticado
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Video' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/favorites/{videoId}:
+    post:
+      tags: [favorites]
+      summary: Añadir video a favoritos (upsert)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: videoId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessMessage' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+    delete:
+      tags: [favorites]
+      summary: Quitar video de favoritos
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: videoId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessMessage' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  # ── HISTORY ───────────────────────────────────────────────────────────────
+  /api/history:
+    get:
+      tags: [history]
+      summary: Historial de reproducción (ordenado por más reciente)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50, maximum: 100 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Video' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+    delete:
+      tags: [history]
+      summary: Vaciar todo el historial
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessMessage' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/history/{videoId}:
+    post:
+      tags: [history]
+      summary: Registrar reproducción de un video (upsert watched_at)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: videoId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessMessage' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+    delete:
+      tags: [history]
+      summary: Eliminar una entrada del historial
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: videoId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessMessage' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  # ── PLAYLISTS (estudiante) ───────────────────────────────────────────────
+  /api/playlists:
+    get:
+      tags: [playlists]
+      summary: Listar playlists propias con sus videos
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Playlist' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [playlists]
+      summary: Crear playlist
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nombre]
+              properties:
+                nombre: { type: string, minLength: 1, maxLength: 255 }
+      responses:
+        "201":
+          description: Creada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Playlist' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/playlists/{id}:
+    delete:
+      tags: [playlists]
+      summary: Eliminar playlist (solo el dueño)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessMessage' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+
+  /api/playlists/{id}/videos/{videoId}:
+    post:
+      tags: [playlists]
+      summary: Añadir video a playlist (upsert, solo el dueño)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: videoId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessMessage' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [playlists]
+      summary: Quitar video de playlist (solo el dueño)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: videoId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessMessage' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+
+  # ── PROFESOR PLAYLISTS ───────────────────────────────────────────────────
+  /api/profesor/playlists:
+    get:
+      tags: [profesor-playlists]
+      summary: Listar playlists propias de profesor/creador con sus videos
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ProfesorPlaylist' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [profesor-playlists]
+      summary: Crear playlist de profesor/creador
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nombre]
+              properties:
+                nombre: { type: string, minLength: 1, maxLength: 255 }
+      responses:
+        "201":
+          description: Creada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ProfesorPlaylist' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+
+  /api/profesor/playlists/public/{userId}:
+    get:
+      tags: [profesor-playlists]
+      summary: Listar playlists públicas de un profesor/creador
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ProfesorPlaylist' }
+
+  /api/profesor/playlists/{id}:
+    patch:
+      tags: [profesor-playlists]
+      summary: Renombrar playlist (solo el dueño)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nombre]
+              properties:
+                nombre: { type: string, minLength: 1, maxLength: 255 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ProfesorPlaylist' }
+        "400": { $ref: '#/components/responses/BadRequest' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [profesor-playlists]
+      summary: Eliminar playlist (solo el dueño)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessMessage' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+
+  /api/profesor/playlists/{id}/videos/{videoId}:
+    post:
+      tags: [profesor-playlists]
+      summary: Añadir/reordenar video en playlist (upsert `orden`, solo el dueño)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: videoId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                orden: { type: integer, default: 0 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessMessage' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [profesor-playlists]
+      summary: Quitar video de playlist (solo el dueño)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: videoId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessMessage' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { $ref: '#/components/responses/NotFound' }
+
+  # ── SUBSCRIPTIONS ─────────────────────────────────────────────────────────
+  /api/subscriptions:
+    get:
+      tags: [subscriptions]
+      summary: Listar profesores a los que el usuario está suscrito
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        professor_id: { type: integer }
+                        nombre: { type: string }
+                        notificaciones: { type: boolean }
+                        avatar_url: { type: string, format: uri, nullable: true }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/subscriptions/{professorId}:
+    post:
+      tags: [subscriptions]
+      summary: Suscribirse a un profesor (upsert, crea notificación)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: professorId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notificaciones: { type: boolean, default: true }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessMessage' }
+        "400":
+          description: Intento de auto-suscripción
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+    delete:
+      tags: [subscriptions]
+      summary: Cancelar suscripción
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: professorId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessMessage' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  # ── NOTIFICATIONS ─────────────────────────────────────────────────────────
+  /api/notifications:
+    get:
+      tags: [notifications]
+      summary: Listar notificaciones del usuario autenticado
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 100 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Notification' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/notifications/read-all:
+    patch:
+      tags: [notifications]
+      summary: Marcar todas las notificaciones como leídas
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessMessage' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/notifications/{id}/read:
+    patch:
+      tags: [notifications]
+      summary: Marcar una notificación como leída
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SuccessMessage' }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  # ── PREMIUM ───────────────────────────────────────────────────────────────
+  /api/premium/activate:
+    post:
+      tags: [premium]
+      summary: Activar premium para el usuario autenticado
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      premium: { type: boolean, example: true }
+                      fecha_pago: { type: string, format: date-time }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/premium/status:
+    get:
+      tags: [premium]
+      summary: Estado premium del usuario autenticado
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      premium: { type: boolean }
+                      fecha_pago: { type: string, format: date-time, nullable: true }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        Token obtenido de /api/auth/login, /registro o /google. Payload:
+        { sub: userId, email, rol, premium }. Expira en 7 días.
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, default: 1, minimum: 1 }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, default: 20, maximum: 50 }
+    UserId:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer }
+    VideoId:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer }
+
+  responses:
+    BadRequest:
+      description: Body/params inválidos (Zod)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Unauthorized:
+      description: Token ausente, inválido o expirado
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Forbidden:
+      description: Rol insuficiente o no es el dueño del recurso
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  schemas:
+    Categoria:
+      type: string
+      enum: [Programación, Ciberseguridad, Matemáticas, Electrónica, Arte]
+
+    ErrorResponse:
+      type: object
+      properties:
+        status: { type: string, example: error }
+        message: { type: string }
+
+    SuccessMessage:
+      type: object
+      properties:
+        status: { type: string, example: success }
+        data:
+          type: object
+          properties:
+            message: { type: string }
+
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        nombre: { type: string }
+        email: { type: string, format: email }
+        rol: { type: string, enum: [estudiante, profesor, creador] }
+        premium: { type: boolean }
+        dark_mode: { type: boolean }
+        avatar_url: { type: string, format: uri, nullable: true }
+        banner_url: { type: string, format: uri, nullable: true }
+
+    AuthResponse:
+      type: object
+      properties:
+        status: { type: string, example: success }
+        data:
+          type: object
+          properties:
+            token: { type: string }
+            user: { $ref: '#/components/schemas/User' }
+
+    Video:
+      type: object
+      properties:
+        id: { type: integer }
+        titulo: { type: string }
+        descripcion: { type: string, nullable: true }
+        url_video: { type: string, format: uri }
+        categoria: { $ref: '#/components/schemas/Categoria' }
+        tipo: { type: string, enum: [grabado, envivo] }
+        es_premium: { type: boolean }
+        vistas: { type: integer }
+        duracion: { type: string }
+        created_at: { type: string, format: date-time }
+        autor: { type: string }
+        autor_id: { type: integer }
+        author_avatar_url: { type: string, format: uri, nullable: true }
+
+    VideoListResponse:
+      type: object
+      properties:
+        status: { type: string, example: success }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/Video' }
+            total: { type: integer }
+            page: { type: integer }
+            limit: { type: integer }
+
+    Comment:
+      type: object
+      properties:
+        id: { type: integer }
+        video_id: { type: integer }
+        user_id: { type: integer }
+        parent_id: { type: integer, nullable: true }
+        texto: { type: string }
+        likes: { type: integer }
+        created_at: { type: string, format: date-time }
+        autor: { type: string }
+        rol: { type: string, enum: [estudiante, profesor, creador] }
+        autor_avatar_url: { type: string, format: uri, nullable: true }
+        liked: { type: boolean }
+        respuestas:
+          type: array
+          items: { $ref: '#/components/schemas/Comment' }
+
+    Playlist:
+      type: object
+      properties:
+        id: { type: integer }
+        user_id: { type: integer }
+        nombre: { type: string }
+        created_at: { type: string, format: date-time }
+        videos:
+          type: array
+          items: { $ref: '#/components/schemas/Video' }
+
+    ProfesorPlaylist:
+      type: object
+      properties:
+        id: { type: integer }
+        user_id: { type: integer }
+        nombre: { type: string }
+        created_at: { type: string, format: date-time }
+        videos:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/Video'
+              - type: object
+                properties:
+                  orden: { type: integer }
+
+    Notification:
+      type: object
+      properties:
+        id: { type: integer }
+        user_id: { type: integer }
+        mensaje: { type: string }
+        leida: { type: boolean }
+        created_at: { type: string, format: date-time }

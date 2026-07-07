@@ -1,0 +1,168 @@
+import { Router } from 'express';
+import path from 'path';
+import { eq, sql } from 'drizzle-orm';
+import { z } from 'zod';
+import { db } from '../config/db.js';
+import { users, videos, subscriptions } from '../db/schema.js';
+import { verifyToken } from '../middleware/auth.js';
+import { uploadAvatar, uploadBanner } from '../middleware/upload.js';
+import { env } from '../config/env.js';
+
+const router = Router();
+
+function uploadsBase() {
+  return `http://localhost:${env.port}`;
+}
+
+function avatarUrl(avatar_path) {
+  return avatar_path ? `${uploadsBase()}/uploads/${avatar_path}` : null;
+}
+
+function bannerUrl(banner_path) {
+  return banner_path ? `${uploadsBase()}/uploads/${banner_path}` : null;
+}
+
+function formatUser(user) {
+  return {
+    id: user.id,
+    nombre: user.nombre,
+    email: user.email,
+    rol: user.rol,
+    premium: user.premium,
+    dark_mode: user.dark_mode,
+    avatar_url: avatarUrl(user.avatar_path),
+    banner_url: bannerUrl(user.banner_path),
+  };
+}
+
+// GET /api/users/me
+router.get('/me', verifyToken, async (req, res, next) => {
+  try {
+    const [user] = await db.select().from(users).where(eq(users.id, req.user.sub));
+    if (!user) return res.status(404).json({ status: 'error', message: 'Usuario no encontrado' });
+    res.json({ status: 'success', data: formatUser(user) });
+  } catch (err) { next(err); }
+});
+
+// PATCH /api/users/me
+router.patch('/me', verifyToken, async (req, res, next) => {
+  try {
+    const { nombre } = z.object({
+      nombre: z.string().min(2).max(120).optional(),
+    }).parse(req.body);
+
+    if (!nombre) return res.status(400).json({ status: 'error', message: 'Nada que actualizar' });
+
+    await db.update(users).set({ nombre }).where(eq(users.id, req.user.sub));
+    const [updated] = await db.select().from(users).where(eq(users.id, req.user.sub));
+    res.json({ status: 'success', data: formatUser(updated) });
+  } catch (err) { next(err); }
+});
+
+// PATCH /api/users/me/dark-mode
+router.patch('/me/dark-mode', verifyToken, async (req, res, next) => {
+  try {
+    const { dark_mode } = z.object({ dark_mode: z.boolean() }).parse(req.body);
+    await db.update(users).set({ dark_mode }).where(eq(users.id, req.user.sub));
+    res.json({ status: 'success', data: { dark_mode } });
+  } catch (err) { next(err); }
+});
+
+// POST /api/users/me/avatar
+router.post('/me/avatar', verifyToken, (req, res, next) => {
+  uploadAvatar(req, res, async (err) => {
+    if (err) return next(err);
+    if (!req.file) return res.status(400).json({ status: 'error', message: 'No se recibió archivo' });
+
+    const ext = path.extname(req.file.filename).toLowerCase();
+    const avatar_path = `avatars/${req.user.sub}${ext}`;
+    await db.update(users).set({ avatar_path }).where(eq(users.id, req.user.sub));
+
+    res.json({ status: 'success', data: { avatar_url: avatarUrl(avatar_path) } });
+  });
+});
+
+// POST /api/users/me/banner
+router.post('/me/banner', verifyToken, (req, res, next) => {
+  uploadBanner(req, res, async (err) => {
+    if (err) return next(err);
+    if (!req.file) return res.status(400).json({ status: 'error', message: 'No se recibió archivo' });
+
+    const ext = path.extname(req.file.filename).toLowerCase();
+    const banner_path = `banners/${req.user.sub}${ext}`;
+    await db.update(users).set({ banner_path }).where(eq(users.id, req.user.sub));
+
+    res.json({ status: 'success', data: { banner_url: bannerUrl(banner_path) } });
+  });
+});
+
+// GET /api/users/:id/profile
+router.get('/:id/profile', async (req, res, next) => {
+  try {
+    const userId = Number(req.params.id);
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    if (!user) return res.status(404).json({ status: 'error', message: 'Usuario no encontrado' });
+
+    const [{ count: videoCount }] = await db
+      .select({ count: sql`COUNT(*)` })
+      .from(videos)
+      .where(eq(videos.usuario_id, userId));
+
+    const [{ count: subCount }] = await db
+      .select({ count: sql`COUNT(*)` })
+      .from(subscriptions)
+      .where(eq(subscriptions.professor_id, userId));
+
+    res.json({
+      status: 'success',
+      data: {
+        id: user.id,
+        nombre: user.nombre,
+        rol: user.rol,
+        avatar_url: avatarUrl(user.avatar_path),
+        banner_url: bannerUrl(user.banner_path),
+        video_count: Number(videoCount),
+        subscriber_count: Number(subCount),
+      },
+    });
+  } catch (err) { next(err); }
+});
+
+// GET /api/users/:id/videos
+router.get('/:id/videos', async (req, res, next) => {
+  try {
+    const userId = Number(req.params.id);
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(50, Number(req.query.limit) || 20);
+    const offset = (page - 1) * limit;
+
+    const rows = await db
+      .select({
+        id: videos.id, titulo: videos.titulo, descripcion: videos.descripcion,
+        url_video: videos.url_video, categoria: videos.categoria, tipo: videos.tipo,
+        es_premium: videos.es_premium, vistas: videos.vistas, duracion: videos.duracion,
+        created_at: videos.created_at,
+        autor: users.nombre, autor_id: users.id, author_avatar_url: users.avatar_path,
+      })
+      .from(videos)
+      .innerJoin(users, eq(videos.usuario_id, users.id))
+      .where(eq(videos.usuario_id, userId))
+      .limit(limit)
+      .offset(offset);
+
+    const [{ total }] = await db
+      .select({ total: sql`COUNT(*)` })
+      .from(videos)
+      .where(eq(videos.usuario_id, userId));
+
+    const base = uploadsBase();
+    const items = rows.map(v => ({
+      ...v,
+      author_avatar_url: v.author_avatar_url ? `${base}/uploads/${v.author_avatar_url}` : null,
+    }));
+
+    res.json({ status: 'success', data: { items, total: Number(total), page, limit } });
+  } catch (err) { next(err); }
+});
+
+export default router;

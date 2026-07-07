@@ -1,0 +1,6 @@
+node_modules/
+.env
+uploads/avatars/*
+uploads/banners/*
+!uploads/avatars/.gitkeep
+!uploads/banners/.gitkeep

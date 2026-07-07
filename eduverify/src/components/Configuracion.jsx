@@ -1,86 +1,66 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { auth, users as usersApi } from '../api';
 
 export default function Configuracion({ usuario, setUsuario, setVista, darkMode }) {
   // Estados principales del formulario
   const [nombre, setNombre] = useState(usuario?.nombre || '');
-  const [email, setEmail] = useState(usuario?.email || '');
-  const [foto, setFoto] = useState(usuario?.foto || null);
+  const [email] = useState(usuario?.email || '');
+  const [foto, setFoto] = useState(usuario?.avatar_url || null);
 
   // Estados para la recuperación de contraseña por correo
   const [enviandoEmail, setEnviandoEmail] = useState(false);
   const [statusMensaje, setStatusMensaje] = useState({ tipo: '', texto: '' });
 
-  // 📷 MANEJO DE SUBIDA DE FOTO REAL (Convertir a Base64 para persistencia inmediata)
-  const handleFileChange = (e) => {
+  // 📷 SUBIDA DE FOTO REAL (multipart al API, devuelve la URL pública)
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        alert("⚠️ La imagen es demasiado pesada. Elige una menor a 2MB.");
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFoto(reader.result); // Guarda la cadena binaria real de la foto
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      alert("⚠️ La imagen es demasiado pesada. Elige una menor a 2MB.");
+      return;
+    }
+    try {
+      const { avatar_url } = await usersApi.uploadAvatar(file);
+      setFoto(avatar_url);
+      setUsuario({ ...usuario, avatar_url });
+    } catch (err) {
+      alert(`Error al subir la foto: ${err.message}`);
     }
   };
 
-  // 🔒 PETICIÓN FULL-STACK PARA ENVIAR CORREO DE CAMBIO DE CONTRASEÑA
+  // 🔒 ENVIAR CORREO DE CAMBIO DE CONTRASEÑA
   const handleEnviarCorreoPassword = async () => {
     setEnviandoEmail(true);
     setStatusMensaje({ tipo: '', texto: '' });
-
     try {
-      // Petición real a tu backend en Hostinger
-      const response = await fetch('./api/cambiar_password.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: usuario?.email })
-      });
-
-      const data = await response.json();
-
-      if (data.status === 'success') {
-        setStatusMensaje({
-          tipo: 'success',
-          texto: `📬 ¡Enlace enviado! Revisa la bandeja de entrada de: ${usuario?.email}`
-        });
-      } else {
-        // Fallback controlado si aún estás configurando el archivo PHP de correos
-        setStatusMensaje({
-          tipo: 'success',
-          texto: `📬 (Simulación) Enlace de restablecimiento enviado con éxito a: ${usuario?.email}`
-        });
-      }
-    } catch (error) {
-      // Respuesta de éxito alternativa para pruebas de flujo local
+      await auth.cambiarPassword(usuario?.email);
       setStatusMensaje({
         tipo: 'success',
-        texto: `📬 Enlace enviado con éxito al correo vinculado: ${usuario?.email}`
+        texto: `📬 ¡Enlace enviado! Revisa la bandeja de entrada de: ${usuario?.email}`
+      });
+    } catch (error) {
+      setStatusMensaje({
+        tipo: 'error',
+        texto: `⚠️ No se pudo enviar el correo: ${error.message}`
       });
     } finally {
       setEnviandoEmail(false);
     }
   };
 
-  // 💾 GUARDAR CAMBIOS DE PERFIL EN LA NUBE Y LOCALSTORAGE
-  const handleGuardarConfiguracion = (e) => {
+  // 💾 GUARDAR CAMBIOS DE PERFIL EN EL API
+  const handleGuardarConfiguracion = async (e) => {
     e.preventDefault();
     if (!nombre.trim()) return alert("⚠️ El nombre no puede quedar vacío.");
 
-    const usuarioActualizado = {
-      ...usuario,
-      nombre: nombre.trim(),
-      foto: foto
-    };
-
-    // Actualiza el estado global de React y el LocalStorage de forma síncrona
-    setUsuario(usuarioActualizado);
-    localStorage.setItem('usuario_eduverify', JSON.stringify(usuarioActualizado));
-    
-    alert("✔ Perfil actualizado correctamente.");
-    setVista('catalogo');
+    try {
+      const actualizado = await usersApi.updateNombre(nombre.trim());
+      setUsuario(actualizado);
+      alert("✔ Perfil actualizado correctamente.");
+      setVista('catalogo');
+    } catch (err) {
+      alert(`Error al actualizar el perfil: ${err.message}`);
+    }
   };
 
   return (

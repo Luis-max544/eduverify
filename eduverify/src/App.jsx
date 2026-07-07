@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import * as api from './api';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import Catalogo from './components/Catalogo';
@@ -16,17 +17,12 @@ export default function App() {
   // 🌙 Modo oscuro
   const [darkMode, setDarkMode] = useState(false);
   
-  // 👤 Usuario
-  const [usuario, setUsuario] = useState(() => {
-    const sesionGuardada = localStorage.getItem('usuario_eduverify');
-    return sesionGuardada ? JSON.parse(sesionGuardada) : null;
-  });
-  
+  // 👤 Usuario (se hidrata desde el API con el token guardado)
+  const [usuario, setUsuario] = useState(null);
+  const [cargando, setCargando] = useState(() => Boolean(api.getToken()));
+
   // 📱 Vista actual
-  const [vista, setVista] = useState(() => {
-    const sesionGuardada = localStorage.getItem('usuario_eduverify');
-    return sesionGuardada ? 'catalogo' : 'login';
-  });
+  const [vista, setVista] = useState('login');
 
   // 🎬 Video seleccionado
   const [videoSeleccionado, setVideoSeleccionado] = useState(null);
@@ -47,45 +43,50 @@ export default function App() {
   const [paramsReset, setParamsReset] = useState(null);
 
   // 🔔 SUSCRIPCIONES Y NOTIFICACIONES (GLOBALES)
-  const [suscripciones, setSuscripciones] = useState(() => {
-    const guardadas = localStorage.getItem('eduverify_suscripciones');
-    return guardadas ? JSON.parse(guardadas) : [];
-  });
-
-  const [notificaciones, setNotificaciones] = useState(() => {
-    const guardadas = localStorage.getItem('eduverify_notificaciones');
-    return guardadas ? JSON.parse(guardadas) : [];
-  });
+  const [suscripciones, setSuscripciones] = useState([]);
+  const [notificaciones, setNotificaciones] = useState([]);
 
   // 📹 Videos globales
-  const [videosDemo, setVideosDemo] = useState(() => {
-    const guardados = localStorage.getItem('eduverify_videos_globales');
-    return guardados ? JSON.parse(guardados) : [];
-  });
+  const [videosDemo, setVideosDemo] = useState([]);
 
-  // 💾 Persistir videos
+  // 🧹 Limpieza única de claves de la implementación localStorage anterior
   useEffect(() => {
-    localStorage.setItem('eduverify_videos_globales', JSON.stringify(videosDemo));
-  }, [videosDemo]);
-
-  // 💾 Persistir suscripciones
-  useEffect(() => {
-    localStorage.setItem('eduverify_suscripciones', JSON.stringify(suscripciones));
-  }, [suscripciones]);
-
-  // 💾 Persistir notificaciones
-  useEffect(() => {
-    localStorage.setItem('eduverify_notificaciones', JSON.stringify(notificaciones));
-  }, [notificaciones]);
-
-  // 🔄 Sincronizar sesión
-  useEffect(() => {
-    const sesionGuardada = localStorage.getItem('usuario_eduverify');
-    if (!sesionGuardada) {
-      setUsuario(null);
-      setVista('login');
-    }
+    ['usuario_eduverify', 'eduverify_videos_globales', 'eduverify_suscripciones', 'eduverify_notificaciones']
+      .forEach(k => localStorage.removeItem(k));
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('eduverify_foto_') || k.startsWith('eduverify_banner_') ||
+                   k.startsWith('eduverify_listas_') || k.startsWith('eduverify_playlists_creadas_') ||
+                   k.startsWith('eduverify_foros_video_'))
+      .forEach(k => localStorage.removeItem(k));
   }, []);
+
+  // 🔄 Rehidratar sesión desde el token guardado
+  useEffect(() => {
+    if (!api.getToken()) return;
+    api.users.me()
+      .then(user => {
+        setUsuario(user);
+        setDarkMode(Boolean(user.dark_mode));
+        setVista('catalogo');
+      })
+      .catch(() => api.clearToken())
+      .finally(() => setCargando(false));
+  }, []);
+
+  // 📥 Hidratar datos del usuario al iniciar sesión
+  useEffect(() => {
+    if (!usuario) return;
+    api.videos.list({ page: 1, limit: 50 }).then(d => setVideosDemo(d.items)).catch(() => {});
+    api.favorites.list().then(setFavoritos).catch(() => {});
+    api.history.list().then(setHistorial).catch(() => {});
+    api.subscriptions.list().then(setSuscripciones).catch(() => {});
+    api.notifications.list().then(setNotificaciones).catch(() => {});
+  }, [usuario?.id]);
+
+  // 🔁 Recargar catálogo (tras publicar/borrar videos)
+  const recargarVideos = () => {
+    api.videos.list({ page: 1, limit: 50 }).then(d => setVideosDemo(d.items)).catch(() => {});
+  };
 
   // 🔗 Manejar parámetros de reset de contraseña
   useEffect(() => {
@@ -99,50 +100,83 @@ export default function App() {
     }
   }, []);
 
-  // 🔔 Manejar suscripciones
-  const toggleSuscripcion = (profesorNombre) => {
-    const estaSuscrito = suscripciones.find(s => s.nombre === profesorNombre);
-    if (estaSuscrito) {
-      setSuscripciones(suscripciones.filter(s => s.nombre !== profesorNombre));
-    } else {
-      setSuscripciones([...suscripciones, { nombre: profesorNombre, notificaciones: true }]);
-      const nuevaNotif = { 
-        id: Date.now(), 
-        msg: `Te has suscrito a ${profesorNombre}`, 
-        fecha: 'Ahora' 
-      };
-      setNotificaciones([nuevaNotif, ...notificaciones]);
+  // 🔔 Manejar suscripciones (el backend genera la notificación al suscribirse)
+  const toggleSuscripcion = async (professorId) => {
+    if (!professorId) return;
+    const estaSuscrito = suscripciones.some(s => s.professor_id === professorId);
+    try {
+      if (estaSuscrito) {
+        await api.subscriptions.remove(professorId);
+      } else {
+        await api.subscriptions.add(professorId);
+      }
+      api.subscriptions.list().then(setSuscripciones).catch(() => {});
+      api.notifications.list().then(setNotificaciones).catch(() => {});
+    } catch (err) {
+      console.error('Error al actualizar suscripción:', err.message);
     }
+  };
+
+  // 🔔 Marcar notificaciones como leídas
+  const marcarNotificacionesLeidas = () => {
+    if (!notificaciones.some(n => !n.leida)) return;
+    api.notifications.readAll()
+      .then(() => setNotificaciones(prev => prev.map(n => ({ ...n, leida: true }))))
+      .catch(() => {});
+  };
+
+  // 🌙 Dark mode: cambio local instantáneo + persistencia en el servidor
+  const cambiarDarkMode = (valor) => {
+    setDarkMode(valor);
+    if (usuario) api.users.updateDarkMode(valor).catch(() => {});
   };
 
   // 🚪 Cerrar sesión
   const cerrarSesion = () => {
-    localStorage.removeItem('usuario_eduverify');
+    api.clearToken();
     setUsuario(null);
     setVista('login');
     setVideoSeleccionado(null);
     setCanalSeleccionado(null);
+    setFavoritos([]);
+    setHistorial([]);
+    setSuscripciones([]);
+    setNotificaciones([]);
   };
+
+  // 🚪 Logout forzado cuando el API responde 401
+  useEffect(() => {
+    const onLogout = () => cerrarSesion();
+    window.addEventListener('auth:logout', onLogout);
+    return () => window.removeEventListener('auth:logout', onLogout);
+  }, []);
 
   // 🎬 Seleccionar y registrar video en historial
   const seleccionarYRegistrarVideo = (video) => {
     setVideoSeleccionado(video);
     setVista('reproductor');
     setHistorial(prev => [video, ...prev.filter(v => v.id !== video.id)]);
+    api.videos.view(video.id).catch(() => {});
+    api.history.add(video.id).catch(() => {});
   };
 
-  // 👨‍🏫 Abrir canal de profesor
-  const abrirCanalProfesor = (nombreProfesor) => {
-    setCanalSeleccionado({ 
-      nombre: nombreProfesor, 
-      handle: "@docente_utn", 
-      subs: "14.2K", 
-      videosCont: videosDemo.length, 
-      inicial: nombreProfesor.charAt(0).toUpperCase(), 
-      descripcion: "Profesor verificado de EduVerify." 
-    });
+  // 👨‍🏫 Abrir canal de profesor (Canal carga perfil/videos/playlists desde el API)
+  const abrirCanalProfesor = (autorId) => {
+    if (!autorId) return;
+    setCanalSeleccionado({ id: autorId });
     setVista('canal');
   };
+
+  // ⏳ Splash mientras se rehidrata la sesión
+  if (cargando) {
+    return (
+      <div className={darkMode ? "dark" : ""}>
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+          <p className="text-sm font-semibold tracking-wider uppercase text-gray-400 animate-pulse">Cargando EduVerify...</p>
+        </div>
+      </div>
+    );
+  }
 
   // 🔒 Si no hay usuario, mostrar Login
   if (!usuario) {
@@ -179,6 +213,7 @@ export default function App() {
           setSidebarAmpliado={setSidebarAmpliado}
           darkMode={darkMode}
           notificaciones={notificaciones}
+          marcarNotificacionesLeidas={marcarNotificacionesLeidas}
         />
 
         <div className="flex flex-1 pt-16 relative">
@@ -191,7 +226,7 @@ export default function App() {
             usuario={usuario}
             abrirCanalProfesor={abrirCanalProfesor}
             darkMode={darkMode}
-            setDarkMode={setDarkMode}
+            setDarkMode={cambiarDarkMode}
           />
 
           {/* Contenido principal */}
@@ -226,12 +261,13 @@ export default function App() {
             )}
 
             {vista === 'profesor' && (
-              <PanelProfesor 
-                usuario={usuario} 
-                setVista={setVista} 
-                darkMode={darkMode} 
-                setVideosGlobales={setVideosDemo} 
-                videosGlobales={videosDemo} 
+              <PanelProfesor
+                usuario={usuario}
+                setUsuario={setUsuario}
+                setVista={setVista}
+                darkMode={darkMode}
+                videosGlobales={videosDemo}
+                recargarVideos={recargarVideos}
               />
             )}
 
@@ -268,16 +304,16 @@ export default function App() {
             )}
 
             {vista === 'videos-guardados' && (
-              <Playlists 
-                setVideoSeleccionado={seleccionarYRegistrarVideo} 
+              <Playlists
+                usuario={usuario}
+                setVideoSeleccionado={seleccionarYRegistrarVideo}
               />
             )}
 
             {vista === 'canal' && (
-              <Canal 
-                canal={canalSeleccionado} 
-                setVideoSeleccionado={seleccionarYRegistrarVideo} 
-                videosDemo={videosDemo} 
+              <Canal
+                canal={canalSeleccionado}
+                setVideoSeleccionado={seleccionarYRegistrarVideo}
               />
             )}
           </main>

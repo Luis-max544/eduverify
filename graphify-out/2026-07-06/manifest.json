@@ -1,0 +1,347 @@
+{
+  ".claude/settings.json": {
+    "mtime": 1783391504.2410958,
+    "ast_hash": "e51077b6a7f1f67afc748f1a32a1557d",
+    "semantic_hash": "e51077b6a7f1f67afc748f1a32a1557d"
+  },
+  "backend/drizzle.config.js": {
+    "mtime": 1783376061.442536,
+    "ast_hash": "81611f913189c6544b48d9a5327f0020",
+    "semantic_hash": "81611f913189c6544b48d9a5327f0020"
+  },
+  "backend/package.json": {
+    "mtime": 1783376351.1953037,
+    "ast_hash": "56e017dd304678392ea84178e5821c66",
+    "semantic_hash": "56e017dd304678392ea84178e5821c66"
+  },
+  "backend/src/config/db.js": {
+    "mtime": 1783376067.173673,
+    "ast_hash": "d66e712a6abea779df676feac66c08db",
+    "semantic_hash": "d66e712a6abea779df676feac66c08db"
+  },
+  "backend/src/config/env.js": {
+    "mtime": 1783376065.4776325,
+    "ast_hash": "5a78d9a0e4e228941f62d98fb6122006",
+    "semantic_hash": "5a78d9a0e4e228941f62d98fb6122006"
+  },
+  "backend/src/db/migrations/0000_youthful_captain_flint.sql": {
+    "mtime": 1783390365.9172976,
+    "ast_hash": "d6c4c6b84e59d62ab466191550990ead",
+    "semantic_hash": "d6c4c6b84e59d62ab466191550990ead"
+  },
+  "backend/src/db/migrations/meta/0000_snapshot.json": {
+    "mtime": 1783390365.9172976,
+    "ast_hash": "a71b61e0e7ee7332b852ffa01043fb5f",
+    "semantic_hash": "a71b61e0e7ee7332b852ffa01043fb5f"
+  },
+  "backend/src/db/migrations/meta/_journal.json": {
+    "mtime": 1783390365.9172976,
+    "ast_hash": "e30577780bd3a350f84baf50e2b13060",
+    "semantic_hash": "e30577780bd3a350f84baf50e2b13060"
+  },
+  "backend/src/db/schema.js": {
+    "mtime": 1783376100.3710015,
+    "ast_hash": "d6feba4aa061e5ca8976f5d25b8eecfa",
+    "semantic_hash": "d6feba4aa061e5ca8976f5d25b8eecfa"
+  },
+  "backend/src/index.js": {
+    "mtime": 1783376383.7375321,
+    "ast_hash": "bc5ddb421d58c64b0595accac8c3eded",
+    "semantic_hash": "bc5ddb421d58c64b0595accac8c3eded"
+  },
+  "backend/src/middleware/auth.js": {
+    "mtime": 1783376103.521028,
+    "ast_hash": "4f28541d7968c72f009eb13415d4963a",
+    "semantic_hash": "4f28541d7968c72f009eb13415d4963a"
+  },
+  "backend/src/middleware/errorHandler.js": {
+    "mtime": 1783376106.609054,
+    "ast_hash": "ffcc4cbf4d422804a82ef5aa9d165202",
+    "semantic_hash": "ffcc4cbf4d422804a82ef5aa9d165202"
+  },
+  "backend/src/middleware/upload.js": {
+    "mtime": 1783376110.8220897,
+    "ast_hash": "d10d0c26cbfd8803702aec6040524eef",
+    "semantic_hash": "d10d0c26cbfd8803702aec6040524eef"
+  },
+  "backend/src/routes/auth.js": {
+    "mtime": 1783376143.4663656,
+    "ast_hash": "7a665d526e6bdec4228486df9a73213e",
+    "semantic_hash": "7a665d526e6bdec4228486df9a73213e"
+  },
+  "backend/src/routes/comments.js": {
+    "mtime": 1783376203.6778474,
+    "ast_hash": "8084fc5a3bcb534fc0cbf455702fe008",
+    "semantic_hash": "8084fc5a3bcb534fc0cbf455702fe008"
+  },
+  "backend/src/routes/favorites.js": {
+    "mtime": 1783376214.9628744,
+    "ast_hash": "d54b02a6cc3812ab028c52066952f659",
+    "semantic_hash": "d54b02a6cc3812ab028c52066952f659"
+  },
+  "backend/src/routes/history.js": {
+    "mtime": 1783376220.4578874,
+    "ast_hash": "b604e60598f98cc4cc0f488a051619f8",
+    "semantic_hash": "b604e60598f98cc4cc0f488a051619f8"
+  },
+  "backend/src/routes/notifications.js": {
+    "mtime": 1783376265.457995,
+    "ast_hash": "53ea40b90fd4a98b557cede570092d75",
+    "semantic_hash": "53ea40b90fd4a98b557cede570092d75"
+  },
+  "backend/src/routes/playlists.js": {
+    "mtime": 1783376234.4219208,
+    "ast_hash": "ebc48ce9fed147bb8d97137620ef1be4",
+    "semantic_hash": "ebc48ce9fed147bb8d97137620ef1be4"
+  },
+  "backend/src/routes/premium.js": {
+    "mtime": 1783376268.825003,
+    "ast_hash": "695f6e9f30054a369179e6dacae12779",
+    "semantic_hash": "695f6e9f30054a369179e6dacae12779"
+  },
+  "backend/src/routes/profesorPlaylists.js": {
+    "mtime": 1783376251.3379612,
+    "ast_hash": "1057d1ed2da049475fe382cf1da58ce0",
+    "semantic_hash": "1057d1ed2da049475fe382cf1da58ce0"
+  },
+  "backend/src/routes/subscriptions.js": {
+    "mtime": 1783376260.461983,
+    "ast_hash": "ff56d8ea811e50c128452a510aeaa6b0",
+    "semantic_hash": "ff56d8ea811e50c128452a510aeaa6b0"
+  },
+  "backend/src/routes/users.js": {
+    "mtime": 1783376163.749537,
+    "ast_hash": "f170c893d6cdab6b67bbf05abb081110",
+    "semantic_hash": "f170c893d6cdab6b67bbf05abb081110"
+  },
+  "backend/src/routes/videos.js": {
+    "mtime": 1783376183.5727046,
+    "ast_hash": "7be525d86e423ef0d3d49b7d63b9f6dc",
+    "semantic_hash": "7be525d86e423ef0d3d49b7d63b9f6dc"
+  },
+  "backend/src/services/email.js": {
+    "mtime": 1783376117.2121437,
+    "ast_hash": "732728e0512b786527dc0a8adaa28637",
+    "semantic_hash": "732728e0512b786527dc0a8adaa28637"
+  },
+  "backend/src/services/google.js": {
+    "mtime": 1783376119.6161642,
+    "ast_hash": "fa48473a502bfa90454f8c449ba4287a",
+    "semantic_hash": "fa48473a502bfa90454f8c449ba4287a"
+  },
+  "eduverify/eslint.config.js": {
+    "mtime": 1783375006.4444952,
+    "ast_hash": "3aa4b57d7f08181d86bde52a4dcb7f22",
+    "semantic_hash": "3aa4b57d7f08181d86bde52a4dcb7f22"
+  },
+  "eduverify/package.json": {
+    "mtime": 1783375006.4444952,
+    "ast_hash": "baa9aa348c70f4f8cc00d1afa6665324",
+    "semantic_hash": "baa9aa348c70f4f8cc00d1afa6665324"
+  },
+  "eduverify/postcss.config.js": {
+    "mtime": 1783375006.4444952,
+    "ast_hash": "ef3ba2a81ba19f8ea5ddf625521e96f0",
+    "semantic_hash": "ef3ba2a81ba19f8ea5ddf625521e96f0"
+  },
+  "eduverify/src/App.jsx": {
+    "mtime": 1783375006.4449759,
+    "ast_hash": "8295410f3894a22d40c30355ad1e995a",
+    "semantic_hash": "8295410f3894a22d40c30355ad1e995a"
+  },
+  "eduverify/src/components/Canal.jsx": {
+    "mtime": 1783375006.4451027,
+    "ast_hash": "3a69c1c68d4dfc668955e0f7cf782dac",
+    "semantic_hash": "3a69c1c68d4dfc668955e0f7cf782dac"
+  },
+  "eduverify/src/components/Catalogo.jsx": {
+    "mtime": 1783375006.4452434,
+    "ast_hash": "e8f68a7e8e80af658304fa29971429c7",
+    "semantic_hash": "e8f68a7e8e80af658304fa29971429c7"
+  },
+  "eduverify/src/components/Configuracion.jsx": {
+    "mtime": 1783375006.4452434,
+    "ast_hash": "43238fac5da478e8161daae7aa2ae4e3",
+    "semantic_hash": "43238fac5da478e8161daae7aa2ae4e3"
+  },
+  "eduverify/src/components/Favoritos.jsx": {
+    "mtime": 1783375006.4452434,
+    "ast_hash": "bb4e80a7e856b89b8b972a34817cc507",
+    "semantic_hash": "bb4e80a7e856b89b8b972a34817cc507"
+  },
+  "eduverify/src/components/Historial.jsx": {
+    "mtime": 1783375006.4452434,
+    "ast_hash": "b064635d4b85887fe10bb3d9914ccf45",
+    "semantic_hash": "b064635d4b85887fe10bb3d9914ccf45"
+  },
+  "eduverify/src/components/Login.jsx": {
+    "mtime": 1783375006.4452434,
+    "ast_hash": "80c07df9ecf8cc623e33ceb48c54b85e",
+    "semantic_hash": "80c07df9ecf8cc623e33ceb48c54b85e"
+  },
+  "eduverify/src/components/Navbar.jsx": {
+    "mtime": 1783375006.4452434,
+    "ast_hash": "f6043bd65e29c59f50418ae538785812",
+    "semantic_hash": "f6043bd65e29c59f50418ae538785812"
+  },
+  "eduverify/src/components/PanelProfesor.jsx": {
+    "mtime": 1783375006.4452434,
+    "ast_hash": "cb6e788cbcf9b76ab2e40ea8507d66c0",
+    "semantic_hash": "cb6e788cbcf9b76ab2e40ea8507d66c0"
+  },
+  "eduverify/src/components/PasarelaPrueba.jsx": {
+    "mtime": 1783375006.4452434,
+    "ast_hash": "84a36dfd66a58c7848f03d3cb7c60623",
+    "semantic_hash": "84a36dfd66a58c7848f03d3cb7c60623"
+  },
+  "eduverify/src/components/Playlists.jsx": {
+    "mtime": 1783375006.4452434,
+    "ast_hash": "3a9cc3a54c02d5c34b8ae218cd8bcea8",
+    "semantic_hash": "3a9cc3a54c02d5c34b8ae218cd8bcea8"
+  },
+  "eduverify/src/components/Registro.jsx": {
+    "mtime": 1783375006.4452434,
+    "ast_hash": "2120e9bb8066dec13d8a0419c699a9d8",
+    "semantic_hash": "2120e9bb8066dec13d8a0419c699a9d8"
+  },
+  "eduverify/src/components/Reproductor.jsx": {
+    "mtime": 1783375006.4452434,
+    "ast_hash": "a005e74dbff6713b6a601db1c440a2fd",
+    "semantic_hash": "a005e74dbff6713b6a601db1c440a2fd"
+  },
+  "eduverify/src/components/Sidebar.jsx": {
+    "mtime": 1783375006.4452434,
+    "ast_hash": "cd47b64c8beaec3c24359bb2f8534563",
+    "semantic_hash": "cd47b64c8beaec3c24359bb2f8534563"
+  },
+  "eduverify/src/components/VerMasTarde.jsx": {
+    "mtime": 1783375006.4457262,
+    "ast_hash": "a618399b20025bc52388221eb9912583",
+    "semantic_hash": "a618399b20025bc52388221eb9912583"
+  },
+  "eduverify/src/main.jsx": {
+    "mtime": 1783375006.4457262,
+    "ast_hash": "a42c06bea271e3feb89248bba0634050",
+    "semantic_hash": "a42c06bea271e3feb89248bba0634050"
+  },
+  "eduverify/tailwind.config.js": {
+    "mtime": 1783375006.4457262,
+    "ast_hash": "bbcd4e9e0c2d0f41f49309955984269d",
+    "semantic_hash": "bbcd4e9e0c2d0f41f49309955984269d"
+  },
+  "eduverify/vite.config.js": {
+    "mtime": 1783375006.4457262,
+    "ast_hash": "925d9bd6ca5bd61eafc07324053e9597",
+    "semantic_hash": "925d9bd6ca5bd61eafc07324053e9597"
+  },
+  ".claude/CLAUDE.md": {
+    "mtime": 1783390748.32611,
+    "ast_hash": "db73b0edd7ffbc61ceac177130730865",
+    "semantic_hash": "db73b0edd7ffbc61ceac177130730865"
+  },
+  ".claude/skills/graphify/SKILL.md": {
+    "mtime": 1783390748.3257997,
+    "ast_hash": "5bc28728a68fa52adb97f26b0ffa1324",
+    "semantic_hash": "5bc28728a68fa52adb97f26b0ffa1324"
+  },
+  ".claude/skills/graphify/references/add-watch.md": {
+    "mtime": 1782598625.4195693,
+    "ast_hash": "d59d027fe449f06aa03905a01184e779",
+    "semantic_hash": "d59d027fe449f06aa03905a01184e779"
+  },
+  ".claude/skills/graphify/references/exports.md": {
+    "mtime": 1782598625.4195693,
+    "ast_hash": "9da2a2152e60a22f07f05fed5158f287",
+    "semantic_hash": "9da2a2152e60a22f07f05fed5158f287"
+  },
+  ".claude/skills/graphify/references/extraction-spec.md": {
+    "mtime": 1782598625.4205692,
+    "ast_hash": "2e620982acb506f557538cdcfb1ef6da",
+    "semantic_hash": "2e620982acb506f557538cdcfb1ef6da"
+  },
+  ".claude/skills/graphify/references/github-and-merge.md": {
+    "mtime": 1782598625.4205692,
+    "ast_hash": "cde13df085e4c492aeb7ba298a996d0d",
+    "semantic_hash": "cde13df085e4c492aeb7ba298a996d0d"
+  },
+  ".claude/skills/graphify/references/hooks.md": {
+    "mtime": 1782598625.4205692,
+    "ast_hash": "3f545db6ce646650bb9de588f5512a27",
+    "semantic_hash": "3f545db6ce646650bb9de588f5512a27"
+  },
+  ".claude/skills/graphify/references/query.md": {
+    "mtime": 1782598625.4215693,
+    "ast_hash": "9e5aadc2c57ab561bc56600fcfa70735",
+    "semantic_hash": "9e5aadc2c57ab561bc56600fcfa70735"
+  },
+  ".claude/skills/graphify/references/transcribe.md": {
+    "mtime": 1782598625.4215693,
+    "ast_hash": "67b6a5fa6c0974e18f60db9f8932fbd8",
+    "semantic_hash": "67b6a5fa6c0974e18f60db9f8932fbd8"
+  },
+  ".claude/skills/graphify/references/update.md": {
+    "mtime": 1782598625.4215693,
+    "ast_hash": "c698309979460d0f02ba616417844399",
+    "semantic_hash": "c698309979460d0f02ba616417844399"
+  },
+  "CLAUDE.md": {
+    "mtime": 1783390748.3274846,
+    "ast_hash": "1370ffe276525bbfb298596758a7539f",
+    "semantic_hash": "1370ffe276525bbfb298596758a7539f"
+  },
+  "backend/docker-compose.yml": {
+    "mtime": 1783376052.6413262,
+    "ast_hash": "dd835b076bbb3a0ac8dc6dd4569c9d60",
+    "semantic_hash": "dd835b076bbb3a0ac8dc6dd4569c9d60"
+  },
+  "docs/01-feature-spec.md": {
+    "mtime": 1783375883.1706538,
+    "ast_hash": "546abefc8d44ccea9fcb5fc6f96b1743",
+    "semantic_hash": "546abefc8d44ccea9fcb5fc6f96b1743"
+  },
+  "docs/02-db-schema.md": {
+    "mtime": 1783375908.943102,
+    "ast_hash": "2fc4a2224f3eb1f8466f2050c01ef299",
+    "semantic_hash": "2fc4a2224f3eb1f8466f2050c01ef299"
+  },
+  "docs/03-api-spec.md": {
+    "mtime": 1783375952.8989456,
+    "ast_hash": "22d9df8cc59ceaca3f8186a0e0a27549",
+    "semantic_hash": "22d9df8cc59ceaca3f8186a0e0a27549"
+  },
+  "docs/04-auth-spec.md": {
+    "mtime": 1783375977.219526,
+    "ast_hash": "607bfb0848226d4d4fb0d6ca37f4f916",
+    "semantic_hash": "607bfb0848226d4d4fb0d6ca37f4f916"
+  },
+  "docs/05-file-uploads-spec.md": {
+    "mtime": 1783375993.1659067,
+    "ast_hash": "d8c0c7fce17f5e8753eb86f471aedf9f",
+    "semantic_hash": "d8c0c7fce17f5e8753eb86f471aedf9f"
+  },
+  "docs/06-migration-phases.md": {
+    "mtime": 1783376042.498084,
+    "ast_hash": "c62b09e8f611eeaced8b292387317547",
+    "semantic_hash": "c62b09e8f611eeaced8b292387317547"
+  },
+  "eduverify/README.md": {
+    "mtime": 1783375006.4444952,
+    "ast_hash": "a28dc4cb878325f3e9e5649f3e1469ac",
+    "semantic_hash": "a28dc4cb878325f3e9e5649f3e1469ac"
+  },
+  "eduverify/index.html": {
+    "mtime": 1783375006.4444952,
+    "ast_hash": "b324704dbac0323bcbfc1ec06d1d42d9",
+    "semantic_hash": "b324704dbac0323bcbfc1ec06d1d42d9"
+  },
+  "eduverify/public/favicon.svg": {
+    "mtime": 1783375006.4444952,
+    "ast_hash": "7e840862161341271697daa99a40d76b",
+    "semantic_hash": "7e840862161341271697daa99a40d76b"
+  },
+  "eduverify/public/icons.svg": {
+    "mtime": 1783375006.4449759,
+    "ast_hash": "3b4fcfcf393eca4d264dca4a4663bc37",
+    "semantic_hash": "3b4fcfcf393eca4d264dca4a4663bc37"
+  }
+}
