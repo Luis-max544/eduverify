@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Camera, Lock, Loader2, MailCheck, AlertTriangle } from 'lucide-react';
 import { auth, users as usersApi } from '../api';
+import { useToast } from './Toast';
 
 export default function Configuracion({ usuario, setUsuario, setVista, darkMode }) {
   // Estados principales del formulario
   const [nombre, setNombre] = useState(usuario?.nombre || '');
+  const notify = useToast();
   const [email] = useState(usuario?.email || '');
   const [foto, setFoto] = useState(usuario?.avatar_url || null);
 
@@ -17,7 +19,7 @@ export default function Configuracion({ usuario, setUsuario, setVista, darkMode 
     const file = e.target.files[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
-      alert("La imagen es demasiado pesada. Elige una menor a 2MB.");
+      notify.error("La imagen es demasiado pesada. Elige una menor a 2MB.");
       return;
     }
     try {
@@ -25,7 +27,7 @@ export default function Configuracion({ usuario, setUsuario, setVista, darkMode 
       setFoto(avatar_url);
       setUsuario({ ...usuario, avatar_url });
     } catch (err) {
-      alert(`Error al subir la foto: ${err.message}`);
+      notify.error(`Error al subir la foto: ${err.message}`);
     }
   };
 
@@ -52,15 +54,15 @@ export default function Configuracion({ usuario, setUsuario, setVista, darkMode 
   // 💾 GUARDAR CAMBIOS DE PERFIL EN EL API
   const handleGuardarConfiguracion = async (e) => {
     e.preventDefault();
-    if (!nombre.trim()) return alert("El nombre no puede quedar vacío.");
+    if (!nombre.trim()) return notify.error("El nombre no puede quedar vacío.");
 
     try {
       const actualizado = await usersApi.updateNombre(nombre.trim());
       setUsuario(actualizado);
-      alert("Perfil actualizado correctamente.");
+      notify.success("Perfil actualizado correctamente.");
       setVista('catalogo');
     } catch (err) {
-      alert(`Error al actualizar el perfil: ${err.message}`);
+      notify.error(`Error al actualizar el perfil: ${err.message}`);
     }
   };
 

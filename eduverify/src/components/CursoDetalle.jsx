@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { GraduationCap, Star, Play, Check, Clapperboard, ArrowRight } from 'lucide-react';
 import { cursos as cursosApi } from '../api';
+import { useToast } from './Toast';
 
 export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abrirCanalProfesor, abrirLeccionDeCurso }) {
   const [curso, setCurso] = useState(null);
+  const notify = useToast();
   const [progreso, setProgreso] = useState({ inscrito: false, completadas: [], porcentaje: 0 });
   const [reviews, setReviews] = useState({ items: [], promedio: null, total: 0 });
   const [cargando, setCargando] = useState(true);
@@ -64,19 +66,19 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
       }
       cargarTodo();
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      notify.error(`Error: ${err.message}`);
     }
   };
 
   const enviarReview = async (e) => {
     e.preventDefault();
-    if (!estrellasForm) return alert('Selecciona una calificación de 1 a 5 estrellas.');
+    if (!estrellasForm) return notify.error('Selecciona una calificación de 1 a 5 estrellas.');
     setEnviandoReview(true);
     try {
       await cursosApi.upsertReview(cursoId, { estrellas: estrellasForm, texto: textoForm.trim() || undefined });
       cursosApi.reviews(cursoId).then(setReviews).catch(() => {});
     } catch (err) {
-      alert(`Error al guardar la reseña: ${err.message}`);
+      notify.error(`Error al guardar la reseña: ${err.message}`);
     } finally {
       setEnviandoReview(false);
     }
@@ -90,7 +92,7 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
       setTextoForm('');
       cursosApi.reviews(cursoId).then(setReviews).catch(() => {});
     } catch (err) {
-      alert(`Error al eliminar la reseña: ${err.message}`);
+      notify.error(`Error al eliminar la reseña: ${err.message}`);
     }
   };
 

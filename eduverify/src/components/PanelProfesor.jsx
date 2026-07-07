@@ -4,11 +4,14 @@ import {
   Image, User, X, ArrowLeft, Link, Star, Plus, Eye, EyeOff
 } from 'lucide-react';
 import { videos as videosApi, users as usersApi, profesorPlaylists } from '../api';
+import { useToast } from './Toast';
+import Modal from './Modal';
 
 const CATEGORIAS = ['Programación', 'Ciberseguridad', 'Matemáticas', 'Electrónica', 'Arte'];
 
 export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode, videosGlobales = [], recargarVideos, setVideoSeleccionado, subVista = 'canal', setSubVista = () => {} }) {
   const [pestanaStudio, setPestanaStudio] = useState('VIDEOS');
+  const notify = useToast();
 
   // PERSONALIZACIÓN DE CANAL (banner y avatar viven en el usuario del API)
   const [mostrarPersonalizar, setMostrarPersonalizar] = useState(false);
@@ -112,9 +115,9 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
       setInputBanner('');
       setInputFoto('');
       setMostrarPersonalizar(false);
-      alert("¡Diseño del canal guardado y actualizado con éxito!");
+      notify.success("¡Diseño del canal guardado y actualizado con éxito!");
     } catch (err) {
-      alert(`Error al guardar el diseño: ${err.message}`);
+      notify.error(`Error al guardar el diseño: ${err.message}`);
     }
   };
 
@@ -123,13 +126,13 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
     e.preventDefault();
     const nombre = nuevaPlaylistNombre.trim();
     if (!nombre) return;
-    if (misPlaylists.some(p => p.nombre === nombre)) return alert("Ya tienes un curso con ese nombre.");
+    if (misPlaylists.some(p => p.nombre === nombre)) return notify.error("Ya tienes un curso con ese nombre.");
     try {
       await profesorPlaylists.create(nombre);
       cargarPlaylists();
       setNuevaPlaylistNombre('');
     } catch (err) {
-      alert(`Error al crear el curso: ${err.message}`);
+      notify.error(`Error al crear el curso: ${err.message}`);
     }
   };
 
@@ -137,12 +140,12 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
     const nuevoNombre = prompt(`Modificar nombre del curso "${playlist.nombre}" a:`, playlist.nombre);
     if (!nuevoNombre || !nuevoNombre.trim() || nuevoNombre.trim() === playlist.nombre) return;
     const nombreLimpio = nuevoNombre.trim();
-    if (misPlaylists.some(p => p.nombre === nombreLimpio)) return alert("Ya existe otro curso con ese nombre.");
+    if (misPlaylists.some(p => p.nombre === nombreLimpio)) return notify.error("Ya existe otro curso con ese nombre.");
     try {
       await profesorPlaylists.update(playlist.id, { nombre: nombreLimpio });
       cargarPlaylists();
     } catch (err) {
-      alert(`Error al renombrar el curso: ${err.message}`);
+      notify.error(`Error al renombrar el curso: ${err.message}`);
     }
   };
 
@@ -163,9 +166,9 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
     try {
       await profesorPlaylists.update(playlist.id, { descripcion: descEdit.trim() || null });
       cargarPlaylists();
-      alert('Descripción guardada.');
+      notify.success('Descripción guardada.');
     } catch (err) {
-      alert(`Error al guardar la descripción: ${err.message}`);
+      notify.error(`Error al guardar la descripción: ${err.message}`);
     }
   };
 
@@ -178,7 +181,7 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
       await profesorPlaylists.reorder(playlist.id, ids);
       cargarPlaylists();
     } catch (err) {
-      alert(`Error al reordenar: ${err.message}`);
+      notify.error(`Error al reordenar: ${err.message}`);
     }
   };
 
@@ -188,7 +191,7 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
       await profesorPlaylists.remove(playlist.id);
       cargarPlaylists();
     } catch (err) {
-      alert(`Error al eliminar el curso: ${err.message}`);
+      notify.error(`Error al eliminar el curso: ${err.message}`);
     }
   };
 
@@ -201,14 +204,14 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
       cargarPlaylists();
       setVideoSeleccionadoCurso(null);
     } catch (err) {
-      alert(`Error al añadir la lección: ${err.message}`);
+      notify.error(`Error al añadir la lección: ${err.message}`);
     }
   };
 
   // CRUD VIDEOS (el API deduce autor y usuario_id del token)
   const handlePublicarClase = async (e) => {
     e.preventDefault();
-    if (!tituloLeccion.trim() || !videoUrl.trim()) return alert('Completa el título y la URL del video.');
+    if (!tituloLeccion.trim() || !videoUrl.trim()) return notify.error('Completa el título y la URL del video.');
 
     try {
       await videosApi.create({
@@ -219,13 +222,13 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
         es_premium: esPremiumAlta,
         visible: esVisibleAlta,
       });
-      alert('¡Clase publicada con éxito!');
+      notify.success('¡Clase publicada con éxito!');
       if (recargarVideos) recargarVideos();
       cargarMisVideos();
       setTituloLeccion(''); setDescripcion(''); setVideoUrl(''); setEsPremiumAlta(false); setEsVisibleAlta(true);
       setSubVista('canal');
     } catch (err) {
-      alert(`Error al publicar la clase: ${err.message}`);
+      notify.error(`Error al publicar la clase: ${err.message}`);
     }
   };
 
@@ -236,7 +239,7 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
       if (recargarVideos) recargarVideos();
       cargarMisVideos();
     } catch (err) {
-      alert(`Error al eliminar el video: ${err.message}`);
+      notify.error(`Error al eliminar el video: ${err.message}`);
     }
   };
 
@@ -256,9 +259,9 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
       if (recargarVideos) recargarVideos();
       cargarMisVideos();
       setEditando(null);
-      alert('Cambios guardados.');
+      notify.success('Cambios guardados.');
     } catch (err) {
-      alert(`Error al guardar: ${err.message}`);
+      notify.error(`Error al guardar: ${err.message}`);
     }
   };
 
@@ -289,50 +292,42 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
       )}
 
       {/* Modal de edición de video */}
-      {editando && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-fade-in">
-          <div className={`w-full max-w-lg p-6 rounded-[2rem] border shadow-2xl space-y-4 ${darkMode ? 'bg-gray-900 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}>
-            <div>
-              <h3 className="text-sm font-black uppercase tracking-wider text-blue-600">Editar video</h3>
-              <p className="text-[10px] text-gray-400 font-medium">{editando.titulo}</p>
-            </div>
-
-            <form onSubmit={handleGuardarEdicion} className="space-y-4">
-              <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Título</label>
-                <input type="text" required value={editForm.titulo} onChange={(e) => setEditForm(prev => ({ ...prev, titulo: e.target.value }))}
-                  className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white" : "w-full p-3 rounded-xl border text-xs bg-gray-50 border-gray-200 text-black"} />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Descripción</label>
-                <textarea rows="3" value={editForm.descripcion} onChange={(e) => setEditForm(prev => ({ ...prev, descripcion: e.target.value }))}
-                  className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white resize-none" : "w-full p-3 rounded-xl border text-xs bg-gray-50 border-gray-200 text-black resize-none"} />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Categoría</label>
-                <select value={editForm.categoria} onChange={(e) => setEditForm(prev => ({ ...prev, categoria: e.target.value }))}
-                  className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white" : "w-full p-3 rounded-xl border text-xs bg-gray-50 border-gray-200 text-black"}>
-                  {CATEGORIAS.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                </select>
-              </div>
-              <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                <input type="checkbox" checked={editForm.es_premium} onChange={(e) => setEditForm(prev => ({ ...prev, es_premium: e.target.checked }))}
-                  className="w-4 h-4 rounded accent-amber-500 cursor-pointer" />
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider inline-flex items-center gap-1.5"><Star size={12} className="fill-current text-amber-500" /> Contenido exclusivo Premium</span>
-              </label>
-              <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                <input type="checkbox" checked={editForm.visible} onChange={(e) => setEditForm(prev => ({ ...prev, visible: e.target.checked }))}
-                  className="w-4 h-4 rounded accent-blue-500 cursor-pointer" />
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider inline-flex items-center gap-1.5"><Eye size={12} /> Visible públicamente</span>
-              </label>
-              <div className="flex justify-end gap-2 pt-2 text-[10px] font-black uppercase tracking-wider">
-                <button type="button" onClick={() => setEditando(null)} className="px-4 py-2 rounded-xl text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5">Cancelar</button>
-                <button type="submit" className="bg-blue-600 text-white px-5 py-2 rounded-xl shadow-md hover:bg-blue-500 transition-colors">Guardar Cambios</button>
-              </div>
-            </form>
+      <Modal open={Boolean(editando)} onClose={() => setEditando(null)} title="Editar video" darkMode={darkMode} maxWidth="max-w-lg">
+        <p className="text-[10px] text-gray-400 font-medium mb-4">{editando?.titulo}</p>
+        <form onSubmit={handleGuardarEdicion} className="space-y-4">
+          <div>
+            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Título</label>
+            <input type="text" required value={editForm.titulo} onChange={(e) => setEditForm(prev => ({ ...prev, titulo: e.target.value }))}
+              className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white" : "w-full p-3 rounded-xl border text-xs bg-gray-50 border-gray-200 text-black"} />
           </div>
-        </div>
-      )}
+          <div>
+            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Descripción</label>
+            <textarea rows="3" value={editForm.descripcion} onChange={(e) => setEditForm(prev => ({ ...prev, descripcion: e.target.value }))}
+              className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white resize-none" : "w-full p-3 rounded-xl border text-xs bg-gray-50 border-gray-200 text-black resize-none"} />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Categoría</label>
+            <select value={editForm.categoria} onChange={(e) => setEditForm(prev => ({ ...prev, categoria: e.target.value }))}
+              className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white" : "w-full p-3 rounded-xl border text-xs bg-gray-50 border-gray-200 text-black"}>
+              {CATEGORIAS.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+            </select>
+          </div>
+          <label className="flex items-center gap-2.5 cursor-pointer select-none">
+            <input type="checkbox" checked={editForm.es_premium} onChange={(e) => setEditForm(prev => ({ ...prev, es_premium: e.target.checked }))}
+              className="w-4 h-4 rounded accent-amber-500 cursor-pointer" />
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider inline-flex items-center gap-1.5"><Star size={12} className="fill-current text-amber-500" /> Contenido exclusivo Premium</span>
+          </label>
+          <label className="flex items-center gap-2.5 cursor-pointer select-none">
+            <input type="checkbox" checked={editForm.visible} onChange={(e) => setEditForm(prev => ({ ...prev, visible: e.target.checked }))}
+              className="w-4 h-4 rounded accent-blue-500 cursor-pointer" />
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider inline-flex items-center gap-1.5"><Eye size={12} /> Visible públicamente</span>
+          </label>
+          <div className="flex justify-end gap-2 pt-2 text-[10px] font-black uppercase tracking-wider">
+            <button type="button" onClick={() => setEditando(null)} className="px-4 py-2 rounded-xl text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5">Cancelar</button>
+            <button type="submit" className="bg-blue-600 text-white px-5 py-2 rounded-xl shadow-md hover:bg-blue-500 transition-colors">Guardar Cambios</button>
+          </div>
+        </form>
+      </Modal>
 
     </div>
             <div className="flex-1 min-w-0">
@@ -525,14 +520,9 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
         </>
       )}
 
-      {/* 🎨 MODAL DE PERSONALIZACIÓN COMPLETAMENTE CORREGIDO (NADA DE LINKS) */}
-      {mostrarPersonalizar && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-fade-in">
-          <div className={`w-full max-w-md p-6 rounded-[2rem] border shadow-2xl space-y-4 ${darkMode ? 'bg-gray-900 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'}`}>
-            <div>
-              <h3 className="text-sm font-black uppercase tracking-wider text-blue-600">Personalización del Estudio</h3>
-              <p className="text-[10px] text-gray-400 font-medium">Actualiza las portadas y firmas estéticas subiendo archivos desde tu equipo</p>
-            </div>
+      {/* 🎨 MODAL DE PERSONALIZACIÓN */}
+      <Modal open={mostrarPersonalizar} onClose={() => { setMostrarPersonalizar(false); setArchivoBanner(null); setArchivoFoto(null); setInputBanner(''); setInputFoto(''); }} title="Personalización del Estudio" darkMode={darkMode} maxWidth="max-w-md">
+        <p className="text-[10px] text-gray-400 font-medium mb-4">Actualiza las portadas y firmas estéticas subiendo archivos desde tu equipo</p>
             
             <form onSubmit={handleGuardarPersonalizacion} className="space-y-5">
               {/* SECCIÓN A: SUBIDA EXCLUSIVA DEL BANNER */}
@@ -583,9 +573,7 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
                 <button type="submit" className="bg-blue-600 text-white px-5 py-2 rounded-xl shadow-md hover:bg-blue-500 transition-colors">Guardar Diseño</button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </Modal>
 
       {/* FORMULARIO DE ALTA MULTIMEDIA */}
       {subVista === 'subir' && (

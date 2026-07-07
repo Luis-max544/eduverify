@@ -29,4 +29,14 @@ router.get('/status', verifyToken, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// DELETE /api/premium/cancel
+router.delete('/cancel', verifyToken, async (req, res, next) => {
+  try {
+    await db.update(users)
+      .set({ premium: false, fecha_pago: null })
+      .where(eq(users.id, req.user.sub));
+    res.json({ status: 'success', data: { message: 'Membresía cancelada' } });
+  } catch (err) { next(err); }
+});
+
 export default router;

@@ -5,6 +5,8 @@ import {
 } from 'lucide-react';
 import { comments as commentsApi, favorites as favoritesApi, playlists as playlistsApi, videos as videosApi, cursos as cursosApi } from '../api';
 import TutorIA from './TutorIA';
+import { useToast } from './Toast';
+import Modal from './Modal';
 
 export default function Reproductor({
   video,
@@ -23,6 +25,7 @@ export default function Reproductor({
 }) {
   // Estados principales
   const [localVideo, setLocalVideo] = useState(video);
+  const notify = useToast();
   const [panelAdmin, setPanelAdmin] = useState(null);
   const [editTitulo, setEditTitulo] = useState(video?.titulo || '');
   const [editDescripcion, setEditDescripcion] = useState(video?.descripcion || '');
@@ -132,7 +135,7 @@ export default function Reproductor({
       }
       cargarListas();
     } catch (err) {
-      alert(`Error al actualizar la carpeta: ${err.message}`);
+      notify.error(`Error al actualizar la carpeta: ${err.message}`);
     }
   };
 
@@ -140,14 +143,14 @@ export default function Reproductor({
     e.preventDefault();
     const nombre = nombreNuevaCarpeta.trim();
     if (!nombre) return;
-    if (misListas.some(l => l.nombre === nombre)) return alert("Esa carpeta ya existe.");
+    if (misListas.some(l => l.nombre === nombre)) return notify.error("Esa carpeta ya existe.");
     try {
       const nueva = await playlistsApi.create(nombre);
       await playlistsApi.addVideo(nueva.id, localVideo.id);
       cargarListas();
       setNombreNuevaCarpeta('');
     } catch (err) {
-      alert(`Error al crear la carpeta: ${err.message}`);
+      notify.error(`Error al crear la carpeta: ${err.message}`);
     }
   };
 
@@ -160,7 +163,7 @@ export default function Reproductor({
       setNuevoComentarioTexto('');
       cargarComentarios(localVideo.id);
     } catch (err) {
-      alert(`Error al publicar el comentario: ${err.message}`);
+      notify.error(`Error al publicar el comentario: ${err.message}`);
     }
   };
 
@@ -173,7 +176,7 @@ export default function Reproductor({
       setIdComentarioRespondiendo(null);
       cargarComentarios(localVideo.id);
     } catch (err) {
-      alert(`Error al publicar la respuesta: ${err.message}`);
+      notify.error(`Error al publicar la respuesta: ${err.message}`);
     }
   };
 
@@ -205,7 +208,7 @@ export default function Reproductor({
       await commentsApi.remove(comentarioId);
       cargarComentarios(localVideo.id);
     } catch (err) {
-      alert(`Error al eliminar el comentario: ${err.message}`);
+      notify.error(`Error al eliminar el comentario: ${err.message}`);
     }
   };
 
@@ -222,7 +225,7 @@ export default function Reproductor({
       setLocalVideo(actualizado);
       setPanelAdmin(null);
     } catch (err) {
-      alert(`Error al guardar los cambios: ${err.message}`);
+      notify.error(`Error al guardar los cambios: ${err.message}`);
     }
   };
 
@@ -266,7 +269,7 @@ export default function Reproductor({
           : [...prev.completadas, localVideo.id],
       }));
     } catch (err) {
-      alert(`Error al actualizar el progreso: ${err.message}`);
+      notify.error(`Error al actualizar el progreso: ${err.message}`);
     }
   };
 
@@ -743,28 +746,8 @@ export default function Reproductor({
       </div>
 
       {/* MODAL DE CARPETAS */}
-      {mostrarModalGuardar && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-fade-in">
-          <div className={`w-full max-w-md p-7 rounded-[2rem] border shadow-2xl transition-all duration-300 ${
-            darkMode ? 'bg-gray-900 border-white/10 text-white' : 'bg-white border-gray-200 text-gray-900'
-          }`}>
-            <div className="flex justify-between items-center pb-4 border-b border-gray-100 dark:border-white/5 mb-5">
-              <div className="flex items-center gap-2.5">
-                <FolderOpen size={20} className="text-blue-500" />
-                <div>
-                  <h3 className="text-sm font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
-                    Organizar Asignatura
-                  </h3>
-                </div>
-              </div>
-              <button
-                onClick={() => setMostrarModalGuardar(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-white/5 text-gray-400 hover:text-red-500 font-bold"
-              >
-                <X size={14} />
-              </button>
-            </div>
-            <div className="space-y-2 max-h-60 overflow-y-auto pr-1 mb-5 scrollbar-none">
+      <Modal open={mostrarModalGuardar} onClose={() => setMostrarModalGuardar(false)} title="Organizar Asignatura" icon={FolderOpen} darkMode={darkMode} maxWidth="max-w-md">
+        <div className="space-y-2 max-h-60 overflow-y-auto pr-1 mb-5 scrollbar-none">
               {misListas.length === 0 && (
                 <p className="text-xs italic text-gray-400 px-1">Aún no tienes carpetas. Crea la primera abajo.</p>
               )}
@@ -811,9 +794,7 @@ export default function Reproductor({
                 + Crear
               </button>
             </form>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 }

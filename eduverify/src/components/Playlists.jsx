@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Folder, FolderOpen, X } from 'lucide-react';
 import { playlists as playlistsApi } from '../api';
+import { useToast } from './Toast';
 
 export default function Playlists({ usuario, setVideoSeleccionado }) {
   const [listas, setListas] = useState([]);
+  const notify = useToast();
   const [carpetaActivaId, setCarpetaActivaId] = useState(null);
 
   useEffect(() => {
@@ -18,7 +20,7 @@ export default function Playlists({ usuario, setVideoSeleccionado }) {
       await playlistsApi.remove(id);
       setListas(prev => prev.filter(l => l.id !== id));
     } catch (err) {
-      alert(`Error al eliminar la carpeta: ${err.message}`);
+      notify.error(`Error al eliminar la carpeta: ${err.message}`);
     }
   };
 

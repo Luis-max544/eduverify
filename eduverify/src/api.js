@@ -154,5 +154,6 @@ export const notifications = {
 
 export const premium = {
   activate: () => request('/premium/activate', { method: 'POST' }),
+  cancel: () => request('/premium/cancel', { method: 'DELETE' }),
   status: () => request('/premium/status'),
 };
