@@ -84,7 +84,7 @@ function genUser(idx, hash, role) {
     rol: role,
     premium: role !== 'estudiante' && faker.datatype.boolean(0.3),
     dark_mode: faker.datatype.boolean(0.3),
-    avatar_path: faker.image.avatar(),
+    avatar_path: faker.image.urlPicsumPhotos({ width: 200, height: 200 }),
     banner_path: faker.datatype.boolean(0.25) ? faker.image.urlPicsumPhotos({ width: 1200, height: 400 }) : null,
   };
 }
