@@ -27,7 +27,7 @@ export default function MisCursos({ darkMode, abrirCurso, setVista }) {
           <p className="text-xs text-gray-400 uppercase font-mono tracking-wider">Todavía no estás inscrito en ningún curso.</p>
           <button
             onClick={() => setVista('catalogo')}
-            className="text-[10px] font-black uppercase tracking-widest text-blue-500 hover:underline inline-flex items-center gap-1"
+            className="text-[10px] font-black uppercase tracking-widest text-cyan-500 hover:underline inline-flex items-center gap-1"
           >
             Explorar el catálogo <ArrowRight size={12} />
           </button>
@@ -42,8 +42,8 @@ export default function MisCursos({ darkMode, abrirCurso, setVista }) {
                 darkMode ? 'bg-gray-900/40 border-white/5 hover:bg-gray-900' : 'bg-white border-gray-200 shadow-sm hover:shadow'
               }`}
             >
-              <div className="w-full aspect-video bg-gradient-to-br from-blue-900/30 to-gray-950 rounded-xl flex items-center justify-center border border-gray-200/10">
-                <GraduationCap size={32} className="text-white opacity-40" />
+              <div className="w-full aspect-video bg-[var(--clr-surface-elevated)] dark:bg-gray-900 rounded-xl flex items-center justify-center border border-[var(--clr-border-subtle)] dark:border-white/5">
+                <GraduationCap size={32} className="text-[var(--clr-text-muted)] opacity-40" />
               </div>
               <div className="space-y-1 flex-1">
                 <h4 className={`text-xs font-black uppercase tracking-wide truncate ${darkMode ? 'text-white' : 'text-gray-900'}`}>{curso.nombre}</h4>
@@ -57,14 +57,14 @@ export default function MisCursos({ darkMode, abrirCurso, setVista }) {
               <div className="space-y-1.5">
                 <div className="flex justify-between text-[9px] font-black uppercase tracking-wider text-gray-400">
                   <span>{curso.completadas}/{curso.total_lecciones} lecciones</span>
-                  <span className="text-blue-500">{curso.porcentaje}%</span>
+                  <span className="text-cyan-500">{curso.porcentaje}%</span>
                 </div>
-                <div className={`w-full h-1.5 rounded-full overflow-hidden ${darkMode ? 'bg-white/5' : 'bg-gray-100'}`}>
-                  <div className="h-full bg-blue-600 rounded-full transition-all" style={{ width: `${curso.porcentaje}%` }} />
+                <div className={`w-full h-1.5 rounded-full overflow-hidden ${darkMode ? 'bg-white/5' : 'bg-[var(--clr-surface-elevated)]'}`}>
+                  <div className="h-full bg-cyan-600 rounded-full transition-all" style={{ width: `${curso.porcentaje}%` }} />
                 </div>
               </div>
 
-              <button className="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest shadow-sm inline-flex items-center justify-center gap-1.5">
+              <button className="w-full py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-[10px] font-black uppercase tracking-widest shadow-sm inline-flex items-center justify-center gap-1.5">
                 {curso.porcentaje === 100 ? <><Check size={12} /> Completado</> : 'Continuar'}
               </button>
             </div>

@@ -1,3 +1,118 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── Design Tokens ───────────────────────────────────────────────── */
+:root {
+  /* Light mode */
+  --clr-base:             #F8FAFC;
+  --clr-surface:          #FFFFFF;
+  --clr-surface-elevated: #F1F5F9;
+  --clr-accent:           #0891B2;
+  --clr-accent-muted:     #ECFEFF;
+  --clr-premium:          #D97706;
+  --clr-danger:           #DC2626;
+  --clr-text-primary:     #0A1628;
+  --clr-text-muted:       #64748B;
+  --clr-border:           #CBD5E1;
+  --clr-border-subtle:    #E2E8F0;
+
+  /* Scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E1 transparent;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --clr-base:             #070E1A;
+    --clr-surface:          #0D1829;
+    --clr-surface-elevated: #152034;
+    --clr-accent:           #22D3EE;
+    --clr-accent-muted:     #0C4A6E;
+    --clr-premium:          #F59E0B;
+    --clr-danger:           #EF4444;
+    --clr-text-primary:     #EEF4FF;
+    --clr-text-muted:       #7C8FA8;
+    --clr-border:           #1E3148;
+    --clr-border-subtle:    #152034;
+    scrollbar-color: #1E3148 transparent;
+  }
+}
+
+/* Manual theme overrides (data-theme on root div) */
+:root[data-theme="dark"],
+.dark {
+  --clr-base:             #070E1A;
+  --clr-surface:          #0D1829;
+  --clr-surface-elevated: #152034;
+  --clr-accent:           #22D3EE;
+  --clr-accent-muted:     #0C4A6E;
+  --clr-premium:          #F59E0B;
+  --clr-danger:           #EF4444;
+  --clr-text-primary:     #EEF4FF;
+  --clr-text-muted:       #7C8FA8;
+  --clr-border:           #1E3148;
+  --clr-border-subtle:    #152034;
+  scrollbar-color: #1E3148 transparent;
+}
+
+:root[data-theme="light"] {
+  --clr-base:             #F8FAFC;
+  --clr-surface:          #FFFFFF;
+  --clr-surface-elevated: #F1F5F9;
+  --clr-accent:           #0891B2;
+  --clr-accent-muted:     #ECFEFF;
+  --clr-premium:          #D97706;
+  --clr-danger:           #DC2626;
+  --clr-text-primary:     #0A1628;
+  --clr-text-muted:       #64748B;
+  --clr-border:           #CBD5E1;
+  --clr-border-subtle:    #E2E8F0;
+  scrollbar-color: #CBD5E1 transparent;
+}
+
+/* ── Base Typography ─────────────────────────────────────────────── */
+html {
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "cv11", "ss01";
+}
+
+h1, h2, h3, h4, h5, h6 {
+  text-wrap: balance;
+}
+
+/* Tabular numbers for anything mono */
+.font-mono,
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Keyframes ────────────────────────────────────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slide-out-right {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(24px); }
+}
+
+/* Toast exit class */
+.toast-exiting {
+  animation: slide-out-right 0.2s ease-in forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

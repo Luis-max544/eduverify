@@ -99,6 +99,11 @@ export default function App() {
       .finally(() => setCargando(false));
   }, []);
 
+  // Sync data-theme on <html> so :root[data-theme] tokens override the OS prefers-color-scheme media query
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+  }, [darkMode]);
+
   // 📥 Hidratar datos del usuario al iniciar sesión
   useEffect(() => {
     if (!usuario) return;
@@ -226,7 +231,7 @@ export default function App() {
   if (cargando) {
     return (
       <div className={darkMode ? "dark" : ""}>
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
+        <div className="min-h-screen flex items-center justify-center bg-[var(--clr-base)]">
           <p className="text-sm font-semibold tracking-wider uppercase text-gray-400 animate-pulse">Cargando EduVerify...</p>
         </div>
       </div>
@@ -237,7 +242,7 @@ export default function App() {
   if (!usuario) {
     return (
       <div className={darkMode ? "dark" : ""}>
-        <div className={darkMode ? "min-h-screen font-sans antialiased flex flex-col transition-colors duration-300 bg-gray-950 text-gray-100" : "min-h-screen font-sans antialiased flex flex-col transition-colors duration-300 bg-gray-50 text-gray-950"}>
+        <div className={darkMode ? "min-h-screen font-sans antialiased flex flex-col transition-colors duration-300 bg-gray-950 text-gray-100" : "min-h-screen font-sans antialiased flex flex-col transition-colors duration-300 bg-[var(--clr-base)] text-[var(--clr-text-primary)]"}>
           <div className="flex flex-1 pt-16 relative">
             <main className="flex-1 p-4 md:p-6 overflow-y-auto w-full">
               <Login 
@@ -255,9 +260,9 @@ export default function App() {
 
   // 🏠 App principal
   return (
-    <ToastProvider darkMode={darkMode}>
+    <ToastProvider>
     <div className={darkMode ? "dark" : ""}>
-      <div className={darkMode ? "min-h-screen font-sans antialiased flex flex-col transition-colors duration-300 bg-gray-950 text-gray-100" : "min-h-screen font-sans antialiased flex flex-col transition-colors duration-300 bg-gray-50 text-gray-950"}>
+      <div className="min-h-screen font-sans antialiased flex flex-col transition-colors duration-300 bg-[var(--clr-base)] text-[var(--clr-text-primary)]">
         
         {/* Navbar */}
         <Navbar 
@@ -369,9 +374,10 @@ export default function App() {
             )}
 
             {vista === 'favoritos' && (
-              <Favoritos 
-                favoritos={favoritos} 
-                setVideoSeleccionado={seleccionarYRegistrarVideo} 
+              <Favoritos
+                favoritos={favoritos}
+                setFavoritos={setFavoritos}
+                setVideoSeleccionado={seleccionarYRegistrarVideo}
               />
             )}
 

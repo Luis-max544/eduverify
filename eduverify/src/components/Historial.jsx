@@ -1,67 +1,68 @@
-import React from 'react';
 import { History, BookOpen, Clapperboard } from 'lucide-react';
+import { getYoutubeId } from '../utils/youtube';
 
 export default function Historial({ historial = [], setVideoSeleccionado }) {
-  const obtenerYoutubeId = (url) => {
-    if (!url) return null;
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    const match = url.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : null;
-  };
-
   return (
-    <div className="space-y-6 animate-fade-in select-none">
-      <div className="border-b border-gray-200 dark:border-white/[0.04] pb-4">
-        <h2 className="text-base font-black uppercase tracking-wider text-blue-500 flex items-center gap-2">
-          <History size={16} /> Tu Historial de Aprendizaje
-        </h2>
-        <p className="text-xs text-gray-400 mt-0.5">Registro cronológico de tus últimas video-clases reproducidas.</p>
+    <div className="space-y-6 animate-fade-in select-none pb-16">
+      <div className="border-b border-[var(--clr-border-subtle)] pb-4">
+        <h1 className="text-2xl font-bold text-[var(--clr-text-primary)] tracking-tight flex items-center gap-2">
+          <History size={20} className="text-[var(--clr-accent)]" /> Historial
+        </h1>
+        <p className="text-sm text-[var(--clr-text-muted)] mt-0.5">
+          {historial.length} {historial.length === 1 ? 'clase vista' : 'clases vistas'}
+        </p>
       </div>
 
       {historial.length === 0 ? (
-        <div className="min-h-[250px] flex flex-col items-center justify-center border border-dashed rounded-3xl border-gray-300 dark:border-white/5 p-6 text-center">
-          <BookOpen size={28} className="mb-2 opacity-40 text-gray-400" />
-          <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Tu historial está vacío</p>
-          <p className="text-[11px] text-gray-500 mt-1 max-w-xs">Las clases que mires en la plataforma se irán organizando en esta sección automáticamente.</p>
+        <div className="min-h-[250px] flex flex-col items-center justify-center border-2 border-dashed rounded-2xl border-[var(--clr-border)] p-8 text-center">
+          <BookOpen size={28} className="mb-3 text-[var(--clr-text-muted)] opacity-40" />
+          <p className="text-sm font-semibold text-[var(--clr-text-muted)]">Historial vacío</p>
+          <p className="text-xs text-[var(--clr-text-muted)] mt-1 max-w-xs opacity-70">
+            Las clases que mires se registrarán aquí automáticamente.
+          </p>
         </div>
       ) : (
-        <div className="max-w-4xl space-y-3">
+        <div className="max-w-5xl space-y-2">
           {historial.map((v, index) => {
             if (!v) return null;
-            const ytId = obtenerYoutubeId(v.url_video);
-            const urlMiniatura = ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : null;
+            const ytId = getYoutubeId(v.url_video);
+            const thumb = ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : null;
 
             return (
-              <div 
+              <div
                 key={v.id || index}
                 onClick={() => setVideoSeleccionado(v)}
-                className="flex flex-col sm:flex-row items-center gap-4 p-3 rounded-2xl border bg-white dark:bg-gray-900/40 border-gray-200 dark:border-white/5 hover:border-blue-500/30 hover:shadow-md transition-all duration-300 cursor-pointer group"
+                className="flex flex-col sm:flex-row items-center gap-4 p-3 rounded-xl border bg-[var(--clr-surface)] border-[var(--clr-border-subtle)] hover:border-[var(--clr-accent)]/30 hover:shadow-sm transition-all duration-200 cursor-pointer group"
               >
-                {/* Miniatura Pro */}
-                <div className="w-full sm:w-44 aspect-video bg-gray-900 rounded-xl overflow-hidden border border-gray-100 dark:border-white/5 shrink-0 relative">
-                  {urlMiniatura ? (
-                    <img src={urlMiniatura} alt="Portada" className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
+                <div className="w-full sm:w-44 aspect-video bg-[var(--clr-surface-elevated)] rounded-lg overflow-hidden shrink-0 relative">
+                  {thumb ? (
+                    <img src={thumb} alt={v.titulo} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-900/20 to-gray-950">
-                      <Clapperboard size={22} className="opacity-30 text-white" />
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Clapperboard size={22} className="text-[var(--clr-text-muted)] opacity-30" />
                     </div>
                   )}
-                  <span className="absolute bottom-1.5 right-1.5 bg-black/80 text-white font-mono text-[9px] px-1.5 py-0.2 rounded font-bold">
-                    {v.duracion || '12:30'}
-                  </span>
+                  {v.duracion && (
+                    <span className="absolute bottom-1.5 right-1.5 bg-black/75 text-white font-mono text-[10px] px-1.5 py-0.5 rounded">
+                      {v.duracion}
+                    </span>
+                  )}
                 </div>
 
-                {/* Textos */}
                 <div className="flex-1 min-w-0 py-1 space-y-1 w-full text-left">
-                  <span className="bg-blue-500/10 text-blue-500 text-[8px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider">
-                    {v.categoria || 'General'}
-                  </span>
-                  <h4 className="text-sm font-black text-gray-900 dark:text-gray-100 truncate uppercase tracking-wide group-hover:text-blue-500 transition-colors mt-1">
+                  {v.categoria && (
+                    <span className="text-[10px] font-medium text-[var(--clr-accent)] uppercase tracking-wide">
+                      {v.categoria}
+                    </span>
+                  )}
+                  <h4 className="text-sm font-semibold text-[var(--clr-text-primary)] truncate group-hover:text-[var(--clr-accent)] transition-colors mt-0.5">
                     {v.titulo}
                   </h4>
-                  <p className="text-[11px] text-gray-400 font-semibold">{v.autor || 'Docente EduVerify'}</p>
-                  <p className="text-[10px] text-gray-400 font-mono flex items-center gap-1">
-                    <span>• {v.watched_at ? `Visto el ${new Date(v.watched_at).toLocaleDateString()}` : 'Visto recientemente'}</span>
+                  <p className="text-xs text-[var(--clr-text-muted)]">{v.autor || 'Docente EduVerify'}</p>
+                  <p className="text-xs text-[var(--clr-text-muted)] font-mono">
+                    {v.watched_at
+                      ? `Visto el ${new Date(v.watched_at).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                      : 'Visto recientemente'}
                   </p>
                 </div>
               </div>

@@ -44,7 +44,7 @@ export default function TutorIA({ video, darkMode }) {
   return (
     <div className={`rounded-2xl border flex flex-col ${darkMode ? 'bg-gray-900/40 border-white/5' : 'bg-white border-gray-200 shadow-sm'}`}>
       <div className="px-4 pt-4 pb-3 border-b border-gray-100 dark:border-white/5">
-        <h4 className="text-[10px] font-black uppercase tracking-widest text-blue-500 flex items-center gap-2">
+        <h4 className="text-[10px] font-black uppercase tracking-widest text-cyan-500 flex items-center gap-2">
           <Bot size={14} /> Tutor IA
         </h4>
         <p className="text-[10px] text-gray-400 font-medium mt-0.5">Pregunta lo que quieras sobre esta clase.</p>
@@ -60,10 +60,10 @@ export default function TutorIA({ video, darkMode }) {
           <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-xs font-medium leading-relaxed whitespace-pre-wrap ${
               m.role === 'user'
-                ? 'bg-blue-600 text-white rounded-br-md'
+                ? 'bg-cyan-600 text-white rounded-br-md'
                 : m.error
                   ? 'bg-red-500/10 text-red-500 border border-red-500/20 rounded-bl-md'
-                  : darkMode ? 'bg-white/5 text-gray-200 rounded-bl-md' : 'bg-gray-100 text-gray-800 rounded-bl-md'
+                  : darkMode ? 'bg-white/5 text-gray-200 rounded-bl-md' : 'bg-[var(--clr-surface-elevated)] text-gray-800 rounded-bl-md'
             }`}>
               {m.error && <AlertTriangle size={12} className="inline mr-1.5 -mt-0.5" />}
               {m.content}
@@ -72,7 +72,7 @@ export default function TutorIA({ video, darkMode }) {
         ))}
         {escribiendo && (
           <div className="flex justify-start">
-            <div className={`px-3.5 py-2.5 rounded-2xl rounded-bl-md text-xs font-bold animate-pulse ${darkMode ? 'bg-white/5 text-gray-400' : 'bg-gray-100 text-gray-500'}`}>
+            <div className={`px-3.5 py-2.5 rounded-2xl rounded-bl-md text-xs font-bold animate-pulse ${darkMode ? 'bg-white/5 text-gray-400' : 'bg-[var(--clr-surface-elevated)] text-gray-500'}`}>
               El tutor está escribiendo...
             </div>
           </div>
@@ -87,12 +87,12 @@ export default function TutorIA({ video, darkMode }) {
           onChange={(e) => setTexto(e.target.value)}
           placeholder="Escribe tu pregunta..."
           maxLength={4000}
-          className={`flex-1 rounded-xl px-3 py-2 text-xs outline-none border bg-transparent focus:border-blue-500 ${darkMode ? 'border-white/10 text-white' : 'border-gray-200 text-gray-900'}`}
+          className={`flex-1 rounded-xl px-3 py-2 text-xs outline-none border bg-transparent focus:border-cyan-500 ${darkMode ? 'border-white/10 text-white' : 'border-gray-200 text-gray-900'}`}
         />
         <button
           type="submit"
           disabled={!texto.trim() || escribiendo}
-          className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-[10px] font-black uppercase tracking-wide shadow-sm"
+          className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 text-white text-[10px] font-black uppercase tracking-wide shadow-sm"
         >
           Enviar
         </button>

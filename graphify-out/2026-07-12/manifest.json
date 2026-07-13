@@ -145,69 +145,69 @@
     "semantic_hash": "ef3ba2a81ba19f8ea5ddf625521e96f0"
   },
   "eduverify/src/App.jsx": {
-    "mtime": 1783912746.2659855,
-    "ast_hash": "b6ca920ae7af93dc307e6c14b36c2bcc",
-    "semantic_hash": ""
+    "mtime": 1783452222.431671,
+    "ast_hash": "70859828fa6617765f524d0596121283",
+    "semantic_hash": "70859828fa6617765f524d0596121283"
   },
   "eduverify/src/components/Canal.jsx": {
-    "mtime": 1783912746.1969845,
-    "ast_hash": "06a30b18d910d4fabe1b744ef1cc892a",
-    "semantic_hash": ""
+    "mtime": 1783444951.8413258,
+    "ast_hash": "01474ce710269356542cf91569bf4a8d",
+    "semantic_hash": "01474ce710269356542cf91569bf4a8d"
   },
   "eduverify/src/components/Catalogo.jsx": {
-    "mtime": 1783910708.8869288,
-    "ast_hash": "227930a72c9d8fa098c824c150f7173f",
-    "semantic_hash": ""
+    "mtime": 1783447830.0450919,
+    "ast_hash": "a60448fe78b0cc42542a4f584c07fdcb",
+    "semantic_hash": "a60448fe78b0cc42542a4f584c07fdcb"
   },
   "eduverify/src/components/Configuracion.jsx": {
-    "mtime": 1783912746.2469852,
-    "ast_hash": "c0adcaf37eca21165a8b9f10cd408da1",
-    "semantic_hash": ""
+    "mtime": 1783451638.656093,
+    "ast_hash": "b9375b97317ddb2037b917a9b10fb62b",
+    "semantic_hash": "b9375b97317ddb2037b917a9b10fb62b"
   },
   "eduverify/src/components/Favoritos.jsx": {
-    "mtime": 1783910725.8651576,
-    "ast_hash": "336943da7c9387c7ec9e587095ba0e89",
-    "semantic_hash": ""
+    "mtime": 1783441802.8205965,
+    "ast_hash": "37e8a20c89859b64e053a72d38903941",
+    "semantic_hash": "37e8a20c89859b64e053a72d38903941"
   },
   "eduverify/src/components/Historial.jsx": {
-    "mtime": 1783910724.8921444,
-    "ast_hash": "8a3d88c17a19dee40a0d270b3415d938",
-    "semantic_hash": ""
+    "mtime": 1783441793.9923787,
+    "ast_hash": "90e0ffe9f2f849634ce97beda5bd2e72",
+    "semantic_hash": "90e0ffe9f2f849634ce97beda5bd2e72"
   },
   "eduverify/src/components/Login.jsx": {
-    "mtime": 1783912766.6012824,
-    "ast_hash": "0c0e47535e871c6c24e3b4bcc669934b",
-    "semantic_hash": ""
+    "mtime": 1783441890.0878348,
+    "ast_hash": "6fbc6fb42029c2381ef62fdef4881e50",
+    "semantic_hash": "6fbc6fb42029c2381ef62fdef4881e50"
   },
   "eduverify/src/components/Navbar.jsx": {
-    "mtime": 1783910173.2310975,
-    "ast_hash": "70c70f9d09c08b2e7e017a5228e8e398",
-    "semantic_hash": ""
+    "mtime": 1783447817.6358302,
+    "ast_hash": "588942412d4aa3e37ffdeb54d3d21c35",
+    "semantic_hash": "588942412d4aa3e37ffdeb54d3d21c35"
   },
   "eduverify/src/components/PanelProfesor.jsx": {
-    "mtime": 1783912799.2377589,
-    "ast_hash": "e39cd20a55c447d76323978b6937d589",
-    "semantic_hash": ""
+    "mtime": 1783460482.6225762,
+    "ast_hash": "028646cfe808a1576e192608645d405a",
+    "semantic_hash": "028646cfe808a1576e192608645d405a"
   },
   "eduverify/src/components/PasarelaPrueba.jsx": {
-    "mtime": 1783912746.2239275,
-    "ast_hash": "3e34dc99f2c54d308fc9e90c8ccb359f",
-    "semantic_hash": ""
+    "mtime": 1783452555.5375662,
+    "ast_hash": "9b163c7bdc8e6823539b7fef66d1b7a7",
+    "semantic_hash": "9b163c7bdc8e6823539b7fef66d1b7a7"
   },
   "eduverify/src/components/Playlists.jsx": {
-    "mtime": 1783910470.9548838,
-    "ast_hash": "900d35e41256da65e24925026e918cfe",
-    "semantic_hash": ""
+    "mtime": 1783451549.6257846,
+    "ast_hash": "5c2d6e9823f989f9d1f45fd36461cee5",
+    "semantic_hash": "5c2d6e9823f989f9d1f45fd36461cee5"
   },
   "eduverify/src/components/Reproductor.jsx": {
-    "mtime": 1783912746.2100239,
-    "ast_hash": "1d31c70afa7d191fc1c2febf8afa7634",
-    "semantic_hash": ""
+    "mtime": 1783459399.857167,
+    "ast_hash": "87c901d7687d8b4cfd542a7696b712a1",
+    "semantic_hash": "87c901d7687d8b4cfd542a7696b712a1"
   },
   "eduverify/src/components/Sidebar.jsx": {
-    "mtime": 1783910193.6563573,
-    "ast_hash": "0b1ae773872c248efb8437547a6e036c",
-    "semantic_hash": ""
+    "mtime": 1783444877.6934009,
+    "ast_hash": "f6a2a44294c958d7ac78f2255157d365",
+    "semantic_hash": "f6a2a44294c958d7ac78f2255157d365"
   },
   "eduverify/src/main.jsx": {
     "mtime": 1783375006.4457262,
@@ -215,9 +215,9 @@
     "semantic_hash": "a42c06bea271e3feb89248bba0634050"
   },
   "eduverify/tailwind.config.js": {
-    "mtime": 1783910100.5080242,
-    "ast_hash": "cdfb7b7d3bfefa30e42fde5141b98097",
-    "semantic_hash": ""
+    "mtime": 1783451441.4572537,
+    "ast_hash": "8493b8580a08f4aba559f28bbfaa7cf2",
+    "semantic_hash": "8493b8580a08f4aba559f28bbfaa7cf2"
   },
   "eduverify/vite.config.js": {
     "mtime": 1783375006.4457262,
@@ -370,19 +370,19 @@
     "semantic_hash": "a91f97a578ff5b234c9070e605361a03"
   },
   "eduverify/src/components/CursoDetalle.jsx": {
-    "mtime": 1783912809.7749126,
-    "ast_hash": "d22f3a0f0f8e87b2e5cb8032490d173d",
-    "semantic_hash": ""
+    "mtime": 1783459452.0307183,
+    "ast_hash": "98fbc3485aa390718f7b9c0959d1a07e",
+    "semantic_hash": "98fbc3485aa390718f7b9c0959d1a07e"
   },
   "eduverify/src/components/MisCursos.jsx": {
-    "mtime": 1783912762.4422216,
-    "ast_hash": "496d9874a04dcc3615bdbc3867e30f5b",
-    "semantic_hash": ""
+    "mtime": 1783441968.9141262,
+    "ast_hash": "467032fe846c6270035405dd0a99248a",
+    "semantic_hash": "467032fe846c6270035405dd0a99248a"
   },
   "eduverify/src/components/TutorIA.jsx": {
-    "mtime": 1783912746.2079847,
-    "ast_hash": "74dcc4fba63f65b717d70742efccaf34",
-    "semantic_hash": ""
+    "mtime": 1783441948.0826578,
+    "ast_hash": "92bc7d24e67aa91fbd1ae7c15201be7e",
+    "semantic_hash": "92bc7d24e67aa91fbd1ae7c15201be7e"
   },
   "docs/07-gap-analysis.md": {
     "mtime": 1783439906.4803848,
@@ -450,19 +450,19 @@
     "semantic_hash": "34e2dc23692979cf5fc7be8fe62bc49c"
   },
   "eduverify/src/components/Modal.jsx": {
-    "mtime": 1783912746.2829857,
-    "ast_hash": "fbb0a5801ecb3e9cb5c1e28b1705d498",
-    "semantic_hash": ""
+    "mtime": 1783460484.6089723,
+    "ast_hash": "20ebc3726652239fa5c3d590c7c44634",
+    "semantic_hash": "20ebc3726652239fa5c3d590c7c44634"
   },
   "eduverify/src/components/QuizModal.jsx": {
-    "mtime": 1783912746.2597227,
-    "ast_hash": "acaa93e6b9534dde1007fe8f224f3229",
-    "semantic_hash": ""
+    "mtime": 1783456170.7162063,
+    "ast_hash": "ff47a033f953a6b6f0b855bfcde843f0",
+    "semantic_hash": "ff47a033f953a6b6f0b855bfcde843f0"
   },
   "eduverify/src/components/Toast.jsx": {
-    "mtime": 1783910353.3893883,
-    "ast_hash": "877e456199a94408dfb4c90b703e4ff7",
-    "semantic_hash": ""
+    "mtime": 1783451435.4571698,
+    "ast_hash": "ae8c15f5e05f415f67ba2f6a883d0a65",
+    "semantic_hash": "ae8c15f5e05f415f67ba2f6a883d0a65"
   },
   "backend/uploads/pdfs/1783459852785_yp37ql.pdf": {
     "mtime": 1783459852.792613,
@@ -478,10 +478,5 @@
     "mtime": 1783442381.6927383,
     "ast_hash": "5ce649f0669247e470685650272e7009",
     "semantic_hash": "5ce649f0669247e470685650272e7009"
-  },
-  "eduverify/src/utils/youtube.js": {
-    "mtime": 1783910092.4579048,
-    "ast_hash": "d077fe8f0c212349a0609e1303851612",
-    "semantic_hash": ""
   }
 }

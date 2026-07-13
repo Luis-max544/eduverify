@@ -157,17 +157,17 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
   };
 
   // 🎓 Edición de curso: descripción + orden de lecciones
-  const [playlistExpandida, setPlaylistExpandida] = useState(null);
+  const [gestionarPlaylistId, setGestionarPlaylistId] = useState(null);
+  // Derived — stays live whenever misPlaylists refreshes after mutations
+  const gestionarPlaylist = gestionarPlaylistId
+    ? (misPlaylists.find(p => p.id === gestionarPlaylistId) ?? null)
+    : null;
   const [descEdit, setDescEdit] = useState('');
 
-  const toggleGestionarPlaylist = (playlist) => {
-    if (playlistExpandida === playlist.id) {
-      setPlaylistExpandida(null);
-    } else {
-      setPlaylistExpandida(playlist.id);
-      setDescEdit(playlist.descripcion || '');
-      cargarPdfs(playlist.id);
-    }
+  const abrirGestionarPlaylist = (playlist) => {
+    setGestionarPlaylistId(playlist.id);
+    setDescEdit(playlist.descripcion || '');
+    cargarPdfs(playlist.id);
   };
 
   const handleGuardarDescripcion = async (playlist) => {
@@ -386,7 +386,7 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
             style={{ backgroundImage: bannerCustom ? `url(${bannerCustom})` : 'none' }}
           >
             {!bannerCustom && (
-              <div className="absolute inset-0 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-blue-900/20 dark:to-gray-900"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-slate-100 via-slate-200 to-slate-100 dark:from-cyan-900/20 dark:to-gray-900"></div>
             )}
             <div className="absolute inset-0 flex items-center justify-center opacity-10 font-black text-4xl md:text-7xl uppercase tracking-tighter text-gray-600 dark:text-white">
               EDUVERIFY CREATOR
@@ -395,58 +395,19 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
 
           {/* PERFIL */}
           <div className="flex flex-col md:flex-row items-start md:items-center gap-6 px-2 mb-10">
-            <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-blue-600 border-4 border-white dark:border-gray-950 shadow-xl flex items-center justify-center text-4xl text-white font-bold shrink-0 overflow-hidden">
+            <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-cyan-600 border-4 border-white dark:border-gray-950 shadow-xl flex items-center justify-center text-4xl text-white font-bold shrink-0 overflow-hidden">
               {fotoCustom ? (
                 <img src={fotoCustom} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
                 usuario?.nombre?.charAt(0).toUpperCase() || 'P'
-      )}
-
-      {/* Modal de edición de video */}
-      <Modal open={Boolean(editando)} onClose={() => setEditando(null)} title="Editar video" darkMode={darkMode} maxWidth="max-w-lg">
-        <p className="text-[10px] text-gray-400 font-medium mb-4">{editando?.titulo}</p>
-        <form onSubmit={handleGuardarEdicion} className="space-y-4">
-          <div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Título</label>
-            <input type="text" required value={editForm.titulo} onChange={(e) => setEditForm(prev => ({ ...prev, titulo: e.target.value }))}
-              className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white" : "w-full p-3 rounded-xl border text-xs bg-gray-50 border-gray-200 text-black"} />
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Descripción</label>
-            <textarea rows="3" value={editForm.descripcion} onChange={(e) => setEditForm(prev => ({ ...prev, descripcion: e.target.value }))}
-              className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white resize-none" : "w-full p-3 rounded-xl border text-xs bg-gray-50 border-gray-200 text-black resize-none"} />
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Categoría</label>
-            <select value={editForm.categoria} onChange={(e) => setEditForm(prev => ({ ...prev, categoria: e.target.value }))}
-              className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white" : "w-full p-3 rounded-xl border text-xs bg-gray-50 border-gray-200 text-black"}>
-              {CATEGORIAS.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-            </select>
-          </div>
-          <label className="flex items-center gap-2.5 cursor-pointer select-none">
-            <input type="checkbox" checked={editForm.es_premium} onChange={(e) => setEditForm(prev => ({ ...prev, es_premium: e.target.checked }))}
-              className="w-4 h-4 rounded accent-amber-500 cursor-pointer" />
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider inline-flex items-center gap-1.5"><Star size={12} className="fill-current text-amber-500" /> Contenido exclusivo Premium</span>
-          </label>
-          <label className="flex items-center gap-2.5 cursor-pointer select-none">
-            <input type="checkbox" checked={editForm.visible} onChange={(e) => setEditForm(prev => ({ ...prev, visible: e.target.checked }))}
-              className="w-4 h-4 rounded accent-blue-500 cursor-pointer" />
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider inline-flex items-center gap-1.5"><Eye size={12} /> Visible públicamente</span>
-          </label>
-          <div className="flex justify-end gap-2 pt-2 text-[10px] font-black uppercase tracking-wider">
-            <button type="button" onClick={() => setEditando(null)} className="px-4 py-2 rounded-xl text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5">Cancelar</button>
-            <button type="submit" className="bg-blue-600 text-white px-5 py-2 rounded-xl shadow-md hover:bg-blue-500 transition-colors">Guardar Cambios</button>
-          </div>
-        </form>
-      </Modal>
-
-    </div>
+              )}
+            </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3 flex-wrap">
                 <h1 className="text-2xl font-black tracking-tight text-gray-900 dark:text-white">
                   {usuario?.nombre || 'Profesor'}
                 </h1>
-                <span className="bg-blue-500/10 text-blue-500 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border border-blue-500/20">Tu canal</span>
+                <span className="bg-cyan-500/10 text-cyan-500 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border border-cyan-500/20">Tu canal</span>
               </div>
               <p className="text-sm text-gray-500 mt-1">Administración directa de videos, transmisiones en vivo y materiales didácticos descargables.</p>
               <div className="flex gap-4 mt-3 text-xs font-bold text-gray-400 uppercase tracking-widest">
@@ -463,7 +424,7 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
               </button>
               <button
                 onClick={() => setSubVista('subir')}
-                className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-6 rounded-full text-xs shadow-lg shadow-blue-600/10 transition-transform active:scale-95 inline-flex items-center justify-center gap-1.5"
+                className="flex-1 md:flex-none bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2.5 px-6 rounded-full text-xs shadow-lg shadow-cyan-600/10 transition-transform active:scale-95 inline-flex items-center justify-center gap-1.5"
               >
                 <Plus size={14} /> Subir Video
               </button>
@@ -472,8 +433,8 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
 
           {/* TABS DE STUDIO */}
           <div className="flex gap-6 border-b border-gray-200 dark:border-white/[0.04] mb-6 px-2">
-            <button onClick={() => setPestanaStudio('VIDEOS')} className={`pb-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${pestanaStudio === 'VIDEOS' ? 'border-blue-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Videos</button>
-            <button onClick={() => setPestanaStudio('PLAYLISTS')} className={`pb-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${pestanaStudio === 'PLAYLISTS' ? 'border-blue-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Cursos</button>
+            <button onClick={() => setPestanaStudio('VIDEOS')} className={`pb-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${pestanaStudio === 'VIDEOS' ? 'border-cyan-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Videos</button>
+            <button onClick={() => setPestanaStudio('PLAYLISTS')} className={`pb-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${pestanaStudio === 'PLAYLISTS' ? 'border-cyan-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>Cursos</button>
           </div>
 
           {/* LISTADOS */}
@@ -488,20 +449,20 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
                     const urlMiniatura = ytId ? "https://img.youtube.com/vi/" + ytId + "/hqdefault.jpg" : null;
 
                     return (
-                      <div key={v.id || Math.random()} className={darkMode ? "flex flex-col sm:flex-row items-center gap-4 p-4 rounded-2xl border transition-colors bg-gray-950/40 border-white/5 hover:bg-gray-950" : "flex flex-col sm:flex-row items-center gap-4 p-4 rounded-2xl border transition-colors bg-gray-50 border-gray-100 hover:bg-white"}
+                      <div key={v.id || Math.random()} className={darkMode ? "flex flex-col sm:flex-row items-center gap-4 p-4 rounded-2xl border transition-colors bg-gray-950/40 border-white/5 hover:bg-gray-950" : "flex flex-col sm:flex-row items-center gap-4 p-4 rounded-2xl border transition-colors bg-white border-[var(--clr-border-subtle)] hover:shadow-sm"}
                         ><div onClick={() => { if(setVideoSeleccionado) { setVideoSeleccionado(v); setVista('reproductor'); } }} className="w-full sm:w-40 aspect-video bg-gray-900 rounded-xl overflow-hidden border border-white/5 shrink-0 relative flex items-center justify-center cursor-pointer hover:opacity-90">
                           {urlMiniatura ? <img src={urlMiniatura} alt="" className="w-full h-full object-cover" /> : <Clapperboard size={28} className="opacity-30 text-white" />}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h4 onClick={() => { if(setVideoSeleccionado) { setVideoSeleccionado(v); setVista('reproductor'); } }} className={`text-sm font-bold truncate cursor-pointer hover:text-blue-500 transition-colors ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                          <h4 onClick={() => { if(setVideoSeleccionado) { setVideoSeleccionado(v); setVista('reproductor'); } }} className={`text-sm font-bold truncate cursor-pointer hover:text-cyan-500 transition-colors ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                             {v.titulo}
                             {v.es_premium && <span className="ml-2 bg-amber-500/10 text-amber-500 text-[8px] font-black uppercase px-1.5 py-0.5 rounded inline-flex items-center gap-1 align-middle"><Star size={9} className="fill-current" /> Premium</span>}
                             {!v.visible && <span className="ml-2 bg-red-500/10 text-red-500 text-[8px] font-black uppercase px-1.5 py-0.5 rounded inline-flex items-center gap-1 align-middle"><EyeOff size={9} /> Oculto</span>}
                           </h4>
-                          <div className="flex gap-3 mt-1 text-[10px] text-gray-400 font-medium font-mono"><span className="text-blue-500 font-bold uppercase">{v.categoria || 'Lección'}</span><span>• {v.vistas || 0} vistas</span></div>
+                          <div className="flex gap-3 mt-1 text-[10px] text-gray-400 font-medium font-mono"><span className="text-cyan-500 font-bold uppercase">{v.categoria || 'Lección'}</span><span>• {v.vistas || 0} vistas</span></div>
                         </div>
                         <div className="flex gap-2 w-full sm:w-auto">
-                          <button onClick={() => abrirEditor(v)} className="flex-1 sm:flex-none text-[10px] font-bold uppercase py-2 px-4 bg-blue-500/10 text-blue-500 rounded-lg hover:bg-blue-500 hover:text-white transition-colors">Editar</button>
+                          <button onClick={() => abrirEditor(v)} className="flex-1 sm:flex-none text-[10px] font-bold uppercase py-2 px-4 bg-cyan-500/10 text-cyan-500 rounded-lg hover:bg-cyan-500 hover:text-white transition-colors">Editar</button>
                           <button onClick={() => handleEliminarVideo(v.id)} className="flex-1 sm:flex-none text-[10px] font-bold uppercase py-2 px-4 bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-colors">Eliminar</button>
                         </div>
                       </div>
@@ -514,10 +475,10 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
             {pestanaStudio === 'PLAYLISTS' && (
               <div className="space-y-6">
                 <form onSubmit={handleCrearPlaylistVacia} className="flex gap-2 max-w-md text-left">
-                  <input type="text" required value={nuevaPlaylistNombre} onChange={(e) => setNuevaPlaylistNombre(e.target.value)} placeholder="Nombre del nuevo curso..." className={darkMode ? "flex-1 p-2.5 rounded-xl border text-xs bg-gray-950 border-white/5 text-white outline-none" : "flex-1 p-2.5 rounded-xl border text-xs bg-gray-50 border-gray-200 text-black outline-none"} />
-                  <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white font-black text-[10px] uppercase tracking-widest px-5 py-2 rounded-xl">Crear</button>
+                  <input type="text" required value={nuevaPlaylistNombre} onChange={(e) => setNuevaPlaylistNombre(e.target.value)} placeholder="Nombre del nuevo curso..." className={darkMode ? "flex-1 p-2.5 rounded-xl border text-xs bg-gray-950 border-white/5 text-white outline-none" : "flex-1 p-2.5 rounded-xl border text-xs bg-[var(--clr-base)] border-gray-200 text-black outline-none"} />
+                  <button type="submit" className="bg-cyan-600 hover:bg-cyan-500 text-white font-black text-[10px] uppercase tracking-widest px-5 py-2 rounded-xl">Crear</button>
                 </form>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 items-start">
                   {misPlaylists.map((playlist) => {
                     const videosDeLista = playlist.videos || [];
                     const primerVideo = videosDeLista[0] || {};
@@ -527,7 +488,7 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
                     return (
                       <div key={playlist.id} className="flex flex-col gap-2 p-3 rounded-2xl border border-gray-100 dark:border-white/[0.04] bg-gray-50/40 dark:bg-gray-900/10">
                         <div onClick={() => { if (videosDeLista.length > 0 && setVideoSeleccionado) { setVideoSeleccionado(primerVideo); setVista('reproductor'); } }} className="w-full aspect-video bg-gray-900 rounded-xl overflow-hidden relative border border-gray-200/10 shadow-md cursor-pointer hover:opacity-95">
-                          {miniaturaPlaylist ? <img src={miniaturaPlaylist} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gradient-to-br from-blue-900/20 to-gray-950 flex items-center justify-center opacity-30"><Folder size={28} className="text-white" /></div>}
+                          {miniaturaPlaylist ? <img src={miniaturaPlaylist} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-[var(--clr-surface-elevated)] dark:bg-gray-900 flex items-center justify-center"><Folder size={28} className="text-[var(--clr-text-muted)] opacity-40" /></div>}
                           <div className="absolute right-0 top-0 bottom-0 w-2/5 bg-black/70 backdrop-blur-[4px] flex flex-col items-center justify-center text-white border-l border-white/5 space-y-1">
                             <ListVideo size={16} /><span className="text-[10px] font-black font-mono uppercase">{videosDeLista.length} videos</span>
                           </div>
@@ -538,126 +499,15 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
                             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Creado por ti</p>
                           </div>
                           <div className="grid grid-cols-2 gap-2 pt-3 border-t border-gray-100 dark:border-white/5 mt-3">
-                            <button onClick={() => handleRenombrarPlaylist(playlist)} className="text-[9px] font-black uppercase py-1.5 px-2 bg-blue-500/10 text-blue-500 rounded-md hover:bg-blue-600 transition-colors">Renombrar</button>
+                            <button onClick={() => handleRenombrarPlaylist(playlist)} className="text-[9px] font-black uppercase py-1.5 px-2 bg-cyan-500/10 text-cyan-500 rounded-md hover:bg-cyan-600 transition-colors">Renombrar</button>
                             <button onClick={() => handleEliminarPlaylist(playlist)} className="text-[9px] font-black uppercase py-1.5 px-2 bg-red-500/10 text-red-500 rounded-md hover:bg-red-600 transition-colors">Eliminar</button>
                           </div>
                           <button
-                            onClick={() => toggleGestionarPlaylist(playlist)}
-                            className={`w-full text-[9px] font-black uppercase py-1.5 px-2 rounded-md transition-colors mt-2 inline-flex items-center justify-center gap-1.5 ${
-                              playlistExpandida === playlist.id ? 'bg-blue-600 text-white' : 'bg-gray-500/10 text-gray-500 hover:bg-gray-500/20'
-                            }`}
+                            onClick={() => abrirGestionarPlaylist(playlist)}
+                            className="w-full text-[9px] font-black uppercase py-1.5 px-2 rounded-md transition-colors mt-2 inline-flex items-center justify-center gap-1.5 bg-gray-500/10 text-gray-500 hover:bg-gray-500/20"
                           >
-                            {playlistExpandida === playlist.id ? 'Cerrar editor' : <><GraduationCap size={12} /> Gestionar curso</>}
+                            <GraduationCap size={12} /> Gestionar curso
                           </button>
-
-                          {/* Editor de curso: descripción + orden de lecciones */}
-                          {playlistExpandida === playlist.id && (
-                            <div className="space-y-3 pt-3 border-t border-gray-100 dark:border-white/5 mt-2 animate-fade-in">
-                              <div className="space-y-1.5">
-                                <label className="block text-[9px] font-black uppercase text-gray-400">Descripción del curso</label>
-                                <textarea
-                                  rows={3}
-                                  value={descEdit}
-                                  onChange={(e) => setDescEdit(e.target.value)}
-                                  placeholder="Describe de qué trata este curso..."
-                                  className={darkMode ? "w-full p-2 rounded-lg border text-[11px] bg-gray-950 border-white/5 text-white resize-none outline-none" : "w-full p-2 rounded-lg border text-[11px] bg-gray-50 border-gray-200 text-black resize-none outline-none"}
-                                />
-                                <button
-                                  onClick={() => handleGuardarDescripcion(playlist)}
-                                  className="w-full text-[9px] font-black uppercase py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-md transition-colors"
-                                >
-                                  Guardar descripción
-                                </button>
-                              </div>
-
-                              <div className="space-y-1.5">
-                                <label className="block text-[9px] font-black uppercase text-gray-400">Orden de lecciones</label>
-                                {videosDeLista.length === 0 ? (
-                                  <p className="text-[10px] text-gray-400 italic">Sin lecciones todavía.</p>
-                                ) : (
-                                  videosDeLista.map((v, idx) => (
-                                    <div key={v.id} className="flex items-center gap-2 text-[10px] font-bold">
-                                      <span className="text-gray-400 font-mono w-4 shrink-0">{idx + 1}.</span>
-                                      <span className={`flex-1 truncate ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>{v.titulo}</span>
-                                      <button
-                                        onClick={() => moverLeccion(playlist, idx, -1)}
-                                        disabled={idx === 0}
-                                        className="w-6 h-6 rounded-md bg-gray-500/10 text-gray-500 hover:bg-blue-500/20 hover:text-blue-500 disabled:opacity-30 shrink-0 inline-flex items-center justify-center"
-                                      ><ChevronUp size={14} /></button>
-                                      <button
-                                        onClick={() => moverLeccion(playlist, idx, 1)}
-                                        disabled={idx === videosDeLista.length - 1}
-                                        className="w-6 h-6 rounded-md bg-gray-500/10 text-gray-500 hover:bg-blue-500/20 hover:text-blue-500 disabled:opacity-30 shrink-0 inline-flex items-center justify-center"
-                                      ><ChevronDown size={14} /></button>
-                                      <button onClick={() => abrirQuizEditor(playlist, v.id)} className="w-6 h-6 rounded-md bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white shrink-0 inline-flex items-center justify-center" title="Editar quiz"><ClipboardCheck size={12} /></button>
-                                      {(() => {
-                                        const pdfLeccion = pdfsCurso.find(p => p.video_id === v.id);
-                                        if (pdfLeccion) return (
-                                          <span className="flex items-center gap-1 text-[9px] font-bold text-blue-500">
-                                            <a href={`http://localhost:3001/uploads/pdfs/${pdfLeccion.filename}`} target="_blank" rel="noreferrer" className="hover:underline" title={pdfLeccion.original_name}><FileText size={12} /></a>
-                                            <button onClick={() => handleRemovePdf(playlist.id, pdfLeccion.id)} className="text-red-400 hover:text-red-500"><X size={10} /></button>
-                                          </span>
-                                        );
-                                        return (
-                                          <button onClick={() => { fileRef.current?.click(); if (fileRef.current) fileRef.current.onchange = () => handleUploadPdf(playlist.id, v.id); }} className="w-6 h-6 rounded-md bg-gray-500/10 text-gray-400 hover:text-blue-500 shrink-0 inline-flex items-center justify-center" title="Subir PDF de lección">
-                                            <FileText size={11} />
-                                          </button>
-                                        );
-                                      })()}
-                                    </div>
-                                  ))
-                                )}
-                              </div>
-
-                              {/* Añadir lección a este curso */}
-                              {(() => {
-                                const asignados = new Set((playlist.videos || []).map(v => v.id));
-                                const disponibles = misVideosPropios.filter(v => !asignados.has(v.id));
-                                return disponibles.length > 0 ? (
-                                  <div className="space-y-1.5">
-                                    <label className="block text-[9px] font-black uppercase text-gray-400">Añadir lección</label>
-                                    <form onSubmit={(e) => handleAnadirLeccion(e, playlist)} className="flex gap-2">
-                                      <select
-                                        defaultValue={videoSeleccionadoCurso || ''}
-                                        onChange={(e) => setVideoSeleccionadoCurso(Number(e.target.value))}
-                                        className={darkMode ? "flex-1 p-2 rounded-xl border text-[10px] bg-gray-950 border-white/5 text-white truncate" : "flex-1 p-2 rounded-xl border text-[10px] bg-gray-50 border-gray-200 text-black truncate"}
-                                      >
-                                        <option value="" disabled>Selecciona un video...</option>
-                                        {disponibles.map(v => (
-                                          <option key={v.id} value={v.id}>{v.titulo}</option>
-                                        ))}
-                                      </select>
-                                      <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white font-black text-[10px] uppercase tracking-widest px-4 py-2 rounded-xl shrink-0">Añadir</button>
-                                    </form>
-                                  </div>
-                                ) : null;
-                              })()}
-
-                              {/* Documento del curso (PDF) */}
-                              <div className="space-y-1.5">
-                                <label className="block text-[9px] font-black uppercase text-gray-400">Documento del curso (PDF)</label>
-                                {(() => {
-                                  const pdfCurso = pdfsCurso.find(p => p.video_id === null);
-                                  return pdfCurso ? (
-                                    <div className="flex items-center gap-2 text-[10px] font-bold">
-                                      <FileText size={12} className="text-blue-500 shrink-0" />
-                                      <span className={`flex-1 truncate ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>{pdfCurso.original_name}</span>
-                                      <a href={`http://localhost:3001/uploads/pdfs/${pdfCurso.filename}`} target="_blank" rel="noreferrer" className="text-blue-500 text-[9px] font-black uppercase hover:underline shrink-0">Ver</a>
-                                      <button onClick={() => handleRemovePdf(playlist.id, pdfCurso.id)} className="text-red-500 text-[9px] font-black uppercase hover:underline shrink-0">Eliminar</button>
-                                    </div>
-                                  ) : (
-                                    <div className="flex gap-2">
-                                      <input type="file" accept="application/pdf" ref={fileRef} className={`text-[10px] ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
-                                      <button type="button" disabled={subiendoPdf} onClick={() => handleUploadPdf(playlist.id)} className="bg-blue-600 hover:bg-blue-500 text-white font-black text-[9px] uppercase tracking-widest px-3 py-1.5 rounded-lg disabled:opacity-40 shrink-0">
-                                        {subiendoPdf ? 'Subiendo...' : 'Subir'}
-                                      </button>
-                                    </div>
-                                  );
-                                })()}
-                              </div>
-
-                            </div>
-                          )}
                         </div>
                       </div>
                     );
@@ -684,7 +534,7 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
                   />
                   <label htmlFor="fileBannerInput" className="cursor-pointer flex flex-col items-center gap-1.5">
                     <Image size={20} className="text-gray-400" />
-                    <span className="text-[11px] font-bold text-blue-500 hover:underline">Seleccionar archivo del equipo</span>
+                    <span className="text-[11px] font-bold text-cyan-500 hover:underline">Seleccionar archivo del equipo</span>
                   </label>
                   {inputBanner && (
                     <div className="mt-3 w-full h-12 rounded-xl overflow-hidden border border-emerald-500/30 relative group">
@@ -705,7 +555,7 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
                   />
                   <label htmlFor="fileAvatarInput" className="cursor-pointer flex flex-col items-center gap-1.5">
                     <User size={20} className="text-gray-400" />
-                    <span className="text-[11px] font-bold text-blue-500 hover:underline">Seleccionar foto de perfil</span>
+                    <span className="text-[11px] font-bold text-cyan-500 hover:underline">Seleccionar foto de perfil</span>
                   </label>
                   {inputFoto && (
                     <div className="mt-3 w-12 h-12 rounded-full overflow-hidden border border-emerald-500/30 relative group">
@@ -719,9 +569,154 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
               {/* ACCIONES FINALES */}
               <div className="flex justify-end gap-2 pt-2 text-[10px] font-black uppercase tracking-wider">
                 <button type="button" onClick={() => { setMostrarPersonalizar(false); setArchivoBanner(null); setArchivoFoto(null); setInputBanner(''); setInputFoto(''); }} className="px-4 py-2 rounded-xl text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5">Cancelar</button>
-                <button type="submit" className="bg-blue-600 text-white px-5 py-2 rounded-xl shadow-md hover:bg-blue-500 transition-colors">Guardar Diseño</button>
+                <button type="submit" className="bg-cyan-600 text-white px-5 py-2 rounded-xl shadow-md hover:bg-cyan-500 transition-colors">Guardar Diseño</button>
               </div>
             </form>
+      </Modal>
+
+      {/* MODAL EDICIÓN DE VIDEO */}
+      <Modal open={Boolean(editando)} onClose={() => setEditando(null)} title="Editar video" darkMode={darkMode} maxWidth="max-w-lg">
+        <p className="text-[10px] text-gray-400 font-medium mb-4">{editando?.titulo}</p>
+        <form onSubmit={handleGuardarEdicion} className="space-y-4">
+          <div>
+            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Título</label>
+            <input type="text" required value={editForm.titulo} onChange={(e) => setEditForm(prev => ({ ...prev, titulo: e.target.value }))}
+              className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white" : "w-full p-3 rounded-xl border text-xs bg-[var(--clr-base)] border-gray-200 text-black"} />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Descripción</label>
+            <textarea rows="3" value={editForm.descripcion} onChange={(e) => setEditForm(prev => ({ ...prev, descripcion: e.target.value }))}
+              className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white resize-none" : "w-full p-3 rounded-xl border text-xs bg-[var(--clr-base)] border-gray-200 text-black resize-none"} />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Categoría</label>
+            <select value={editForm.categoria} onChange={(e) => setEditForm(prev => ({ ...prev, categoria: e.target.value }))}
+              className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white" : "w-full p-3 rounded-xl border text-xs bg-[var(--clr-base)] border-gray-200 text-black"}>
+              {CATEGORIAS.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+            </select>
+          </div>
+          <label className="flex items-center gap-2.5 cursor-pointer select-none">
+            <input type="checkbox" checked={editForm.es_premium} onChange={(e) => setEditForm(prev => ({ ...prev, es_premium: e.target.checked }))}
+              className="w-4 h-4 rounded accent-amber-500 cursor-pointer" />
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider inline-flex items-center gap-1.5"><Star size={12} className="fill-current text-amber-500" /> Contenido exclusivo Premium</span>
+          </label>
+          <label className="flex items-center gap-2.5 cursor-pointer select-none">
+            <input type="checkbox" checked={editForm.visible} onChange={(e) => setEditForm(prev => ({ ...prev, visible: e.target.checked }))}
+              className="w-4 h-4 rounded accent-cyan-500 cursor-pointer" />
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider inline-flex items-center gap-1.5"><Eye size={12} /> Visible públicamente</span>
+          </label>
+          <div className="flex justify-end gap-2 pt-2 text-[10px] font-black uppercase tracking-wider">
+            <button type="button" onClick={() => setEditando(null)} className="px-4 py-2 rounded-xl text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5">Cancelar</button>
+            <button type="submit" className="bg-cyan-600 text-white px-5 py-2 rounded-xl shadow-md hover:bg-cyan-500 transition-colors">Guardar Cambios</button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* MODAL GESTIONAR CURSO */}
+      <Modal open={Boolean(gestionarPlaylist)} onClose={() => setGestionarPlaylistId(null)} title={gestionarPlaylist?.nombre || 'Gestionar curso'} darkMode={darkMode} maxWidth="max-w-2xl">
+        {gestionarPlaylist && (() => {
+          const videosDeLista = gestionarPlaylist.videos || [];
+          return (
+            <div className="space-y-5">
+              <div className="space-y-1.5">
+                <label className="block text-[9px] font-black uppercase text-gray-400">Descripción del curso</label>
+                <textarea
+                  rows={3}
+                  value={descEdit}
+                  onChange={(e) => setDescEdit(e.target.value)}
+                  placeholder="Describe de qué trata este curso..."
+                  className={darkMode ? "w-full p-2 rounded-lg border text-[11px] bg-gray-950 border-white/5 text-white resize-none outline-none" : "w-full p-2 rounded-lg border text-[11px] bg-[var(--clr-base)] border-gray-200 text-black resize-none outline-none"}
+                />
+                <button
+                  onClick={() => handleGuardarDescripcion(gestionarPlaylist)}
+                  className="w-full text-[9px] font-black uppercase py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-md transition-colors"
+                >
+                  Guardar descripción
+                </button>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[9px] font-black uppercase text-gray-400">Orden de lecciones</label>
+                {videosDeLista.length === 0 ? (
+                  <p className="text-[10px] text-gray-400 italic">Sin lecciones todavía.</p>
+                ) : (
+                  videosDeLista.map((v, idx) => (
+                    <div key={v.id} className="flex items-center gap-2 text-[10px] font-bold">
+                      <span className="text-gray-400 font-mono w-4 shrink-0">{idx + 1}.</span>
+                      <span className={`flex-1 truncate ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>{v.titulo}</span>
+                      <button onClick={() => moverLeccion(gestionarPlaylist, idx, -1)} disabled={idx === 0}
+                        className="w-6 h-6 rounded-md bg-gray-500/10 text-gray-500 hover:bg-cyan-500/20 hover:text-cyan-500 disabled:opacity-30 shrink-0 inline-flex items-center justify-center"
+                      ><ChevronUp size={14} /></button>
+                      <button onClick={() => moverLeccion(gestionarPlaylist, idx, 1)} disabled={idx === videosDeLista.length - 1}
+                        className="w-6 h-6 rounded-md bg-gray-500/10 text-gray-500 hover:bg-cyan-500/20 hover:text-cyan-500 disabled:opacity-30 shrink-0 inline-flex items-center justify-center"
+                      ><ChevronDown size={14} /></button>
+                      <button onClick={() => abrirQuizEditor(gestionarPlaylist, v.id)}
+                        className="w-6 h-6 rounded-md bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white shrink-0 inline-flex items-center justify-center" title="Editar quiz"
+                      ><ClipboardCheck size={12} /></button>
+                      {(() => {
+                        const pdfLeccion = pdfsCurso.find(p => p.video_id === v.id);
+                        if (pdfLeccion) return (
+                          <span className="flex items-center gap-1 text-[9px] font-bold text-cyan-500">
+                            <a href={`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/uploads/pdfs/${pdfLeccion.filename}`} target="_blank" rel="noreferrer" className="hover:underline" title={pdfLeccion.original_name}><FileText size={12} /></a>
+                            <button onClick={() => handleRemovePdf(gestionarPlaylist.id, pdfLeccion.id)} className="text-red-400 hover:text-red-500"><X size={10} /></button>
+                          </span>
+                        );
+                        return (
+                          <button onClick={() => { fileRef.current?.click(); if (fileRef.current) fileRef.current.onchange = () => handleUploadPdf(gestionarPlaylist.id, v.id); }}
+                            className="w-6 h-6 rounded-md bg-gray-500/10 text-gray-400 hover:text-cyan-500 shrink-0 inline-flex items-center justify-center" title="Subir PDF de lección"
+                          ><FileText size={11} /></button>
+                        );
+                      })()}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {(() => {
+                const asignados = new Set((gestionarPlaylist.videos || []).map(v => v.id));
+                const disponibles = misVideosPropios.filter(v => !asignados.has(v.id));
+                return disponibles.length > 0 ? (
+                  <div className="space-y-1.5">
+                    <label className="block text-[9px] font-black uppercase text-gray-400">Añadir lección</label>
+                    <form onSubmit={(e) => handleAnadirLeccion(e, gestionarPlaylist)} className="flex gap-2">
+                      <select
+                        defaultValue={videoSeleccionadoCurso || ''}
+                        onChange={(e) => setVideoSeleccionadoCurso(Number(e.target.value))}
+                        className={darkMode ? "flex-1 p-2 rounded-xl border text-[10px] bg-gray-950 border-white/5 text-white truncate" : "flex-1 p-2 rounded-xl border text-[10px] bg-[var(--clr-base)] border-gray-200 text-black truncate"}
+                      >
+                        <option value="" disabled>Selecciona un video...</option>
+                        {disponibles.map(v => <option key={v.id} value={v.id}>{v.titulo}</option>)}
+                      </select>
+                      <button type="submit" className="bg-cyan-600 hover:bg-cyan-500 text-white font-black text-[10px] uppercase tracking-widest px-4 py-2 rounded-xl shrink-0">Añadir</button>
+                    </form>
+                  </div>
+                ) : null;
+              })()}
+
+              <div className="space-y-1.5">
+                <label className="block text-[9px] font-black uppercase text-gray-400">Documento del curso (PDF)</label>
+                {(() => {
+                  const pdfCurso = pdfsCurso.find(p => p.video_id === null);
+                  return pdfCurso ? (
+                    <div className="flex items-center gap-2 text-[10px] font-bold">
+                      <FileText size={12} className="text-cyan-500 shrink-0" />
+                      <span className={`flex-1 truncate ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>{pdfCurso.original_name}</span>
+                      <a href={`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/uploads/pdfs/${pdfCurso.filename}`} target="_blank" rel="noreferrer" className="text-cyan-500 text-[9px] font-black uppercase hover:underline shrink-0">Ver</a>
+                      <button onClick={() => handleRemovePdf(gestionarPlaylist.id, pdfCurso.id)} className="text-red-500 text-[9px] font-black uppercase hover:underline shrink-0">Eliminar</button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input type="file" accept="application/pdf" ref={fileRef} className={`text-[10px] ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                      <button type="button" disabled={subiendoPdf} onClick={() => handleUploadPdf(gestionarPlaylist.id)}
+                        className="bg-cyan-600 hover:bg-cyan-500 text-white font-black text-[9px] uppercase tracking-widest px-3 py-1.5 rounded-lg disabled:opacity-40 shrink-0"
+                      >{subiendoPdf ? 'Subiendo...' : 'Subir'}</button>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          );
+        })()}
       </Modal>
 
       {/* FORMULARIO DE ALTA MULTIMEDIA */}
@@ -733,11 +728,11 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
                   <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Título</label>
-                  <input type="text" required value={tituloLeccion} onChange={(e) => setTituloLeccion(e.target.value)} placeholder="Ej: Introducción a React" className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white" : "w-full p-3 rounded-xl border text-xs bg-gray-50 border-gray-200 text-black"} />
+                  <input type="text" required value={tituloLeccion} onChange={(e) => setTituloLeccion(e.target.value)} placeholder="Ej: Introducción a React" className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white" : "w-full p-3 rounded-xl border text-xs bg-[var(--clr-base)] border-gray-200 text-black"} />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Materia</label>
-                  <select value={especialidad} onChange={(e) => setEspecialidad(e.target.value)} className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white" : "w-full p-3 rounded-xl border text-xs bg-gray-50 border-gray-200 text-black"}>
+                  <select value={especialidad} onChange={(e) => setEspecialidad(e.target.value)} className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white" : "w-full p-3 rounded-xl border text-xs bg-[var(--clr-base)] border-gray-200 text-black"}>
                     {CATEGORIAS.map(cat => (
                       <option key={cat} value={cat}>{cat}</option>
                     ))}
@@ -745,22 +740,22 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
                 </div>
               </div>
               <div>
-                <label className="text-[10px] font-bold text-blue-500 mb-1.5 inline-flex items-center gap-1.5"><Link size={12} /> URL del Video</label>
-                <input type="url" required value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." className={darkMode ? "w-full p-3 rounded-xl border text-xs font-mono bg-gray-950 border-white/5 text-white" : "w-full p-3 rounded-xl border text-xs font-mono bg-blue-50/10 border-blue-200 text-black"} />
+                <label className="text-[10px] font-bold text-cyan-500 mb-1.5 inline-flex items-center gap-1.5"><Link size={12} /> URL del Video</label>
+                <input type="url" required value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." className={darkMode ? "w-full p-3 rounded-xl border text-xs font-mono bg-gray-950 border-white/5 text-white" : "w-full p-3 rounded-xl border text-xs font-mono bg-cyan-50/10 border-cyan-200 text-black"} />
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Descripción</label>
-                <textarea rows="3" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white resize-none" : "w-full p-3 rounded-xl border text-xs bg-gray-50 border-gray-200 text-black resize-none"} />
+                <textarea rows="3" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white resize-none" : "w-full p-3 rounded-xl border text-xs bg-[var(--clr-base)] border-gray-200 text-black resize-none"} />
               </div>
               <label className="flex items-center gap-2.5 cursor-pointer select-none">
                 <input type="checkbox" checked={esPremiumAlta} onChange={(e) => setEsPremiumAlta(e.target.checked)} className="w-4 h-4 rounded accent-amber-500 cursor-pointer" />
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider inline-flex items-center gap-1.5"><Star size={12} className="fill-current text-amber-500" /> Contenido exclusivo Premium</span>
               </label>
               <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                <input type="checkbox" checked={esVisibleAlta} onChange={(e) => setEsVisibleAlta(e.target.checked)} className="w-4 h-4 rounded accent-blue-500 cursor-pointer" />
+                <input type="checkbox" checked={esVisibleAlta} onChange={(e) => setEsVisibleAlta(e.target.checked)} className="w-4 h-4 rounded accent-cyan-500 cursor-pointer" />
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider inline-flex items-center gap-1.5"><Eye size={12} /> Visible públicamente</span>
               </label>
-              <button type="submit" className="w-full font-bold py-3.5 px-4 rounded-xl text-xs uppercase tracking-widest bg-blue-600 text-white shadow-md">Publicar Clase</button>
+              <button type="submit" className="w-full font-bold py-3.5 px-4 rounded-xl text-xs uppercase tracking-widest bg-cyan-600 text-white shadow-md">Publicar Clase</button>
             </form>
           </div>
         </div>
@@ -776,23 +771,23 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
               <div>
                 <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Título (opcional)</label>
                 <input type="text" value={quizForm.titulo} onChange={(e) => setQuizForm(prev => ({ ...prev, titulo: e.target.value }))} placeholder="Quiz de la lección..."
-                  className={darkMode ? "w-full p-2.5 rounded-xl border text-xs bg-gray-950 border-white/5 text-white" : "w-full p-2.5 rounded-xl border text-xs bg-gray-50 border-gray-200 text-black"} />
+                  className={darkMode ? "w-full p-2.5 rounded-xl border text-xs bg-gray-950 border-white/5 text-white" : "w-full p-2.5 rounded-xl border text-xs bg-[var(--clr-base)] border-gray-200 text-black"} />
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Aprobación mínima %</label>
                 <input type="number" min="1" max="100" value={quizForm.min_aprobacion} onChange={(e) => setQuizForm(prev => ({ ...prev, min_aprobacion: Number(e.target.value) }))}
-                  className={darkMode ? "w-full p-2.5 rounded-xl border text-xs bg-gray-950 border-white/5 text-white" : "w-full p-2.5 rounded-xl border text-xs bg-gray-50 border-gray-200 text-black"} />
+                  className={darkMode ? "w-full p-2.5 rounded-xl border text-xs bg-gray-950 border-white/5 text-white" : "w-full p-2.5 rounded-xl border text-xs bg-[var(--clr-base)] border-gray-200 text-black"} />
               </div>
             </div>
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <label className="block text-[10px] font-bold text-gray-400 uppercase">Preguntas</label>
-                <button type="button" onClick={agregarPregunta} className="text-[9px] font-black uppercase tracking-wider text-blue-500 hover:text-blue-400">+ Añadir pregunta</button>
+                <button type="button" onClick={agregarPregunta} className="text-[9px] font-black uppercase tracking-wider text-cyan-500 hover:text-cyan-400">+ Añadir pregunta</button>
               </div>
 
               {quizForm.preguntas.map((p, pi) => (
-                <div key={pi} className={`p-3 rounded-2xl border ${darkMode ? 'border-white/5 bg-gray-950/40' : 'border-gray-200 bg-gray-50'}`}>
+                <div key={pi} className={`p-3 rounded-2xl border ${darkMode ? 'border-white/5 bg-gray-950/40' : 'border-gray-200 bg-[var(--clr-base)]'}`}>
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-[10px] font-bold text-gray-400">{pi + 1}.</span>
                     <input type="text" value={p.pregunta} onChange={(e) => { const n = [...quizForm.preguntas]; n[pi] = { ...n[pi], pregunta: e.target.value }; setQuizForm(prev => ({ ...prev, preguntas: n })); }} placeholder="Escribe la pregunta..."
@@ -811,7 +806,7 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
                     </div>
                   ))}
                   {p.opciones.length < 6 && (
-                    <button type="button" onClick={() => { const n = [...quizForm.preguntas]; n[pi].opciones.push(''); setQuizForm(prev => ({ ...prev, preguntas: n })); }} className="text-[9px] font-bold text-blue-500 uppercase ml-5 mt-1.5 hover:text-blue-400">+ Añadir opción</button>
+                    <button type="button" onClick={() => { const n = [...quizForm.preguntas]; n[pi].opciones.push(''); setQuizForm(prev => ({ ...prev, preguntas: n })); }} className="text-[9px] font-bold text-cyan-500 uppercase ml-5 mt-1.5 hover:text-cyan-400">+ Añadir opción</button>
                   )}
                 </div>
               ))}
@@ -820,7 +815,7 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
             <div className="flex justify-end gap-2 pt-2 text-[10px] font-black uppercase tracking-wider">
               <button type="button" onClick={handleEliminarQuiz} className="px-4 py-2 rounded-xl text-red-500 hover:bg-red-500/10">Eliminar Quiz</button>
               <button type="button" onClick={() => setEditandoQuiz(null)} className="px-4 py-2 rounded-xl text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5">Cancelar</button>
-              <button type="submit" className="bg-blue-600 text-white px-5 py-2 rounded-xl shadow-md hover:bg-blue-500 transition-colors">Guardar Quiz</button>
+              <button type="submit" className="bg-cyan-600 text-white px-5 py-2 rounded-xl shadow-md hover:bg-cyan-500 transition-colors">Guardar Quiz</button>
             </div>
           </form>
         )}

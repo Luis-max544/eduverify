@@ -29,7 +29,7 @@ export default function Canal({ canal, setVideoSeleccionado, darkMode, abrirCurs
 
       {/* BANNER DEL PERFIL PÚBLICO */}
       <div
-        className="w-full h-28 md:h-36 rounded-3xl bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-blue-900/10 dark:to-gray-900/40 border border-gray-200 dark:border-white/5 relative overflow-hidden flex items-center justify-center bg-cover bg-center"
+        className="w-full h-28 md:h-36 rounded-3xl bg-gradient-to-r from-slate-100 via-slate-200 to-slate-100 dark:from-cyan-900/10 dark:to-gray-900/40 border border-gray-200 dark:border-white/5 relative overflow-hidden flex items-center justify-center bg-cover bg-center"
         style={{ backgroundImage: perfil?.banner_url ? `url(${perfil.banner_url})` : 'none' }}
       >
         {!perfil?.banner_url && (
@@ -40,7 +40,7 @@ export default function Canal({ canal, setVideoSeleccionado, darkMode, abrirCurs
       {/* INFORMACIÓN DEL CANAL */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 px-2">
         <div className="flex items-center gap-4">
-          <div className="w-20 h-20 rounded-full bg-blue-600 font-black text-white text-2xl flex items-center justify-center shadow-lg shrink-0 overflow-hidden">
+          <div className="w-20 h-20 rounded-full bg-cyan-600 font-black text-white text-2xl flex items-center justify-center shadow-lg shrink-0 overflow-hidden">
             {perfil?.avatar_url ? (
               <img src={perfil.avatar_url} alt={autorNombre} className="w-full h-full object-cover" />
             ) : (
@@ -50,7 +50,7 @@ export default function Canal({ canal, setVideoSeleccionado, darkMode, abrirCurs
           <div className="space-y-0.5">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className={`text-lg font-black uppercase tracking-wide ${darkMode ? 'text-white' : 'text-gray-900'}`}>{autorNombre}</h1>
-              <span className="bg-blue-500/10 text-blue-500 text-[8px] font-black uppercase px-2 py-0.5 rounded-md tracking-wider border border-blue-500/10">Verificado</span>
+              <span className="bg-cyan-500/10 text-cyan-500 text-[8px] font-black uppercase px-2 py-0.5 rounded-md tracking-wider border border-cyan-500/10">Verificado</span>
             </div>
             <div className="flex items-center gap-2 text-[11px] text-gray-400 font-bold font-mono flex-wrap uppercase">
               <span>{perfil?.subscriber_count ?? 0} suscriptores</span>
@@ -71,7 +71,7 @@ export default function Canal({ canal, setVideoSeleccionado, darkMode, abrirCurs
               key={tab}
               onClick={() => setPestanaActiva(tab)}
               className={`pb-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all
-                ${isActive ? 'border-blue-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
+                ${isActive ? 'border-cyan-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
             >
               {tab}
             </button>
@@ -109,7 +109,7 @@ export default function Canal({ canal, setVideoSeleccionado, darkMode, abrirCurs
                       )}
                     </div>
                       <div className="space-y-0.5 pr-1">
-                        <h4 className={`text-xs font-black uppercase truncate group-hover:text-blue-500 transition-colors ${darkMode ? 'text-white' : 'text-gray-900'}`}>{v.titulo}</h4>
+                        <h4 className={`text-xs font-black uppercase truncate group-hover:text-cyan-500 transition-colors ${darkMode ? 'text-white' : 'text-gray-900'}`}>{v.titulo}</h4>
                         <p className="text-[10px] font-mono font-bold text-gray-400 uppercase">{v.vistas || 0} vistas • {v.created_at ? new Date(v.created_at).toLocaleDateString() : ''}</p>
                       </div>
                     </div>
@@ -142,7 +142,7 @@ export default function Canal({ canal, setVideoSeleccionado, darkMode, abrirCurs
                       {miniaturaPlaylist ? (
                         <img src={miniaturaPlaylist} alt="" className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-blue-900/20 to-gray-950 flex items-center justify-center opacity-30"><Folder size={28} className="text-white" /></div>
+                        <div className="w-full h-full bg-[var(--clr-surface-elevated)] dark:bg-gray-900 flex items-center justify-center"><Folder size={28} className="text-[var(--clr-text-muted)] opacity-40" /></div>
                       )}
 
                       <div className="absolute right-0 top-0 bottom-0 w-2/5 bg-black/70 backdrop-blur-[4px] flex flex-col items-center justify-center text-white border-l border-white/5 space-y-1">
@@ -162,7 +162,7 @@ export default function Canal({ canal, setVideoSeleccionado, darkMode, abrirCurs
                       {playlist.descripcion && (
                         <p className="text-[10px] text-gray-400 font-medium truncate">{playlist.descripcion}</p>
                       )}
-                      <button className="text-[10px] font-bold text-gray-400 hover:text-blue-500 hover:underline block pt-1">Ver curso completo</button>
+                      <button className="text-[10px] font-bold text-gray-400 hover:text-cyan-500 hover:underline block pt-1">Ver curso completo</button>
                     </div>
                   </div>
                 );

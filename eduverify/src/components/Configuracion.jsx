@@ -72,7 +72,7 @@ export default function Configuracion({ usuario, setUsuario, setVista, darkMode 
       {/* Botón Volver Fiel a image_9235f5.png */}
       <button 
         onClick={() => setVista('catalogo')}
-        className="mb-4 text-left text-[11px] font-black tracking-widest text-gray-400 hover:text-blue-500 transition-colors uppercase inline-flex items-center gap-1.5"
+        className="mb-4 text-left text-[11px] font-black tracking-widest text-gray-400 hover:text-cyan-500 transition-colors uppercase inline-flex items-center gap-1.5"
       >
         <ArrowLeft size={14} /> Volver
       </button>
@@ -89,7 +89,7 @@ export default function Configuracion({ usuario, setUsuario, setVista, darkMode 
 
           {/* Contenedor del Avatar Inteligente */}
           <div className="relative w-24 h-24 mx-auto mb-4">
-            <div className={`w-full h-full rounded-full overflow-hidden flex items-center justify-center border-2 border-blue-600/20 bg-blue-600 text-white font-black text-2xl shadow-inner`}>
+            <div className={`w-full h-full rounded-full overflow-hidden flex items-center justify-center border-2 border-cyan-600/20 bg-cyan-600 text-white font-black text-2xl shadow-inner`}>
               {foto ? (
                 <img src={foto} alt="Perfil" className="w-full h-full object-cover" />
               ) : (
@@ -98,7 +98,7 @@ export default function Configuracion({ usuario, setUsuario, setVista, darkMode 
             </div>
             
             {/* Overlay Azul de Cámara para subir fotos de verdad */}
-            <label className="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-500 text-white w-8 h-8 rounded-xl flex items-center justify-center shadow-lg transition-all cursor-pointer border-2 border-white dark:border-gray-900">
+            <label className="absolute bottom-0 right-0 bg-cyan-600 hover:bg-cyan-500 text-white w-8 h-8 rounded-xl flex items-center justify-center shadow-lg transition-all cursor-pointer border-2 border-white dark:border-gray-900">
               <Camera size={14} />
               <input 
                 type="file" 
@@ -134,7 +134,7 @@ export default function Configuracion({ usuario, setUsuario, setVista, darkMode 
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
                 placeholder="Ej: Profe Luis"
-                className={`w-full p-3.5 rounded-xl border text-xs font-semibold outline-none transition focus:border-blue-500 ${darkMode ? 'bg-gray-950 border-white/5 text-white' : 'bg-gray-50 border-gray-200 text-black'}`}
+                className={`w-full p-3.5 rounded-xl border text-xs font-semibold outline-none transition focus:border-cyan-500 ${darkMode ? 'bg-gray-950 border-white/5 text-white' : 'bg-[var(--clr-base)] border-gray-200 text-black'}`}
               />
             </div>
 
@@ -147,7 +147,7 @@ export default function Configuracion({ usuario, setUsuario, setVista, darkMode 
                 type="email"
                 disabled
                 value={email}
-                className={`w-full p-3.5 rounded-xl border text-xs font-mono outline-none opacity-60 cursor-not-allowed ${darkMode ? 'bg-gray-950 border-white/5 text-gray-400' : 'bg-gray-100 border-gray-200 text-gray-500'}`}
+                className={`w-full p-3.5 rounded-xl border text-xs font-mono outline-none opacity-60 cursor-not-allowed ${darkMode ? 'bg-gray-950 border-white/5 text-gray-400' : 'bg-[var(--clr-surface-elevated)] border-gray-200 text-gray-500'}`}
               />
             </div>
 
@@ -164,7 +164,7 @@ export default function Configuracion({ usuario, setUsuario, setVista, darkMode 
 
               {/* Alertas dinámicas flotantes */}
               {statusMensaje.texto && (
-                <div className="mt-3 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-500 text-[11px] font-medium leading-relaxed animate-fade-in flex items-center gap-2">
+                <div className="mt-3 p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-500 text-[11px] font-medium leading-relaxed animate-fade-in flex items-center gap-2">
                   {statusMensaje.tipo === 'success' ? <MailCheck size={14} className="shrink-0" /> : <AlertTriangle size={14} className="shrink-0" />}
                   <span>{statusMensaje.texto}</span>
                 </div>
@@ -175,7 +175,7 @@ export default function Configuracion({ usuario, setUsuario, setVista, darkMode 
             <div className="pt-3">
               <button 
                 type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-3.5 px-6 rounded-xl text-xs uppercase tracking-widest shadow-md shadow-blue-500/10 transition-colors"
+                className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-black py-3.5 px-6 rounded-xl text-xs uppercase tracking-widest shadow-md shadow-cyan-500/10 transition-colors"
               >
                 Guardar Configuración
               </button>

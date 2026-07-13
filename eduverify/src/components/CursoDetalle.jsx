@@ -52,7 +52,7 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
     return (
       <div className="text-center py-12">
         <p className="text-sm text-gray-500">No se encontró el curso.</p>
-        <button onClick={() => setVista('catalogo')} className="mt-4 text-xs font-bold text-blue-500 uppercase">Volver al catálogo</button>
+        <button onClick={() => setVista('catalogo')} className="mt-4 text-xs font-bold text-cyan-500 uppercase">Volver al catálogo</button>
       </div>
     );
   }
@@ -112,7 +112,7 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
 
       {/* HEADER DEL CURSO */}
       <div className={`p-6 md:p-8 rounded-3xl border ${darkMode ? 'bg-gray-900/40 border-white/5' : 'bg-white border-gray-200 shadow-sm'}`}>
-        <p className="text-[10px] font-black uppercase tracking-widest text-blue-500 mb-2 flex items-center gap-1.5"><GraduationCap size={14} /> Curso</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-cyan-500 mb-2 flex items-center gap-1.5"><GraduationCap size={14} /> Curso</p>
         <h1 className={`text-xl md:text-2xl font-black tracking-tight uppercase ${darkMode ? 'text-white' : 'text-gray-900'}`}>{curso.nombre}</h1>
         {curso.descripcion && (
           <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-2 leading-relaxed max-w-3xl">{curso.descripcion}</p>
@@ -123,14 +123,14 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
             onClick={() => abrirCanalProfesor && abrirCanalProfesor(curso.autor.id)}
             className="flex items-center gap-2.5 cursor-pointer group"
           >
-            <div className="w-9 h-9 rounded-full bg-blue-600 font-black text-white text-xs flex items-center justify-center overflow-hidden shrink-0">
+            <div className="w-9 h-9 rounded-full bg-cyan-600 font-black text-white text-xs flex items-center justify-center overflow-hidden shrink-0">
               {curso.autor.avatar_url ? (
                 <img src={curso.autor.avatar_url} alt="" className="w-full h-full object-cover" />
               ) : (
                 <span>{curso.autor.nombre?.charAt(0).toUpperCase()}</span>
               )}
             </div>
-            <span className="text-xs font-black text-gray-900 dark:text-white group-hover:text-blue-500 transition-colors">{curso.autor.nombre}</span>
+            <span className="text-xs font-black text-gray-900 dark:text-white group-hover:text-cyan-500 transition-colors">{curso.autor.nombre}</span>
           </div>
 
           <div className="flex items-center gap-3 text-[11px] font-bold text-gray-400 font-mono uppercase flex-wrap">
@@ -148,10 +148,10 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
             <div className="space-y-1.5 max-w-md">
               <div className="flex justify-between text-[9px] font-black uppercase tracking-wider text-gray-400">
                 <span>{progreso.completadas.length}/{curso.total_lecciones} lecciones completadas</span>
-                <span className="text-blue-500">{progreso.porcentaje}%</span>
+                <span className="text-cyan-500">{progreso.porcentaje}%</span>
               </div>
-              <div className={`w-full h-2 rounded-full overflow-hidden ${darkMode ? 'bg-white/5' : 'bg-gray-100'}`}>
-                <div className="h-full bg-blue-600 rounded-full transition-all" style={{ width: `${progreso.porcentaje}%` }} />
+              <div className={`w-full h-2 rounded-full overflow-hidden ${darkMode ? 'bg-white/5' : 'bg-[var(--clr-surface-elevated)]'}`}>
+                <div className="h-full bg-cyan-600 rounded-full transition-all" style={{ width: `${progreso.porcentaje}%` }} />
               </div>
             </div>
           )}
@@ -162,7 +162,7 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
                 {primeraNoCompletada && (
                   <button
                     onClick={() => abrirLeccionDeCurso(primeraNoCompletada, curso.id)}
-                    className="px-6 py-2.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest shadow-md inline-flex items-center gap-1.5"
+                    className="px-6 py-2.5 rounded-full bg-cyan-600 hover:bg-cyan-500 text-white text-[10px] font-black uppercase tracking-widest shadow-md inline-flex items-center gap-1.5"
                   >
                     <Play size={12} className="fill-current" /> Continuar curso
                   </button>
@@ -177,7 +177,7 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
             ) : (
               <button
                 onClick={manejarInscripcion}
-                className="px-6 py-2.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest shadow-md"
+                className="px-6 py-2.5 rounded-full bg-cyan-600 hover:bg-cyan-500 text-white text-[10px] font-black uppercase tracking-widest shadow-md"
               >
                 Inscribirse gratis
               </button>
@@ -206,7 +206,7 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
                   }`}
                 >
                   <span className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
-                    completada ? 'bg-emerald-500 text-white' : darkMode ? 'bg-white/5 text-gray-400' : 'bg-gray-100 text-gray-500'
+                    completada ? 'bg-emerald-500 text-white' : darkMode ? 'bg-white/5 text-gray-400' : 'bg-[var(--clr-surface-elevated)] text-gray-500'
                   }`}>
                     {completada ? <Check size={12} /> : idx + 1}
                   </span>
@@ -234,7 +234,7 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
                     </h4>
                     <p className="text-[10px] text-gray-400 font-mono font-bold uppercase mt-0.5">{leccion.duracion || '00:00'} • {leccion.categoria}</p>
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-blue-500 shrink-0 hidden md:inline-flex items-center gap-1">Ver lección <ArrowRight size={12} /></span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-cyan-500 shrink-0 hidden md:inline-flex items-center gap-1">Ver lección <ArrowRight size={12} /></span>
                 </div>
               );
             })}
@@ -272,7 +272,7 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
           <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white px-1">Materiales del curso</h3>
           <div className={`p-4 rounded-2xl border space-y-2 ${darkMode ? 'bg-gray-900/40 border-white/5' : 'bg-white border-gray-200 shadow-sm'}`}>
             {pdfsCurso.map(p => (
-              <a key={p.id} href={`http://localhost:3001/uploads/pdfs/${p.filename}`} target="_blank" rel="noreferrer" className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-colors ${darkMode ? 'hover:bg-white/5 text-gray-300' : 'hover:bg-gray-50 text-gray-700'}`}>
+              <a key={p.id} href={`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/uploads/pdfs/${p.filename}`} target="_blank" rel="noreferrer" className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-colors ${darkMode ? 'hover:bg-white/5 text-gray-300' : 'hover:bg-gray-50 text-gray-700'}`}>
                 <FileText size={18} className="text-emerald-500 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-black uppercase truncate">{p.original_name}</p>
@@ -314,7 +314,7 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
               value={textoForm}
               onChange={(e) => setTextoForm(e.target.value)}
               placeholder="¿Qué te pareció el curso? (opcional)"
-              className={`w-full rounded-xl px-3 py-2 text-xs outline-none border bg-transparent focus:border-blue-500 resize-none ${darkMode ? 'border-white/10 text-white' : 'border-gray-200 text-gray-900'}`}
+              className={`w-full rounded-xl px-3 py-2 text-xs outline-none border bg-transparent focus:border-cyan-500 resize-none ${darkMode ? 'border-white/10 text-white' : 'border-gray-200 text-gray-900'}`}
             />
             <div className="flex justify-end gap-2">
               {miReview && (
@@ -325,7 +325,7 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
               <button
                 type="submit"
                 disabled={enviandoReview}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-[10px] font-bold uppercase tracking-wide shadow-sm"
+                className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 text-white text-[10px] font-bold uppercase tracking-wide shadow-sm"
               >
                 {miReview ? 'Actualizar' : 'Publicar'}
               </button>

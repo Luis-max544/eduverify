@@ -6,33 +6,34 @@ export default function Sidebar({ sidebarAmpliado, vista, setVista, usuario, dar
   const esProfesor = usuario?.rol === 'profesor' || usuario?.rol === 'creador';
 
   const menuNav = [
-    { id: 'catalogo', nombre: 'Principal', icono: Home },
-    { id: 'favoritos', nombre: 'Mis Favoritos', icono: Heart },
-    { id: 'historial', nombre: 'Historial', icono: History },
-    { id: 'playlists', nombre: 'Videos guardados', icono: Folder },
-    { id: 'mis-cursos', nombre: 'Mis Cursos', icono: GraduationCap },
-    ...(esProfesor ? [{ id: 'profesor', nombre: 'Mi Canal', icono: Clapperboard }] : []),
+    { id: 'catalogo',        nombre: 'Inicio',         icono: Home },
+    { id: 'favoritos',       nombre: 'Favoritos',      icono: Heart },
+    { id: 'historial',       nombre: 'Historial',      icono: History },
+    { id: 'playlists',       nombre: 'Guardados',      icono: Folder },
+    { id: 'mis-cursos',      nombre: 'Mis cursos',     icono: GraduationCap },
+    ...(esProfesor ? [{ id: 'profesor', nombre: 'Mi canal', icono: Clapperboard }] : []),
   ];
+
+  const surfaceCls = darkMode
+    ? 'bg-[var(--clr-base)] border-[var(--clr-border-subtle)] text-[var(--clr-text-muted)]'
+    : 'bg-[var(--clr-surface)] border-[var(--clr-border-subtle)] text-[var(--clr-text-muted)]';
 
   return (
     <aside
-      className={`fixed md:sticky md:top-16 z-40 h-[calc(100vh-4rem)] transition-all duration-300 shrink-0 flex flex-col justify-between overflow-hidden
-        ${sidebarAmpliado
-          ? 'w-64 px-4 border-r'
-          : 'w-0 px-0 border-r-0 pointer-events-none opacity-0'
-        }
-        ${darkMode ? 'bg-gray-950 border-white/[0.04] text-gray-300' : 'bg-white border-gray-200 text-gray-600'}
+      className={`fixed md:sticky md:top-16 z-40 h-[calc(100vh-4rem)] transition-all duration-300 shrink-0 flex flex-col justify-between overflow-hidden border-r
+        ${sidebarAmpliado ? 'w-56 px-3' : 'w-0 px-0 border-r-0 pointer-events-none opacity-0'}
+        ${surfaceCls}
       `}
     >
-      {/* 1. SECCIÓN DE VISTAS / MENÚ PRINCIPAL */}
-      <div className="space-y-1.5 pt-4 min-w-[224px]"> {/* min-w evita que los textos se deformen al colapsar */}
+      {/* NAV */}
+      <div className="space-y-0.5 pt-4 min-w-[200px]">
         {sidebarAmpliado && (
-          <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block px-3 mb-3">
-            Navegación
+          <span className="text-xs font-semibold text-[var(--clr-text-muted)] uppercase tracking-widest block px-3 mb-3 opacity-60">
+            Menú
           </span>
         )}
 
-        <nav className="space-y-1">
+        <nav className="space-y-0.5">
           {menuNav.map((item) => {
             const isActive = vista === item.id
               || (item.id === 'catalogo' && (vista === 'reproductor' || vista === 'curso'));
@@ -41,56 +42,66 @@ export default function Sidebar({ sidebarAmpliado, vista, setVista, usuario, dar
               <button
                 key={item.id}
                 onClick={() => setVista(item.id)}
-                className={`w-full flex items-center gap-3.5 p-3 rounded-2xl text-xs font-bold transition-all uppercase tracking-wider
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all relative
                   ${isActive
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/10'
-                    : darkMode ? 'hover:bg-white/5 text-gray-400 hover:text-white' : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'
+                    ? 'text-[var(--clr-accent)] bg-[var(--clr-accent-muted)]'
+                    : darkMode
+                      ? 'text-[var(--clr-text-muted)] hover:bg-[var(--clr-surface)] hover:text-[var(--clr-text-primary)]'
+                      : 'text-[var(--clr-text-muted)] hover:bg-[var(--clr-base)] hover:text-[var(--clr-text-primary)]'
                   }
                 `}
               >
-                <Icono size={18} className="shrink-0" />
+                {isActive && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[var(--clr-accent)] rounded-r-full" />
+                )}
+                <Icono size={17} className="shrink-0" />
                 {sidebarAmpliado && <span className="truncate">{item.nombre}</span>}
               </button>
             );
           })}
         </nav>
 
-        {/* CONTROLES EXTRA / PREAJUSTES */}
-        <div className="pt-6 border-t border-gray-200 dark:border-white/[0.04] mt-4">
-          {sidebarAmpliado && (
-            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 block px-3 mb-2">
-              Preajustes
-            </span>
-          )}
+        {/* THEME TOGGLE */}
+        <div className="pt-4 mt-2 border-t border-[var(--clr-border-subtle)]">
           <button
             onClick={() => setDarkMode(!darkMode)}
-            className={`w-full flex items-center gap-3.5 p-3 rounded-2xl text-xs font-bold transition-all uppercase tracking-wider
-              ${darkMode ? 'hover:bg-white/5 text-gray-400 hover:text-white' : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all
+              ${darkMode
+                ? 'text-[var(--clr-text-muted)] hover:bg-[var(--clr-surface)] hover:text-[var(--clr-text-primary)]'
+                : 'text-[var(--clr-text-muted)] hover:bg-[var(--clr-base)] hover:text-[var(--clr-text-primary)]'
+              }
             `}
           >
-            {darkMode ? <Moon size={18} className="shrink-0" /> : <Sun size={18} className="shrink-0" />}
-            {sidebarAmpliado && <span>{darkMode ? 'Oscuro' : 'Claro'}</span>}
+            {darkMode
+              ? <Moon size={17} className="shrink-0" />
+              : <Sun size={17} className="shrink-0" />
+            }
+            {sidebarAmpliado && <span>{darkMode ? 'Modo oscuro' : 'Modo claro'}</span>}
           </button>
         </div>
       </div>
 
-      {/* 2. INFORME INFERIOR DE MEMBRESÍA PREMIUM */}
-      <div className="pb-6 pt-4 border-t border-gray-200 dark:border-white/[0.04] min-w-[224px]">
+      {/* PREMIUM */}
+      <div className="pb-5 pt-3 border-t border-[var(--clr-border-subtle)] min-w-[200px]">
         <button
           onClick={() => setVista('premium')}
-          className={`w-full flex items-center gap-3 p-3 rounded-2xl font-black text-[10px] uppercase tracking-widest text-center justify-center transition-all shadow-md
-            ${vista === 'premium' ? `ring-2 ring-offset-2 ring-blue-600 scale-[1.02] ${darkMode ? 'ring-offset-gray-950' : 'ring-offset-white'}` : ''}
+          className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all
+            ${vista === 'premium' ? 'ring-2 ring-[var(--clr-accent)] ring-offset-2 ' + (darkMode ? 'ring-offset-[var(--clr-base)]' : 'ring-offset-[var(--clr-surface)]') : ''}
             ${usuario?.premium
-              ? 'bg-amber-500 text-gray-950 shadow-amber-500/10'
-              : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-90 text-white shadow-blue-600/10'
+              ? 'bg-[var(--clr-premium)]/10 text-[var(--clr-premium)]'
+              : 'bg-[var(--clr-accent)] text-white hover:opacity-90 shadow-sm'
             }
           `}
         >
-          {usuario?.premium ? <Star size={14} className="shrink-0 fill-current" /> : <Gem size={14} className="shrink-0" />}
-          <span>{usuario?.premium ? 'Premium Activo' : 'Membresía'}</span>
+          {usuario?.premium
+            ? <Star size={15} className="shrink-0 fill-current" />
+            : <Gem size={15} className="shrink-0" />
+          }
+          {sidebarAmpliado && (
+            <span>{usuario?.premium ? 'Premium activo' : 'Ser Premium'}</span>
+          )}
         </button>
       </div>
-
     </aside>
   );
 }
