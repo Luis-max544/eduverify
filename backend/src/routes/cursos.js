@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { eq, and, sql, inArray, gt } from 'drizzle-orm';
+import { eq, and, sql, inArray, gt, desc } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../config/db.js';
 import {
@@ -187,6 +187,70 @@ async function quizBloqueado(userId, playlistId, quiz) {
   const { porcentaje } = await getProgreso(userId, playlistId);
   return porcentaje < 100 ? 'Completa todas las lecciones para desbloquear el examen final' : null;
 }
+
+const CATEGORIAS = ['Programación', 'Ciberseguridad', 'Matemáticas', 'Electrónica', 'Arte'];
+
+// GET /api/cursos — public course list
+router.get('/', async (req, res, next) => {
+  try {
+    const page   = Math.max(1, Number(req.query.page) || 1);
+    const limit  = Math.min(50, Number(req.query.limit) || 24);
+    const offset = (page - 1) * limit;
+    const cat    = req.query.categoria;
+    const where  = cat && CATEGORIAS.includes(cat) ? eq(profesorPlaylists.categoria, cat) : undefined;
+
+    const rows = await db
+      .select({
+        id:           profesorPlaylists.id,
+        nombre:       profesorPlaylists.nombre,
+        descripcion:  profesorPlaylists.descripcion,
+        portada_path: profesorPlaylists.portada_path,
+        categoria:    profesorPlaylists.categoria,
+        es_premium:   profesorPlaylists.es_premium,
+        created_at:   profesorPlaylists.created_at,
+        autor_id:     users.id,
+        autor_nombre: users.nombre,
+        autor_avatar: users.avatar_path,
+        total_lecciones:    sql`COUNT(DISTINCT ${profesorPlaylistVideos.video_id})`,
+        promedio_estrellas: sql`AVG(${courseReviews.estrellas})`,
+        total_reviews:      sql`COUNT(DISTINCT ${courseReviews.id})`,
+      })
+      .from(profesorPlaylists)
+      .innerJoin(users, eq(profesorPlaylists.user_id, users.id))
+      .leftJoin(profesorPlaylistVideos, eq(profesorPlaylistVideos.playlist_id, profesorPlaylists.id))
+      .leftJoin(courseReviews, eq(courseReviews.playlist_id, profesorPlaylists.id))
+      .where(where)
+      .groupBy(profesorPlaylists.id)
+      .orderBy(desc(profesorPlaylists.id))
+      .limit(limit)
+      .offset(offset);
+
+    res.json({
+      status: 'success',
+      data: {
+        items: rows.map(r => ({
+          id:          r.id,
+          nombre:      r.nombre,
+          descripcion: r.descripcion,
+          portada_url: r.portada_path ? `${base()}/uploads/${r.portada_path}` : null,
+          categoria:   r.categoria,
+          es_premium:  r.es_premium,
+          created_at:  r.created_at,
+          autor: {
+            id:         r.autor_id,
+            nombre:     r.autor_nombre,
+            avatar_url: avatarUrl(r.autor_avatar),
+          },
+          total_lecciones:    Number(r.total_lecciones),
+          promedio_estrellas: r.promedio_estrellas ? Number(Number(r.promedio_estrellas).toFixed(1)) : null,
+          total_reviews:      Number(r.total_reviews),
+        })),
+        page,
+        limit,
+      },
+    });
+  } catch (err) { next(err); }
+});
 
 // GET /api/cursos/mis-cursos — antes de /:id (orden de rutas Express)
 router.get('/mis-cursos', verifyToken, async (req, res, next) => {

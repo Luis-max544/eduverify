@@ -17,6 +17,10 @@ import notificationsRouter from './routes/notifications.js';
 import premiumRouter from './routes/premium.js';
 import cursosRouter from './routes/cursos.js';
 import aiRouter from './routes/ai.js';
+import channelSubsRouter from './routes/channelSubs.js';
+import coursePurchasesRouter from './routes/coursePurchases.js';
+import couponsRouter from './routes/coupons.js';
+import earningsRouter from './routes/earnings.js';
 
 const app = express();
 
@@ -52,6 +56,10 @@ app.use('/api/notifications', notificationsRouter);
 app.use('/api/premium', premiumRouter);
 app.use('/api/cursos', cursosRouter);
 app.use('/api/ai', aiRouter);
+app.use('/api/channel-subs', channelSubsRouter);
+app.use('/api', coursePurchasesRouter);
+app.use('/api', couponsRouter);
+app.use('/api/profesor/earnings', earningsRouter);
 
 // Global error handler (must be last)
 app.use(errorHandler);

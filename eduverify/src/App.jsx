@@ -75,6 +75,9 @@ export default function App() {
   // 📹 Videos globales
   const [videosDemo, setVideosDemo] = useState([]);
 
+  // 🎓 Cursos públicos del catálogo
+  const [cursosPublicos, setCursosPublicos] = useState([]);
+
   // 🧹 Limpieza única de claves de la implementación localStorage anterior
   useEffect(() => {
     ['usuario_eduverify', 'eduverify_videos_globales', 'eduverify_suscripciones', 'eduverify_notificaciones']
@@ -108,6 +111,7 @@ export default function App() {
   useEffect(() => {
     if (!usuario) return;
     api.videos.list({ page: 1, limit: 50 }).then(d => setVideosDemo(d.items)).catch(() => {});
+    api.cursos.list({ limit: 48 }).then(d => setCursosPublicos(d.items)).catch(() => {});
     api.favorites.list().then(setFavoritos).catch(() => {});
     api.history.list().then(setHistorial).catch(() => {});
     api.subscriptions.list().then(setSuscripciones).catch(() => {});
@@ -171,6 +175,7 @@ export default function App() {
     setCanalSeleccionado(null);
     setCursoSeleccionado(null);
     setCursoActivo(null);
+    setCursosPublicos([]);
     setFavoritos([]);
     setHistorial([]);
     setSuscripciones([]);
@@ -196,6 +201,15 @@ export default function App() {
     setHistorial(prev => [video, ...prev.filter(v => v.id !== video.id)]);
     api.videos.view(video.id).catch(() => {});
     api.history.add(video.id).catch(() => {});
+  };
+
+  // 🎓 Abrir curso desde catálogo público (con premium gate)
+  const abrirCursoPublico = (curso) => {
+    if (curso.es_premium && !usuario?.premium && usuario?.id !== curso.autor?.id) {
+      setPremiumVideo(curso);
+      return;
+    }
+    abrirCurso(curso.id, 'catalogo');
   };
 
   // 🎓 Abrir la vista de detalle de un curso
@@ -311,13 +325,9 @@ export default function App() {
               darkMode={darkMode}
             />
             {vista === 'catalogo' && (
-              <Catalogo 
-                setVista={setVista} 
-                setVideoSeleccionado={seleccionarYRegistrarVideo} 
-                usuario={usuario}
-                videosDemo={videosDemo}
-                favoritos={favoritos}
-                setFavoritos={setFavoritos}
+              <Catalogo
+                cursosPublicos={cursosPublicos}
+                abrirCurso={abrirCursoPublico}
                 abrirCanalProfesor={abrirCanalProfesor}
                 busqueda={busqueda}
                 darkMode={darkMode}
@@ -400,6 +410,7 @@ export default function App() {
                 canal={canalSeleccionado}
                 setVideoSeleccionado={seleccionarYRegistrarVideo}
                 abrirCurso={(id) => abrirCurso(id, 'canal')}
+                usuario={usuario}
               />
             )}
 

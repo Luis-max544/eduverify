@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { eq, sql, and, desc } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../config/db.js';
-import { videos, users } from '../db/schema.js';
+import { videos, users, profesorPlaylists, profesorPlaylistVideos } from '../db/schema.js';
 import { verifyToken, requireRol, optionalAuth } from '../middleware/auth.js';
 import { env } from '../config/env.js';
 
@@ -88,7 +88,7 @@ router.get('/:id', verifyToken, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/videos — profesor/creador only
+// POST /api/videos — profesor/creador only; playlist_id required
 router.post('/', verifyToken, requireRol('profesor', 'creador'), async (req, res, next) => {
   try {
     const data = z.object({
@@ -100,17 +100,44 @@ router.post('/', verifyToken, requireRol('profesor', 'creador'), async (req, res
       es_premium: z.boolean().default(false),
       visible: z.boolean().default(true),
       duracion: z.string().optional(),
+      playlist_id: z.number().int().positive(),
     }).parse(req.body);
 
-    const [result] = await db.insert(videos).values({ ...data, usuario_id: req.user.sub });
-    const [created] = await db
-      .select({ id: videos.id, titulo: videos.titulo, categoria: videos.categoria,
-                 url_video: videos.url_video, tipo: videos.tipo, es_premium: videos.es_premium,
-                 vistas: videos.vistas, duracion: videos.duracion, created_at: videos.created_at,
-                 autor: users.nombre, autor_id: users.id, author_avatar_url: users.avatar_path })
-      .from(videos)
-      .innerJoin(users, eq(videos.usuario_id, users.id))
-      .where(eq(videos.id, result.insertId));
+    const { playlist_id, ...videoData } = data;
+
+    const [playlist] = await db
+      .select({ id: profesorPlaylists.id })
+      .from(profesorPlaylists)
+      .where(and(eq(profesorPlaylists.id, playlist_id), eq(profesorPlaylists.user_id, req.user.sub)));
+
+    if (!playlist) {
+      return res.status(403).json({ status: 'error', message: 'Curso no encontrado o sin permisos' });
+    }
+
+    let created;
+    await db.transaction(async (tx) => {
+      const [result] = await tx.insert(videos).values({ ...videoData, usuario_id: req.user.sub });
+
+      const [{ maxOrden }] = await tx
+        .select({ maxOrden: sql`COALESCE(MAX(orden), -1)` })
+        .from(profesorPlaylistVideos)
+        .where(eq(profesorPlaylistVideos.playlist_id, playlist_id));
+
+      await tx.insert(profesorPlaylistVideos).values({
+        playlist_id,
+        video_id: result.insertId,
+        orden: Number(maxOrden) + 1,
+      });
+
+      [created] = await tx
+        .select({ id: videos.id, titulo: videos.titulo, categoria: videos.categoria,
+                   url_video: videos.url_video, tipo: videos.tipo, es_premium: videos.es_premium,
+                   vistas: videos.vistas, duracion: videos.duracion, created_at: videos.created_at,
+                   autor: users.nombre, autor_id: users.id, author_avatar_url: users.avatar_path })
+        .from(videos)
+        .innerJoin(users, eq(videos.usuario_id, users.id))
+        .where(eq(videos.id, result.insertId));
+    });
 
     res.status(201).json({ status: 'success', data: formatVideo(created) });
   } catch (err) { next(err); }

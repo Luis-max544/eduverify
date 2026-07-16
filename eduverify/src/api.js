@@ -113,7 +113,12 @@ export const playlists = {
 export const profesorPlaylists = {
   list: () => request('/profesor/playlists'),
   publicList: (userId) => request(`/profesor/playlists/public/${userId}`),
-  create: (nombre) => request('/profesor/playlists', { method: 'POST', body: { nombre } }),
+  create: (campos) => request('/profesor/playlists', { method: 'POST', body: campos }),
+  uploadCover: (id, file) => {
+    const form = new FormData();
+    form.append('cover', file);
+    return request(`/profesor/playlists/${id}/cover`, { method: 'PUT', body: form, isForm: true });
+  },
   update: (id, campos) => request(`/profesor/playlists/${id}`, { method: 'PATCH', body: campos }),
   reorder: (id, ordenIds) => request(`/profesor/playlists/${id}/orden`, { method: 'PUT', body: { orden: ordenIds } }),
   remove: (id) => request(`/profesor/playlists/${id}`, { method: 'DELETE' }),
@@ -134,6 +139,7 @@ export const profesorPlaylists = {
 };
 
 export const cursos = {
+  list: (params) => request(`/cursos${qs(params)}`),
   get: (id) => request(`/cursos/${id}`),
   misCursos: () => request('/cursos/mis-cursos'),
   progreso: (id) => request(`/cursos/${id}/progreso`),
@@ -169,5 +175,38 @@ export const notifications = {
 export const premium = {
   activate: () => request('/premium/activate', { method: 'POST' }),
   cancel: () => request('/premium/cancel', { method: 'DELETE' }),
+  activatePlus: () => request('/premium/activate-plus', { method: 'POST' }),
+  cancelPlus: () => request('/premium/cancel-plus', { method: 'DELETE' }),
   status: () => request('/premium/status'),
+  activateTeacherMembership: () => request('/premium/teacher-membership', { method: 'POST' }),
+  cancelTeacherMembership: () => request('/premium/teacher-membership', { method: 'DELETE' }),
+  teacherMembershipStatus: () => request('/premium/teacher-membership/status'),
+};
+
+export const channelSubs = {
+  list: () => request('/channel-subs'),
+  check: (profesorId) => request(`/channel-subs/check/${profesorId}`),
+  subscribe: (profesorId) => request(`/channel-subs/${profesorId}`, { method: 'POST' }),
+  unsubscribe: (profesorId) => request(`/channel-subs/${profesorId}`, { method: 'DELETE' }),
+};
+
+export const coursePurchases = {
+  buy: (cursoId, codigo) => request(`/cursos/${cursoId}/purchase`, { method: 'POST', body: { codigo } }),
+  status: (cursoId) => request(`/cursos/${cursoId}/purchase/status`),
+  refund: (cursoId) => request(`/cursos/${cursoId}/purchase/refund`, { method: 'DELETE' }),
+};
+
+export const couponsApi = {
+  list: (playlistId) => request(`/profesor/playlists/${playlistId}/coupons`),
+  create: (playlistId, data) => request(`/profesor/playlists/${playlistId}/coupons`, { method: 'POST', body: data }),
+  update: (id, data) => request(`/coupons/${id}`, { method: 'PATCH', body: data }),
+  remove: (id) => request(`/coupons/${id}`, { method: 'DELETE' }),
+};
+
+export const earnings = {
+  get: () => request('/profesor/earnings'),
+};
+
+export const userSettings = {
+  setCanalPrecio: (canal_precio) => request('/users/me/canal-precio', { method: 'PATCH', body: { canal_precio } }),
 };

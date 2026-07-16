@@ -1,19 +1,49 @@
 import React, { useState, useEffect } from 'react';
-import { Clapperboard, Folder, ListVideo, GraduationCap, Star } from 'lucide-react';
-import { users as usersApi, profesorPlaylists } from '../api';
+import { Clapperboard, Folder, ListVideo, GraduationCap, Star, Crown, BadgeCheck, Zap } from 'lucide-react';
+import { users as usersApi, profesorPlaylists, channelSubs as channelSubsApi } from '../api';
+import { useToast } from './Toast';
 
-export default function Canal({ canal, setVideoSeleccionado, darkMode, abrirCurso }) {
+export default function Canal({ canal, setVideoSeleccionado, darkMode, abrirCurso, usuario }) {
   const [pestanaActiva, setPestanaActiva] = useState('VIDEOS');
   const [perfil, setPerfil] = useState(null);
   const [misVideos, setMisVideos] = useState([]);
   const [lasPlaylists, setLasPlaylists] = useState([]);
+  const [subStatus, setSubStatus] = useState(null);
+  const [subLoading, setSubLoading] = useState(false);
+  const notify = useToast();
 
   useEffect(() => {
     if (!canal?.id) return;
     usersApi.profile(canal.id).then(setPerfil).catch(() => {});
     usersApi.videos(canal.id, { page: 1, limit: 50 }).then(d => setMisVideos(d.items)).catch(() => {});
     profesorPlaylists.publicList(canal.id).then(setLasPlaylists).catch(() => setLasPlaylists([]));
-  }, [canal?.id]);
+    if (usuario?.id && usuario.id !== canal.id) {
+      channelSubsApi.check(canal.id).then(setSubStatus).catch(() => {});
+    }
+  }, [canal?.id, usuario?.id]);
+
+  const tieneAccesoCreador = usuario?.tier === 'premium_plus' || subStatus?.suscrito;
+  const esCreador = perfil?.rol === 'creador';
+  const mostrarMinisub = perfil?.canal_precio > 0 && usuario?.id && usuario.id !== canal?.id && !tieneAccesoCreador;
+
+  const suscribirse = async () => {
+    setSubLoading(true);
+    try {
+      const d = await channelSubsApi.subscribe(canal.id);
+      setSubStatus(d);
+      notify.success(`¡Suscrito al canal! Acceso activo hasta ${new Date(d.expires_at).toLocaleDateString('es-MX')}`);
+    } catch (err) { notify.error(err.message); }
+    finally { setSubLoading(false); }
+  };
+
+  const desuscribirse = async () => {
+    if (!window.confirm('¿Cancelar suscripción al canal?')) return;
+    try {
+      await channelSubsApi.unsubscribe(canal.id);
+      setSubStatus({ suscrito: false });
+      notify.success('Suscripción cancelada');
+    } catch (err) { notify.error(err.message); }
+  };
 
   const autorNombre = perfil?.nombre || 'Docente EduVerify';
 
@@ -50,7 +80,14 @@ export default function Canal({ canal, setVideoSeleccionado, darkMode, abrirCurs
           <div className="space-y-0.5">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className={`text-lg font-black uppercase tracking-wide ${darkMode ? 'text-white' : 'text-gray-900'}`}>{autorNombre}</h1>
-              <span className="bg-cyan-500/10 text-cyan-500 text-[8px] font-black uppercase px-2 py-0.5 rounded-md tracking-wider border border-cyan-500/10">Verificado</span>
+              <span className="bg-cyan-500/10 text-cyan-500 text-[8px] font-black uppercase px-2 py-0.5 rounded-md tracking-wider border border-cyan-500/10">
+                <BadgeCheck size={9} className="inline mr-0.5" />Verificado
+              </span>
+              {esCreador && (
+                <span className="bg-amber-500/10 text-amber-500 text-[8px] font-black uppercase px-2 py-0.5 rounded-md tracking-wider border border-amber-500/20 inline-flex items-center gap-0.5">
+                  <Crown size={9} /> Creador
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2 text-[11px] text-gray-400 font-bold font-mono flex-wrap uppercase">
               <span>{perfil?.subscriber_count ?? 0} suscriptores</span>
@@ -60,6 +97,27 @@ export default function Canal({ canal, setVideoSeleccionado, darkMode, abrirCurs
             <p className="text-xs text-gray-400 font-medium">Profesor verificado de EduVerify.</p>
           </div>
         </div>
+
+        {/* MINI-SUB BUTTON */}
+        {mostrarMinisub && (
+          <button
+            onClick={suscribirse}
+            disabled={subLoading}
+            className="shrink-0 bg-amber-500 text-gray-950 font-black text-[11px] uppercase tracking-widest px-5 py-2.5 rounded-full hover:bg-amber-400 transition-colors inline-flex items-center gap-1.5 shadow-md"
+          >
+            <Zap size={12} /> Suscribirse · ${perfil.canal_precio}/mes
+          </button>
+        )}
+        {subStatus?.suscrito && usuario?.id !== canal?.id && (
+          <div className="shrink-0 flex items-center gap-2">
+            <span className="text-[11px] font-bold text-green-500 inline-flex items-center gap-1">
+              <BadgeCheck size={13} /> Suscrito
+            </span>
+            <button onClick={desuscribirse} className="text-[10px] text-gray-400 hover:text-red-400 transition-colors underline">
+              Cancelar
+            </button>
+          </div>
+        )}
       </div>
 
       {/* PESTAÑAS DE COMPONENTES DE YOUTUBE */}

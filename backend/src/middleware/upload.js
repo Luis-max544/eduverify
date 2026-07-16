@@ -65,3 +65,24 @@ export const uploadPdf = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: pdfFilter,
 }).single('pdf');
+
+// Course cover image upload (keyed by playlist id)
+function makeCoverStorage() {
+  return multer.diskStorage({
+    destination(req, file, cb) {
+      const dir = path.join(process.cwd(), 'uploads', 'covers');
+      fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename(req, file, cb) {
+      const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+      cb(null, `${req.params.id}${ext}`);
+    },
+  });
+}
+
+export const uploadCover = multer({
+  storage: makeCoverStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter,
+}).single('cover');

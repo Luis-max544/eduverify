@@ -36,6 +36,20 @@
       "when": 1783459087401,
       "tag": "0004_marvelous_shinobi_shaw",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1784157589254,
+      "tag": "0005_flaky_wonder_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1784160227469,
+      "tag": "0006_smiling_loa",
+      "breakpoints": true
     }
   ]
 }

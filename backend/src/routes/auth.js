@@ -14,7 +14,7 @@ const router = Router();
 
 function signToken(user) {
   return jwt.sign(
-    { sub: user.id, email: user.email, rol: user.rol, premium: user.premium },
+    { sub: user.id, email: user.email, rol: user.rol, premium: user.premium, tier: user.tier, membresia_docente: user.membresia_docente },
     env.jwtSecret,
     { expiresIn: '7d' }
   );
@@ -27,7 +27,11 @@ function formatUser(user) {
     nombre: user.nombre,
     email: user.email,
     rol: user.rol,
+    tier: user.tier,
     premium: user.premium,
+    membresia_docente: user.membresia_docente,
+    membresia_docente_expires_at: user.membresia_docente_expires_at,
+    canal_precio: user.canal_precio ? Number(user.canal_precio) : null,
     dark_mode: user.dark_mode,
     avatar_url: user.avatar_path ? `${base}/uploads/${user.avatar_path}` : null,
     banner_url: user.banner_path ? `${base}/uploads/${user.banner_path}` : null,

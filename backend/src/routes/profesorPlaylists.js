@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { db } from '../config/db.js';
 import { profesorPlaylists, profesorPlaylistVideos, videos, users, courseReviews, quizzes, quizQuestions, pdfResources } from '../db/schema.js';
 import { verifyToken, requireRol } from '../middleware/auth.js';
-import { uploadPdf } from '../middleware/upload.js';
+import { uploadPdf, uploadCover } from '../middleware/upload.js';
 import { env } from '../config/env.js';
 import fs from 'fs';
 import path from 'path';
@@ -46,6 +46,7 @@ async function getWithVideos(userId) {
     const rating = ratingByPl.get(pl.id);
     return {
       ...pl,
+      portada_url: pl.portada_path ? `${base()}/uploads/${pl.portada_path}` : null,
       promedio_estrellas: rating ? Number(Number(rating.promedio).toFixed(1)) : null,
       total_reviews: rating ? Number(rating.total) : 0,
       videos: rows.map(v => ({
@@ -80,10 +81,20 @@ router.get('/public/:userId', async (req, res, next) => {
 // POST /api/profesor/playlists
 router.post('/', verifyToken, requireRol('profesor', 'creador'), async (req, res, next) => {
   try {
-    const { nombre } = z.object({ nombre: z.string().min(1).max(255) }).parse(req.body);
-    const [result] = await db.insert(profesorPlaylists).values({ user_id: req.user.sub, nombre });
+    const data = z.object({
+      nombre:      z.string().min(1).max(255),
+      descripcion: z.string().max(5000).optional(),
+      categoria:   z.enum(['Programación', 'Ciberseguridad', 'Matemáticas', 'Electrónica', 'Arte']).optional(),
+      es_premium:  z.boolean().default(false),
+      precio:      z.number().positive().nullable().optional(),
+    }).parse(req.body);
+
+    if (data.precio && !req.user.membresia_docente) {
+      return res.status(403).json({ status: 'error', message: 'Necesitas Membresía Docente para asignar precio a un curso' });
+    }
+    const [result] = await db.insert(profesorPlaylists).values({ user_id: req.user.sub, ...data });
     const [created] = await db.select().from(profesorPlaylists).where(eq(profesorPlaylists.id, result.insertId));
-    res.status(201).json({ status: 'success', data: { ...created, videos: [] } });
+    res.status(201).json({ status: 'success', data: { ...created, portada_url: null, videos: [] } });
   } catch (err) { next(err); }
 });
 
@@ -94,16 +105,37 @@ router.patch('/:id', verifyToken, async (req, res, next) => {
     if (!await ownerCheck(playlistId, req.user.sub, res)) return;
 
     const cambios = z.object({
-      nombre: z.string().min(1).max(255).optional(),
+      nombre:      z.string().min(1).max(255).optional(),
       descripcion: z.string().max(5000).nullable().optional(),
-    }).refine(o => o.nombre !== undefined || o.descripcion !== undefined, {
-      message: 'Se requiere al menos un campo (nombre o descripcion)',
+      categoria:   z.enum(['Programación', 'Ciberseguridad', 'Matemáticas', 'Electrónica', 'Arte']).optional(),
+      es_premium:  z.boolean().optional(),
+      precio:      z.number().positive().nullable().optional(),
+    }).refine(o => Object.values(o).some(v => v !== undefined), {
+      message: 'Se requiere al menos un campo',
     }).parse(req.body);
+
+    if (cambios.precio && !req.user.membresia_docente) {
+      return res.status(403).json({ status: 'error', message: 'Necesitas Membresía Docente para asignar precio a un curso' });
+    }
 
     await db.update(profesorPlaylists).set(cambios).where(eq(profesorPlaylists.id, playlistId));
     const [updated] = await db.select().from(profesorPlaylists).where(eq(profesorPlaylists.id, playlistId));
     res.json({ status: 'success', data: updated });
   } catch (err) { next(err); }
+});
+
+// PUT /api/profesor/playlists/:id/cover — subir portada del curso
+router.put('/:id/cover', verifyToken, (req, res, next) => {
+  const playlistId = Number(req.params.id);
+  uploadCover(req, res, async (err) => {
+    if (err) return next(err);
+    if (!req.file) return res.status(400).json({ status: 'error', message: 'No se recibió archivo' });
+    if (!await ownerCheck(playlistId, req.user.sub, res)) return;
+    const ext = path.extname(req.file.filename).toLowerCase();
+    const portada_path = `covers/${playlistId}${ext}`;
+    await db.update(profesorPlaylists).set({ portada_path }).where(eq(profesorPlaylists.id, playlistId));
+    res.json({ status: 'success', data: { portada_url: `${base()}/uploads/${portada_path}` } });
+  });
 });
 
 // PUT /api/profesor/playlists/:id/orden — reordenar lecciones

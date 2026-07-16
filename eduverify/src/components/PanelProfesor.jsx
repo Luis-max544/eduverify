@@ -25,8 +25,14 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
   const [inputFoto, setInputFoto] = useState('');
 
   // CRUD de Playlists del Profesor (API)
-  const [nuevaPlaylistNombre, setNuevaPlaylistNombre] = useState('');
   const [misPlaylists, setMisPlaylists] = useState([]);
+  const [mostrarCrearCurso, setMostrarCrearCurso] = useState(false);
+  const [nuevoCursoNombre, setNuevoCursoNombre] = useState('');
+  const [nuevoCursoDesc, setNuevoCursoDesc] = useState('');
+  const [nuevoCursoCategoria, setNuevoCursoCategoria] = useState('Programación');
+  const [nuevoCursoEsPremium, setNuevoCursoEsPremium] = useState(false);
+  const [archivoPortada, setArchivoPortada] = useState(null);
+  const [previewPortada, setPreviewPortada] = useState('');
 
   // Formulario de Alta de Videos Nuevos
   const [tituloLeccion, setTituloLeccion] = useState('');
@@ -35,7 +41,7 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
   const [descripcion, setDescripcion] = useState('');
   const [esPremiumAlta, setEsPremiumAlta] = useState(false);
   const [esVisibleAlta, setEsVisibleAlta] = useState(true);
-  const [videoSeleccionadoCurso, setVideoSeleccionadoCurso] = useState(null);
+  const [playlistAlta, setPlaylistAlta] = useState('');
   const [editando, setEditando] = useState(null);
   const [editForm, setEditForm] = useState({ titulo: '', descripcion: '', categoria: 'Programación', es_premium: false, visible: true });
   const [editandoQuiz, setEditandoQuiz] = useState(null); // { playlistId, videoId }
@@ -128,16 +134,41 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
     }
   };
 
+  const manejarCambioPortada = (e) => {
+    const archivo = e.target.files[0];
+    if (archivo) {
+      setArchivoPortada(archivo);
+      const lector = new FileReader();
+      lector.onloadend = () => setPreviewPortada(lector.result);
+      lector.readAsDataURL(archivo);
+    }
+  };
+
+  const resetCrearCurso = () => {
+    setNuevoCursoNombre(''); setNuevoCursoDesc(''); setNuevoCursoCategoria('Programación');
+    setNuevoCursoEsPremium(false); setArchivoPortada(null); setPreviewPortada('');
+    setMostrarCrearCurso(false);
+  };
+
   // CRUD PLAYLISTS: Crear, Renombrar, Eliminar (API)
-  const handleCrearPlaylistVacia = async (e) => {
+  const handleCrearCurso = async (e) => {
     e.preventDefault();
-    const nombre = nuevaPlaylistNombre.trim();
+    const nombre = nuevoCursoNombre.trim();
     if (!nombre) return;
     if (misPlaylists.some(p => p.nombre === nombre)) return notify.error("Ya tienes un curso con ese nombre.");
     try {
-      await profesorPlaylists.create(nombre);
+      const created = await profesorPlaylists.create({
+        nombre,
+        descripcion: nuevoCursoDesc.trim() || undefined,
+        categoria: nuevoCursoCategoria,
+        es_premium: nuevoCursoEsPremium,
+      });
+      if (archivoPortada) {
+        await profesorPlaylists.uploadCover(created.id, archivoPortada);
+      }
       cargarPlaylists();
-      setNuevaPlaylistNombre('');
+      resetCrearCurso();
+      notify.success('¡Curso creado!');
     } catch (err) {
       notify.error(`Error al crear el curso: ${err.message}`);
     }
@@ -163,10 +194,14 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
     ? (misPlaylists.find(p => p.id === gestionarPlaylistId) ?? null)
     : null;
   const [descEdit, setDescEdit] = useState('');
+  const [categoriaEdit, setCategoriaEdit] = useState('Programación');
+  const [esPremiumEdit, setEsPremiumEdit] = useState(false);
 
   const abrirGestionarPlaylist = (playlist) => {
     setGestionarPlaylistId(playlist.id);
     setDescEdit(playlist.descripcion || '');
+    setCategoriaEdit(playlist.categoria || 'Programación');
+    setEsPremiumEdit(playlist.es_premium || false);
     cargarPdfs(playlist.id);
   };
 
@@ -177,6 +212,16 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
       notify.success('Descripción guardada.');
     } catch (err) {
       notify.error(`Error al guardar la descripción: ${err.message}`);
+    }
+  };
+
+  const handleGuardarAjustesCurso = async (playlist) => {
+    try {
+      await profesorPlaylists.update(playlist.id, { categoria: categoriaEdit, es_premium: esPremiumEdit });
+      cargarPlaylists();
+      notify.success('Ajustes guardados.');
+    } catch (err) {
+      notify.error(`Error al guardar ajustes: ${err.message}`);
     }
   };
 
@@ -203,23 +248,11 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
     }
   };
 
-  // Añadir video existente a un curso
-  const handleAnadirLeccion = async (e, playlist) => {
-    e.preventDefault();
-    if (!videoSeleccionadoCurso) return;
-    try {
-      await profesorPlaylists.addVideo(playlist.id, videoSeleccionadoCurso);
-      cargarPlaylists();
-      setVideoSeleccionadoCurso(null);
-    } catch (err) {
-      notify.error(`Error al añadir la lección: ${err.message}`);
-    }
-  };
-
   // CRUD VIDEOS (el API deduce autor y usuario_id del token)
   const handlePublicarClase = async (e) => {
     e.preventDefault();
     if (!tituloLeccion.trim() || !videoUrl.trim()) return notify.error('Completa el título y la URL del video.');
+    if (!playlistAlta) return notify.error('Selecciona un curso para la lección.');
 
     try {
       await videosApi.create({
@@ -229,11 +262,13 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
         categoria: especialidad,
         es_premium: esPremiumAlta,
         visible: esVisibleAlta,
+        playlist_id: Number(playlistAlta),
       });
       notify.success('¡Clase publicada con éxito!');
       if (recargarVideos) recargarVideos();
       cargarMisVideos();
-      setTituloLeccion(''); setDescripcion(''); setVideoUrl(''); setEsPremiumAlta(false); setEsVisibleAlta(true);
+      cargarPlaylists();
+      setTituloLeccion(''); setDescripcion(''); setVideoUrl(''); setEsPremiumAlta(false); setEsVisibleAlta(true); setPlaylistAlta('');
       setSubVista('canal');
     } catch (err) {
       notify.error(`Error al publicar la clase: ${err.message}`);
@@ -474,21 +509,24 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
 
             {pestanaStudio === 'PLAYLISTS' && (
               <div className="space-y-6">
-                <form onSubmit={handleCrearPlaylistVacia} className="flex gap-2 max-w-md text-left">
-                  <input type="text" required value={nuevaPlaylistNombre} onChange={(e) => setNuevaPlaylistNombre(e.target.value)} placeholder="Nombre del nuevo curso..." className={darkMode ? "flex-1 p-2.5 rounded-xl border text-xs bg-gray-950 border-white/5 text-white outline-none" : "flex-1 p-2.5 rounded-xl border text-xs bg-[var(--clr-base)] border-gray-200 text-black outline-none"} />
-                  <button type="submit" className="bg-cyan-600 hover:bg-cyan-500 text-white font-black text-[10px] uppercase tracking-widest px-5 py-2 rounded-xl">Crear</button>
-                </form>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-400">Gestiona tus cursos y su contenido.</p>
+                  <button onClick={() => setMostrarCrearCurso(true)} className="inline-flex items-center gap-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-black text-[10px] uppercase tracking-widest px-4 py-2 rounded-xl transition-colors">
+                    <Plus size={12} /> Nuevo Curso
+                  </button>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 items-start">
                   {misPlaylists.map((playlist) => {
                     const videosDeLista = playlist.videos || [];
                     const primerVideo = videosDeLista[0] || {};
                     const ytId = obtenerYoutubeId(primerVideo.url_video);
                     const miniaturaPlaylist = ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : null;
+                    const thumbnail = playlist.portada_url || miniaturaPlaylist;
 
                     return (
                       <div key={playlist.id} className="flex flex-col gap-2 p-3 rounded-2xl border border-gray-100 dark:border-white/[0.04] bg-gray-50/40 dark:bg-gray-900/10">
                         <div onClick={() => { if (videosDeLista.length > 0 && setVideoSeleccionado) { setVideoSeleccionado(primerVideo); setVista('reproductor'); } }} className="w-full aspect-video bg-gray-900 rounded-xl overflow-hidden relative border border-gray-200/10 shadow-md cursor-pointer hover:opacity-95">
-                          {miniaturaPlaylist ? <img src={miniaturaPlaylist} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-[var(--clr-surface-elevated)] dark:bg-gray-900 flex items-center justify-center"><Folder size={28} className="text-[var(--clr-text-muted)] opacity-40" /></div>}
+                          {thumbnail ? <img src={thumbnail} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-[var(--clr-surface-elevated)] dark:bg-gray-900 flex items-center justify-center"><Folder size={28} className="text-[var(--clr-text-muted)] opacity-40" /></div>}
                           <div className="absolute right-0 top-0 bottom-0 w-2/5 bg-black/70 backdrop-blur-[4px] flex flex-col items-center justify-center text-white border-l border-white/5 space-y-1">
                             <ListVideo size={16} /><span className="text-[10px] font-black font-mono uppercase">{videosDeLista.length} videos</span>
                           </div>
@@ -496,7 +534,10 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
                         <div className="space-y-1 pt-1 flex flex-col flex-1 justify-between">
                           <div>
                             <h4 className={`text-xs font-black uppercase tracking-wide truncate ${darkMode ? 'text-white' : 'text-gray-900'}`}>{playlist.nombre}</h4>
-                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Creado por ti</p>
+                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                              {playlist.categoria && <span className="text-[8px] font-black uppercase text-cyan-500 bg-cyan-500/10 px-1.5 py-0.5 rounded">{playlist.categoria}</span>}
+                              {playlist.es_premium && <span className="text-[8px] font-black uppercase text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded inline-flex items-center gap-0.5"><Star size={8} className="fill-current" /> Premium</span>}
+                            </div>
                           </div>
                           <div className="grid grid-cols-2 gap-2 pt-3 border-t border-gray-100 dark:border-white/5 mt-3">
                             <button onClick={() => handleRenombrarPlaylist(playlist)} className="text-[9px] font-black uppercase py-1.5 px-2 bg-cyan-500/10 text-cyan-500 rounded-md hover:bg-cyan-600 transition-colors">Renombrar</button>
@@ -518,6 +559,67 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
           </div>
         </>
       )}
+
+      {/* MODAL CREAR CURSO */}
+      <Modal open={mostrarCrearCurso} onClose={resetCrearCurso} title="Nuevo Curso" darkMode={darkMode} maxWidth="max-w-lg">
+        <form onSubmit={handleCrearCurso} className="space-y-4">
+          <div className="space-y-2">
+            <label className="block text-[10px] font-black uppercase text-gray-400">Portada del curso</label>
+            <div className="border-2 border-dashed border-gray-300 dark:border-white/10 rounded-2xl p-4 text-center bg-gray-50/50 dark:bg-gray-950 relative flex flex-col items-center justify-center min-h-[100px]">
+              <input id="filePortadaInput" type="file" accept="image/*" onChange={manejarCambioPortada} className="hidden" />
+              {previewPortada ? (
+                <div className="w-full h-28 rounded-xl overflow-hidden relative group">
+                  <img src={previewPortada} alt="Portada" className="w-full h-full object-cover" />
+                  <button type="button" onClick={() => { setPreviewPortada(''); setArchivoPortada(null); }}
+                    className="absolute inset-0 bg-black/60 text-white font-bold opacity-0 group-hover:opacity-100 transition-opacity text-[10px] uppercase flex items-center justify-center gap-1">
+                    <X size={14} /> Quitar
+                  </button>
+                </div>
+              ) : (
+                <label htmlFor="filePortadaInput" className="cursor-pointer flex flex-col items-center gap-1.5">
+                  <Image size={20} className="text-gray-400" />
+                  <span className="text-[11px] font-bold text-cyan-500 hover:underline">Seleccionar portada (opcional)</span>
+                </label>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Nombre <span className="text-red-500">*</span></label>
+            <input type="text" required value={nuevoCursoNombre} onChange={(e) => setNuevoCursoNombre(e.target.value)}
+              placeholder="Ej: React desde cero"
+              className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white" : "w-full p-3 rounded-xl border text-xs bg-[var(--clr-base)] border-gray-200 text-black"} />
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Descripción</label>
+            <textarea rows="3" value={nuevoCursoDesc} onChange={(e) => setNuevoCursoDesc(e.target.value)}
+              placeholder="¿De qué trata este curso?"
+              className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white resize-none" : "w-full p-3 rounded-xl border text-xs bg-[var(--clr-base)] border-gray-200 text-black resize-none"} />
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Categoría</label>
+            <select value={nuevoCursoCategoria} onChange={(e) => setNuevoCursoCategoria(e.target.value)}
+              className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white" : "w-full p-3 rounded-xl border text-xs bg-[var(--clr-base)] border-gray-200 text-black"}>
+              {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+
+          <label className="flex items-center gap-2.5 cursor-pointer select-none">
+            <input type="checkbox" checked={nuevoCursoEsPremium} onChange={(e) => setNuevoCursoEsPremium(e.target.checked)}
+              className="w-4 h-4 rounded accent-amber-500 cursor-pointer" />
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider inline-flex items-center gap-1.5">
+              <Star size={12} className="fill-current text-amber-500" /> Curso exclusivo Premium
+            </span>
+          </label>
+
+          <div className="flex justify-end gap-2 pt-2 text-[10px] font-black uppercase tracking-wider">
+            <button type="button" onClick={resetCrearCurso} className="px-4 py-2 rounded-xl text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5">Cancelar</button>
+            <button type="submit" className="bg-cyan-600 text-white px-5 py-2 rounded-xl shadow-md hover:bg-cyan-500 transition-colors">Crear Curso</button>
+          </div>
+        </form>
+      </Modal>
 
       {/* 🎨 MODAL DE PERSONALIZACIÓN */}
       <Modal open={mostrarPersonalizar} onClose={() => { setMostrarPersonalizar(false); setArchivoBanner(null); setArchivoFoto(null); setInputBanner(''); setInputFoto(''); }} title="Personalización del Estudio" darkMode={darkMode} maxWidth="max-w-md">
@@ -619,6 +721,24 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
           return (
             <div className="space-y-5">
               <div className="space-y-1.5">
+                <label className="block text-[9px] font-black uppercase text-gray-400">Categoría y visibilidad</label>
+                <div className="flex gap-2 items-center">
+                  <select value={categoriaEdit} onChange={(e) => setCategoriaEdit(e.target.value)}
+                    className={darkMode ? "flex-1 p-2 rounded-lg border text-[10px] bg-gray-950 border-white/5 text-white" : "flex-1 p-2 rounded-lg border text-[10px] bg-[var(--clr-base)] border-gray-200 text-black"}>
+                    {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none shrink-0">
+                    <input type="checkbox" checked={esPremiumEdit} onChange={(e) => setEsPremiumEdit(e.target.checked)} className="w-3.5 h-3.5 rounded accent-amber-500 cursor-pointer" />
+                    <span className="text-[9px] font-black text-amber-500 uppercase">Premium</span>
+                  </label>
+                </div>
+                <button onClick={() => handleGuardarAjustesCurso(gestionarPlaylist)}
+                  className="w-full text-[9px] font-black uppercase py-1.5 bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors">
+                  Guardar ajustes
+                </button>
+              </div>
+
+              <div className="space-y-1.5">
                 <label className="block text-[9px] font-black uppercase text-gray-400">Descripción del curso</label>
                 <textarea
                   rows={3}
@@ -672,27 +792,6 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
                 )}
               </div>
 
-              {(() => {
-                const asignados = new Set((gestionarPlaylist.videos || []).map(v => v.id));
-                const disponibles = misVideosPropios.filter(v => !asignados.has(v.id));
-                return disponibles.length > 0 ? (
-                  <div className="space-y-1.5">
-                    <label className="block text-[9px] font-black uppercase text-gray-400">Añadir lección</label>
-                    <form onSubmit={(e) => handleAnadirLeccion(e, gestionarPlaylist)} className="flex gap-2">
-                      <select
-                        defaultValue={videoSeleccionadoCurso || ''}
-                        onChange={(e) => setVideoSeleccionadoCurso(Number(e.target.value))}
-                        className={darkMode ? "flex-1 p-2 rounded-xl border text-[10px] bg-gray-950 border-white/5 text-white truncate" : "flex-1 p-2 rounded-xl border text-[10px] bg-[var(--clr-base)] border-gray-200 text-black truncate"}
-                      >
-                        <option value="" disabled>Selecciona un video...</option>
-                        {disponibles.map(v => <option key={v.id} value={v.id}>{v.titulo}</option>)}
-                      </select>
-                      <button type="submit" className="bg-cyan-600 hover:bg-cyan-500 text-white font-black text-[10px] uppercase tracking-widest px-4 py-2 rounded-xl shrink-0">Añadir</button>
-                    </form>
-                  </div>
-                ) : null;
-              })()}
-
               <div className="space-y-1.5">
                 <label className="block text-[9px] font-black uppercase text-gray-400">Documento del curso (PDF)</label>
                 {(() => {
@@ -723,8 +822,24 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
       {subVista === 'subir' && (
         <div className="max-w-4xl mx-auto">
           <button onClick={() => setSubVista('canal')} className="mb-4 inline-flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-white transition"><ArrowLeft size={14} /> Volver</button>
+          {misPlaylists.length === 0 ? (
+            <div className={darkMode ? "p-8 rounded-3xl border bg-gray-900 border-white/5 text-center space-y-4" : "p-8 rounded-3xl border bg-white border-gray-200 text-center space-y-4"}>
+              <GraduationCap size={36} className="mx-auto text-gray-400 opacity-40" />
+              <p className="text-sm font-bold text-gray-400">Debes crear un curso antes de subir una lección.</p>
+              <button onClick={() => { setSubVista('canal'); setPestanaStudio('PLAYLISTS'); }} className="bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xs uppercase tracking-widest px-6 py-2.5 rounded-full transition-colors">
+                Crear curso
+              </button>
+            </div>
+          ) : (
           <div className={darkMode ? "p-6 md:p-8 rounded-3xl border bg-gray-900 border-white/5 shadow-xl" : "p-6 md:p-8 rounded-3xl border bg-white border-gray-200 shadow-xl"}>
             <form onSubmit={handlePublicarClase} className="space-y-5 text-left">
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Curso <span className="text-red-500">*</span></label>
+                <select required value={playlistAlta} onChange={(e) => setPlaylistAlta(e.target.value)} className={darkMode ? "w-full p-3 rounded-xl border text-xs bg-gray-950 border-white/5 text-white" : "w-full p-3 rounded-xl border text-xs bg-[var(--clr-base)] border-gray-200 text-black"}>
+                  <option value="" disabled>Selecciona un curso...</option>
+                  {misPlaylists.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                </select>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
                   <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Título</label>
@@ -758,6 +873,7 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
               <button type="submit" className="w-full font-bold py-3.5 px-4 rounded-xl text-xs uppercase tracking-widest bg-cyan-600 text-white shadow-md">Publicar Clase</button>
             </form>
           </div>
+          )}
         </div>
       )}
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft, ArrowRight, GraduationCap, BellRing, Heart, Share2, Bookmark,
-  Bot, Reply, Trash2, Check, Clapperboard, FolderOpen, X, Star, FileText
+  Bot, Reply, Trash2, Check, Clapperboard, FolderOpen, X, Star, FileText, Lock
 } from 'lucide-react';
 import { comments as commentsApi, favorites as favoritesApi, playlists as playlistsApi, videos as videosApi, cursos as cursosApi } from '../api';
 import { getYoutubeId } from '../utils/youtube';
@@ -101,6 +101,7 @@ export default function Reproductor({
   const urlFinal = localVideo.url_video;
   const youtubeId = getYoutubeId(urlFinal);
   const esContenidoEnVivo = localVideo.tipo === 'envivo' || youtubeId !== null;
+  const esBloqueadoPremium = localVideo.es_premium && !usuario?.premium && usuario?.id !== (localVideo.usuario_id ?? localVideo.autor_id);
 
   // ❤️ Favoritos (optimista + persistencia en el API)
   const esFavorito = favoritos.some(f => f.id === localVideo.id);
@@ -288,7 +289,18 @@ export default function Reproductor({
           
           {/* REPRODUCTOR */}
           <div className="w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-gray-200 dark:border-white/5 relative">
-            {esContenidoEnVivo && youtubeId ? (
+            {esBloqueadoPremium ? (
+              <div className="w-full h-full bg-gray-950 flex flex-col items-center justify-center gap-4">
+                <Lock size={48} className="text-amber-500 opacity-70" />
+                <p className="text-white font-bold text-sm">Contenido exclusivo Premium</p>
+                <button
+                  onClick={() => setVista('premium')}
+                  className="bg-amber-500 text-gray-950 font-black text-xs uppercase tracking-widest px-6 py-2.5 rounded-full hover:bg-amber-400 transition-colors"
+                >
+                  Activar Premium
+                </button>
+              </div>
+            ) : esContenidoEnVivo && youtubeId ? (
               <iframe
                 width="100%" height="100%"
                 src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0`}

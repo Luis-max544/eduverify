@@ -3,7 +3,7 @@ import path from 'path';
 import { eq, sql, desc, and } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../config/db.js';
-import { users, videos, subscriptions } from '../db/schema.js';
+import { users, videos, subscriptions, channelSubscriptions } from '../db/schema.js';
 import { verifyToken, optionalAuth } from '../middleware/auth.js';
 import { uploadAvatar, uploadBanner } from '../middleware/upload.js';
 import { env } from '../config/env.js';
@@ -28,7 +28,11 @@ function formatUser(user) {
     nombre: user.nombre,
     email: user.email,
     rol: user.rol,
+    tier: user.tier,
     premium: user.premium,
+    membresia_docente: user.membresia_docente,
+    membresia_docente_expires_at: user.membresia_docente_expires_at,
+    canal_precio: user.canal_precio ? Number(user.canal_precio) : null,
     dark_mode: user.dark_mode,
     avatar_url: avatarUrl(user.avatar_path),
     banner_url: bannerUrl(user.banner_path),
@@ -96,6 +100,34 @@ router.post('/me/banner', verifyToken, (req, res, next) => {
   });
 });
 
+// PATCH /api/users/me/canal-precio
+router.patch('/me/canal-precio', verifyToken, async (req, res, next) => {
+  try {
+    const rol = req.user.rol;
+    if (rol !== 'profesor' && rol !== 'creador') {
+      return res.status(403).json({ status: 'error', message: 'Solo disponible para docentes' });
+    }
+
+    const { canal_precio } = z.object({
+      canal_precio: z.number().positive().nullable(),
+    }).parse(req.body);
+
+    // Require ≥ 100 subscribers unless creador (verified channels exempt)
+    if (rol !== 'creador') {
+      const [{ count }] = await db
+        .select({ count: sql`COUNT(*)` })
+        .from(subscriptions)
+        .where(eq(subscriptions.professor_id, req.user.sub));
+      if (Number(count) < 100) {
+        return res.status(403).json({ status: 'error', message: 'Necesitas al menos 100 suscriptores para activar el precio de canal' });
+      }
+    }
+
+    await db.update(users).set({ canal_precio }).where(eq(users.id, req.user.sub));
+    res.json({ status: 'success', data: { canal_precio } });
+  } catch (err) { next(err); }
+});
+
 // GET /api/users/:id/profile
 router.get('/:id/profile', optionalAuth, async (req, res, next) => {
   try {
@@ -122,6 +154,7 @@ router.get('/:id/profile', optionalAuth, async (req, res, next) => {
         id: user.id,
         nombre: user.nombre,
         rol: user.rol,
+        canal_precio: user.canal_precio ? Number(user.canal_precio) : null,
         avatar_url: avatarUrl(user.avatar_path),
         banner_url: bannerUrl(user.banner_path),
         video_count: Number(videoCount),

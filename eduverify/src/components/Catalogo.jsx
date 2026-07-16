@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Clapperboard, Star, PlayCircle } from 'lucide-react';
-import { getYoutubeId } from '../utils/youtube';
+import { GraduationCap, Star, BookOpen, Lock } from 'lucide-react';
 
-// Deterministic avatar color from a string (avoids every avatar being the same blue)
+const CATEGORIAS = ['Todos', 'Programación', 'Ciberseguridad', 'Matemáticas', 'Electrónica', 'Arte'];
+
 const AVATAR_COLORS = ['#0891B2','#7C3AED','#059669','#D97706','#DC2626','#2563EB','#0D9488'];
 function avatarColor(name = '') {
   let h = 0;
@@ -10,15 +10,26 @@ function avatarColor(name = '') {
   return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
 }
 
-const CATEGORIAS = ['Todos', 'Programación', 'Ciberseguridad', 'Matemáticas', 'Electrónica', 'Arte'];
+function StarRating({ value }) {
+  if (!value) return null;
+  return (
+    <span className="flex items-center gap-0.5 text-amber-400">
+      <Star size={10} className="fill-current" />
+      <span className="text-[10px] font-bold tabular-nums">{value.toFixed(1)}</span>
+    </span>
+  );
+}
 
-export default function Catalogo({ setVideoSeleccionado, videosDemo = [], abrirCanalProfesor, busqueda = '' }) {
+export default function Catalogo({ cursosPublicos = [], abrirCurso, abrirCanalProfesor, busqueda = '' }) {
   const [categoriaActiva, setCategoriaActiva] = useState('Todos');
 
-  const videosFiltrados = videosDemo.filter((v) => {
-    const porCategoria = categoriaActiva === 'Todos' || v.categoria?.toLowerCase() === categoriaActiva.toLowerCase();
+  const cursosFiltrados = cursosPublicos.filter((c) => {
+    const porCategoria = categoriaActiva === 'Todos' || c.categoria === categoriaActiva;
     const q = busqueda.trim().toLowerCase();
-    const porBusqueda = !q || v.titulo?.toLowerCase().includes(q) || v.autor?.toLowerCase().includes(q);
+    const porBusqueda = !q ||
+      c.nombre?.toLowerCase().includes(q) ||
+      c.descripcion?.toLowerCase().includes(q) ||
+      c.autor?.nombre?.toLowerCase().includes(q);
     return porCategoria && porBusqueda;
   });
 
@@ -29,15 +40,15 @@ export default function Catalogo({ setVideoSeleccionado, videosDemo = [], abrirC
       <div className="flex items-end justify-between pt-1 px-1">
         <div>
           <h1 className="text-2xl font-bold text-[var(--clr-text-primary)] tracking-tight">
-            {categoriaActiva === 'Todos' ? 'Explorar' : categoriaActiva}
+            {categoriaActiva === 'Todos' ? 'Explorar cursos' : categoriaActiva}
           </h1>
           <p className="text-sm text-[var(--clr-text-muted)] mt-0.5">
-            {videosFiltrados.length} {videosFiltrados.length === 1 ? 'recurso' : 'recursos'} disponibles
+            {cursosFiltrados.length} {cursosFiltrados.length === 1 ? 'curso' : 'cursos'} disponibles
           </p>
         </div>
       </div>
 
-      {/* CATEGORY FILTER — tab style */}
+      {/* CATEGORY FILTER */}
       <div className="flex gap-0 border-b border-[var(--clr-border-subtle)] overflow-x-auto scrollbar-none -mb-1">
         {CATEGORIAS.map((cat) => {
           const isActive = categoriaActiva === cat;
@@ -59,102 +70,95 @@ export default function Catalogo({ setVideoSeleccionado, videosDemo = [], abrirC
       </div>
 
       {/* CARD GRID */}
-      {videosFiltrados.length === 0 ? (
+      {cursosFiltrados.length === 0 ? (
         <div className="min-h-[300px] flex flex-col items-center justify-center border-2 border-dashed rounded-2xl border-[var(--clr-border)] p-8 text-center">
-          <Clapperboard size={32} className="mb-3 text-[var(--clr-text-muted)] opacity-40" />
-          <p className="text-sm font-semibold text-[var(--clr-text-muted)]">Sin contenido en esta área</p>
+          <GraduationCap size={32} className="mb-3 text-[var(--clr-text-muted)] opacity-40" />
+          <p className="text-sm font-semibold text-[var(--clr-text-muted)]">Sin cursos en esta área</p>
           <p className="text-xs text-[var(--clr-text-muted)] mt-1 max-w-xs opacity-70">
-            {busqueda ? `No hay resultados para "${busqueda}"` : 'Los docentes aún no han publicado clases en esta categoría.'}
+            {busqueda ? `No hay resultados para "${busqueda}"` : 'Los docentes aún no han publicado cursos en esta categoría.'}
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {videosFiltrados.map((video) => {
-            const ytId = getYoutubeId(video.url_video);
-            const thumb = ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : null;
-            const color = avatarColor(video.autor || '');
-
+          {cursosFiltrados.map((curso) => {
+            const color = avatarColor(curso.autor?.nombre || '');
             return (
               <div
-                key={video.id}
-                onClick={() => setVideoSeleccionado(video)}
+                key={curso.id}
+                onClick={() => abrirCurso?.(curso)}
                 className="flex flex-col group cursor-pointer rounded-xl border border-[var(--clr-border-subtle)] bg-[var(--clr-surface)] hover:shadow-md hover:border-[var(--clr-border)] transition-all duration-200 overflow-hidden"
               >
-                {/* THUMBNAIL */}
+                {/* PORTADA */}
                 <div className="w-full aspect-video bg-[var(--clr-surface-elevated)] relative overflow-hidden">
-                  {thumb ? (
+                  {curso.portada_url ? (
                     <img
-                      src={thumb}
-                      alt={video.titulo}
+                      src={curso.portada_url}
+                      alt={curso.nombre}
                       className="w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-500"
                       loading="lazy"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <Clapperboard size={28} className="text-[var(--clr-text-muted)] opacity-30" />
+                      <GraduationCap size={32} className="text-[var(--clr-text-muted)] opacity-30" />
                     </div>
                   )}
 
-                  {/* Play overlay on hover */}
+                  {/* Hover overlay */}
                   <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <PlayCircle size={40} className="text-white drop-shadow-lg" />
+                    <BookOpen size={36} className="text-white drop-shadow-lg" />
                   </div>
 
-                  {/* Duration */}
-                  {video.duracion && (
-                    <span className="absolute bottom-2 right-2 bg-black/75 text-white font-mono text-[10px] px-1.5 py-0.5 rounded font-medium">
-                      {video.duracion}
+                  {/* Premium badge */}
+                  {curso.es_premium && (
+                    <span className="absolute top-2 left-2 bg-amber-500 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1 shadow">
+                      <Lock size={9} /> Premium
                     </span>
                   )}
 
-                  {/* Premium badge */}
-                  {video.es_premium && (
-                    <span className="absolute top-2 left-2 bg-[var(--clr-premium)] text-white text-[10px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1 shadow">
-                      <Star size={9} className="fill-current" /> Premium
+                  {/* Categoria badge */}
+                  {curso.categoria && (
+                    <span className="absolute bottom-2 left-2 bg-black/60 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">
+                      {curso.categoria}
                     </span>
                   )}
                 </div>
 
                 {/* CARD BODY */}
-                <div className="p-3 flex gap-2.5 min-w-0">
+                <div className="p-3 flex gap-2.5 min-w-0 flex-1">
                   {/* Author avatar */}
                   <div
                     className="w-8 h-8 rounded-full font-semibold text-xs flex items-center justify-center text-white shrink-0 mt-0.5 overflow-hidden"
                     style={{ backgroundColor: color }}
                   >
-                    {video.author_avatar_url ? (
-                      <img src={video.author_avatar_url} alt={video.autor} className="w-full h-full object-cover" />
+                    {curso.autor?.avatar_url ? (
+                      <img src={curso.autor.avatar_url} alt={curso.autor.nombre} className="w-full h-full object-cover" />
                     ) : (
-                      (video.autor?.charAt(0) || 'P').toUpperCase()
+                      (curso.autor?.nombre?.charAt(0) || 'P').toUpperCase()
                     )}
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    {/* Category chip */}
-                    {video.categoria && (
-                      <span className="text-[10px] font-medium text-[var(--clr-accent)] mb-1 block uppercase tracking-wide">
-                        {video.categoria}
-                      </span>
-                    )}
-
                     {/* Title */}
                     <h4 className="text-sm font-semibold text-[var(--clr-text-primary)] leading-snug line-clamp-2 group-hover:text-[var(--clr-accent)] transition-colors">
-                      {video.titulo}
+                      {curso.nombre}
                     </h4>
 
                     {/* Author */}
                     <p
-                      onClick={(e) => { e.stopPropagation(); abrirCanalProfesor?.(video.autor_id); }}
+                      onClick={(e) => { e.stopPropagation(); abrirCanalProfesor?.(curso.autor?.id); }}
                       className="text-xs text-[var(--clr-text-muted)] mt-1 hover:text-[var(--clr-accent)] transition-colors inline-block hover:underline"
                     >
-                      {video.autor || 'Docente EduVerify'}
+                      {curso.autor?.nombre || 'Docente EduVerify'}
                     </p>
 
-                    {/* Stats */}
-                    <p className="text-xs text-[var(--clr-text-muted)] mt-0.5 font-mono tabular">
-                      {video.vistas ?? 0} vistas
-                      {video.created_at && ` · ${new Date(video.created_at).toLocaleDateString('es', { month: 'short', year: 'numeric' })}`}
-                    </p>
+                    {/* Stats row */}
+                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                      <StarRating value={curso.promedio_estrellas} />
+                      <span className="text-[10px] text-[var(--clr-text-muted)] flex items-center gap-0.5">
+                        <BookOpen size={9} />
+                        {curso.total_lecciones ?? 0} lecciones
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>

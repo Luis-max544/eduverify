@@ -1,25 +1,29 @@
 import {
   mysqlTable, int, varchar, text, boolean, timestamp,
-  datetime, mysqlEnum, index, primaryKey, unique, json
+  datetime, mysqlEnum, index, primaryKey, unique, json, decimal
 } from 'drizzle-orm/mysql-core';
 import { relations } from 'drizzle-orm';
 
 // ─── USERS ───────────────────────────────────────────────────────────────────
 
 export const users = mysqlTable('users', {
-  id:            int('id').primaryKey().autoincrement(),
-  nombre:        varchar('nombre', { length: 120 }).notNull(),
-  email:         varchar('email', { length: 255 }).notNull().unique(),
-  password_hash: varchar('password_hash', { length: 255 }),
-  rol:           mysqlEnum('rol', ['estudiante', 'profesor', 'creador']).notNull().default('estudiante'),
-  premium:       boolean('premium').notNull().default(false),
-  fecha_pago:    datetime('fecha_pago'),
-  avatar_path:   varchar('avatar_path', { length: 500 }),
-  banner_path:   varchar('banner_path', { length: 500 }),
-  google_sub:    varchar('google_sub', { length: 255 }).unique(),
-  dark_mode:     boolean('dark_mode').notNull().default(false),
-  created_at:    timestamp('created_at').defaultNow(),
-  updated_at:    timestamp('updated_at').defaultNow().onUpdateNow(),
+  id:                          int('id').primaryKey().autoincrement(),
+  nombre:                      varchar('nombre', { length: 120 }).notNull(),
+  email:                       varchar('email', { length: 255 }).notNull().unique(),
+  password_hash:               varchar('password_hash', { length: 255 }),
+  rol:                         mysqlEnum('rol', ['estudiante', 'profesor', 'creador']).notNull().default('estudiante'),
+  tier:                        mysqlEnum('tier', ['free', 'premium', 'premium_plus']).notNull().default('free'),
+  premium:                     boolean('premium').notNull().default(false),
+  fecha_pago:                  datetime('fecha_pago'),
+  membresia_docente:           boolean('membresia_docente').notNull().default(false),
+  membresia_docente_expires_at: datetime('membresia_docente_expires_at'),
+  canal_precio:                decimal('canal_precio', { precision: 8, scale: 2 }),
+  avatar_path:                 varchar('avatar_path', { length: 500 }),
+  banner_path:                 varchar('banner_path', { length: 500 }),
+  google_sub:                  varchar('google_sub', { length: 255 }).unique(),
+  dark_mode:                   boolean('dark_mode').notNull().default(false),
+  created_at:                  timestamp('created_at').defaultNow(),
+  updated_at:                  timestamp('updated_at').defaultNow().onUpdateNow(),
 }, (t) => [
   index('email_idx').on(t.email),
   index('google_sub_idx').on(t.google_sub),
@@ -103,11 +107,15 @@ export const playlistVideos = mysqlTable('playlist_videos', {
 // ─── PROFESOR PLAYLISTS ───────────────────────────────────────────────────────
 
 export const profesorPlaylists = mysqlTable('profesor_playlists', {
-  id:          int('id').primaryKey().autoincrement(),
-  user_id:     int('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  nombre:      varchar('nombre', { length: 255 }).notNull(),
-  descripcion: text('descripcion'),
-  created_at:  timestamp('created_at').defaultNow(),
+  id:           int('id').primaryKey().autoincrement(),
+  user_id:      int('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  nombre:       varchar('nombre', { length: 255 }).notNull(),
+  descripcion:  text('descripcion'),
+  portada_path: varchar('portada_path', { length: 255 }),
+  categoria:    mysqlEnum('categoria', ['Programación', 'Ciberseguridad', 'Matemáticas', 'Electrónica', 'Arte']),
+  es_premium:   boolean('es_premium').notNull().default(false),
+  precio:       decimal('precio', { precision: 8, scale: 2 }),
+  created_at:   timestamp('created_at').defaultNow(),
 }, (t) => [
   index('prof_playlist_user_id_idx').on(t.user_id),
 ]);
@@ -116,6 +124,7 @@ export const profesorPlaylistVideos = mysqlTable('profesor_playlist_videos', {
   playlist_id: int('playlist_id').notNull().references(() => profesorPlaylists.id, { onDelete: 'cascade' }),
   video_id:    int('video_id').notNull().references(() => videos.id, { onDelete: 'cascade' }),
   orden:       int('orden').notNull().default(0),
+  es_preview:  boolean('es_preview').notNull().default(false),
 }, (t) => [
   primaryKey({ columns: [t.playlist_id, t.video_id] }),
 ]);
@@ -330,4 +339,78 @@ export const lessonProgressRelations = relations(lessonProgress, ({ one }) => ({
 export const courseReviewsRelations = relations(courseReviews, ({ one }) => ({
   user:     one(users, { fields: [courseReviews.user_id], references: [users.id] }),
   playlist: one(profesorPlaylists, { fields: [courseReviews.playlist_id], references: [profesorPlaylists.id] }),
+}));
+
+// ─── CHANNEL SUBSCRIPTIONS (mini-sub por canal) ───────────────────────────────
+
+export const channelSubscriptions = mysqlTable('channel_subscriptions', {
+  subscriber_id: int('subscriber_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  professor_id:  int('professor_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  monto_pagado:  decimal('monto_pagado', { precision: 8, scale: 2 }).notNull(),
+  expires_at:    datetime('expires_at').notNull(),
+  created_at:    timestamp('created_at').defaultNow(),
+}, (t) => [
+  primaryKey({ columns: [t.subscriber_id, t.professor_id] }),
+  index('ch_sub_professor_idx').on(t.professor_id),
+]);
+
+// ─── COURSE PURCHASES ─────────────────────────────────────────────────────────
+
+export const coursePurchases = mysqlTable('course_purchases', {
+  id:           int('id').primaryKey().autoincrement(),
+  user_id:      int('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  playlist_id:  int('playlist_id').notNull().references(() => profesorPlaylists.id, { onDelete: 'cascade' }),
+  precio_pagado: decimal('precio_pagado', { precision: 8, scale: 2 }).notNull(),
+  purchased_at: datetime('purchased_at').notNull(),
+  refunded_at:  datetime('refunded_at'),
+}, (t) => [
+  unique('purchase_user_playlist_uq').on(t.user_id, t.playlist_id),
+  index('purchase_playlist_idx').on(t.playlist_id),
+]);
+
+// ─── COUPONS ──────────────────────────────────────────────────────────────────
+
+export const coupons = mysqlTable('coupons', {
+  id:            int('id').primaryKey().autoincrement(),
+  playlist_id:   int('playlist_id').notNull().references(() => profesorPlaylists.id, { onDelete: 'cascade' }),
+  codigo:        varchar('codigo', { length: 50 }).notNull().unique(),
+  descuento_pct: int('descuento_pct').notNull(),
+  usos_max:      int('usos_max'),
+  usos_actuales: int('usos_actuales').notNull().default(0),
+  expires_at:    datetime('expires_at'),
+  activo:        boolean('activo').notNull().default(true),
+  created_at:    timestamp('created_at').defaultNow(),
+}, (t) => [
+  index('coupon_playlist_idx').on(t.playlist_id),
+]);
+
+// ─── TEACHER MEMBERSHIPS (historial) ─────────────────────────────────────────
+
+export const teacherMemberships = mysqlTable('teacher_memberships', {
+  id:         int('id').primaryKey().autoincrement(),
+  user_id:    int('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  fecha_pago: datetime('fecha_pago').notNull(),
+  expires_at: datetime('expires_at').notNull(),
+  activa:     boolean('activa').notNull().default(true),
+  created_at: timestamp('created_at').defaultNow(),
+}, (t) => [
+  index('tm_user_idx').on(t.user_id),
+]);
+
+export const channelSubscriptionsRelations = relations(channelSubscriptions, ({ one }) => ({
+  subscriber: one(users, { fields: [channelSubscriptions.subscriber_id], references: [users.id], relationName: 'channelSubscriber' }),
+  professor:  one(users, { fields: [channelSubscriptions.professor_id], references: [users.id], relationName: 'channelProfessor' }),
+}));
+
+export const coursePurchasesRelations = relations(coursePurchases, ({ one }) => ({
+  user:     one(users, { fields: [coursePurchases.user_id], references: [users.id] }),
+  playlist: one(profesorPlaylists, { fields: [coursePurchases.playlist_id], references: [profesorPlaylists.id] }),
+}));
+
+export const couponsRelations = relations(coupons, ({ one }) => ({
+  playlist: one(profesorPlaylists, { fields: [coupons.playlist_id], references: [profesorPlaylists.id] }),
+}));
+
+export const teacherMembershipsRelations = relations(teacherMemberships, ({ one }) => ({
+  user: one(users, { fields: [teacherMemberships.user_id], references: [users.id] }),
 }));
