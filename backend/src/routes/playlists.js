@@ -17,6 +17,7 @@ async function getPlaylistsWithVideos(userId) {
     const pvRows = await db
       .select({
         id: videos.id, titulo: videos.titulo, url_video: videos.url_video,
+        minio_key: videos.minio_key, status: videos.status,
         categoria: videos.categoria, duracion: videos.duracion, vistas: videos.vistas,
         es_premium: videos.es_premium, tipo: videos.tipo,
         autor: users.nombre, autor_id: users.id, author_avatar_url: users.avatar_path,

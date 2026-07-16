@@ -9,12 +9,11 @@ import {
   pdfResources,
 } from '../db/schema.js';
 import { verifyToken } from '../middleware/auth.js';
-import { env } from '../config/env.js';
+import { mediaUrl } from '../config/minio.js';
 
 const router = Router();
 
-function base() { return `http://localhost:${env.port}`; }
-function avatarUrl(path) { return path ? `${base()}/uploads/${path}` : null; }
+function avatarUrl(key) { return mediaUrl(key); }
 
 async function getCurso(playlistId) {
   const [pl] = await db.select().from(profesorPlaylists).where(eq(profesorPlaylists.id, playlistId));
@@ -25,6 +24,7 @@ async function getLecciones(playlistId) {
   return db
     .select({
       id: videos.id, titulo: videos.titulo, url_video: videos.url_video,
+      minio_key: videos.minio_key, status: videos.status,
       categoria: videos.categoria, duracion: videos.duracion, vistas: videos.vistas,
       descripcion: videos.descripcion, es_premium: videos.es_premium,
       orden: profesorPlaylistVideos.orden,
@@ -90,7 +90,7 @@ async function getQuizzesCurso(playlistId) {
   const qs = await db
     .select({
       id: quizzes.id, video_id: quizzes.video_id,
-      titulo: quizzes.titulo, min_aprobacion: quizzes.min_aprobacion,
+      titulo: quizzes.titulo, min_aprobacion: quizzes.min_aprobacion, obligatorio: quizzes.obligatorio,
     })
     .from(quizzes)
     .where(eq(quizzes.playlist_id, playlistId));
@@ -232,7 +232,7 @@ router.get('/', async (req, res, next) => {
           id:          r.id,
           nombre:      r.nombre,
           descripcion: r.descripcion,
-          portada_url: r.portada_path ? `${base()}/uploads/${r.portada_path}` : null,
+          portada_url: mediaUrl(r.portada_path),
           categoria:   r.categoria,
           es_premium:  r.es_premium,
           created_at:  r.created_at,
@@ -304,7 +304,7 @@ router.get('/:id', async (req, res, next) => {
 
     // Ruta pública: solo metadatos de quiz (nunca preguntas ni respuestas)
     const quizzesCurso = await getQuizzesCurso(playlistId);
-    const quizPorVideo = new Map(quizzesCurso.filter(q => q.video_id !== null).map(q => [q.video_id, q.id]));
+    const quizPorVideo = new Map(quizzesCurso.filter(q => q.video_id !== null).map(q => [q.video_id, q]));
     const final = quizzesCurso.find(q => q.video_id === null) || null;
 
     res.json({
@@ -318,7 +318,8 @@ router.get('/:id', async (req, res, next) => {
         lecciones: lecciones.map(l => ({
           ...l,
           author_avatar_url: avatarUrl(l.author_avatar_url),
-          quiz_id: quizPorVideo.get(l.id) ?? null,
+          quiz_id: quizPorVideo.get(l.id)?.id ?? null,
+          quiz_obligatorio: quizPorVideo.get(l.id)?.obligatorio ?? true,
         })),
         total_lecciones: lecciones.length,
         inscritos: Number(inscritosRow?.total || 0),
@@ -561,9 +562,8 @@ router.post('/:id/quizzes/:quizId/intento', verifyToken, async (req, res, next) 
       return res.status(400).json({ status: 'error', message: 'Debes responder todas las preguntas del quiz' });
     }
 
-    const falladas = preguntas.filter(p => respuestas[String(p.id)] !== p.correcta).map(p => p.id);
     const total = preguntas.length;
-    const correctas = total - falladas.length;
+    const correctas = preguntas.filter(p => respuestas[String(p.id)] === p.correcta).length;
     const score = Math.round((correctas / total) * 100);
     const passed = score >= quiz.min_aprobacion;
 
@@ -589,8 +589,14 @@ router.post('/:id/quizzes/:quizId/intento', verifyToken, async (req, res, next) 
         ...(porcentaje !== undefined && { porcentaje }),
         intentos_restantes: intentos.intentos_restantes,
         cooldown_hasta: intentos.cooldown_hasta,
-        // Solo premium ve QUÉ preguntas falló (nunca la respuesta correcta)
-        ...(premium && { falladas }),
+        ...(premium && {
+          detalle: preguntas.map(p => ({
+            pregunta_id: p.id,
+            dada: respuestas[String(p.id)],
+            correcta: p.correcta,
+            correcto: respuestas[String(p.id)] === p.correcta,
+          })),
+        }),
       },
     });
   } catch (err) { next(err); }

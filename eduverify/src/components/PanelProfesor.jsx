@@ -3,13 +3,13 @@ import {
   Palette, Clapperboard, Folder, ListVideo, GraduationCap, ChevronUp, ChevronDown,
   Image, User, X, ArrowLeft, Link, Star, Plus, Eye, EyeOff, ClipboardCheck, FileText
 } from 'lucide-react';
-import { videos as videosApi, users as usersApi, profesorPlaylists } from '../api';
+import { videos as videosApi, users as usersApi, profesorPlaylists, uploadVideoToMinio } from '../api';
 import { useToast } from './Toast';
 import Modal from './Modal';
 
 const CATEGORIAS = ['Programación', 'Ciberseguridad', 'Matemáticas', 'Electrónica', 'Arte'];
 
-export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode, videosGlobales = [], recargarVideos, setVideoSeleccionado, subVista = 'canal', setSubVista = () => {} }) {
+export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode, videosGlobales = [], recargarVideos, setVideoSeleccionado, subVista = 'canal', setSubVista = () => {}, addToUploadQueue = () => {}, updateUploadProgress = () => {} }) {
   const [pestanaStudio, setPestanaStudio] = useState('VIDEOS');
   const notify = useToast();
 
@@ -35,9 +35,11 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
   const [previewPortada, setPreviewPortada] = useState('');
 
   // Formulario de Alta de Videos Nuevos
+  const [uploadMode, setUploadMode] = useState('url'); // 'url' | 'file'
   const [tituloLeccion, setTituloLeccion] = useState('');
   const [especialidad, setEspecialidad] = useState('Programación');
   const [videoUrl, setVideoUrl] = useState('');
+  const [archivoVideoFile, setArchivoVideoFile] = useState(null);
   const [descripcion, setDescripcion] = useState('');
   const [esPremiumAlta, setEsPremiumAlta] = useState(false);
   const [esVisibleAlta, setEsVisibleAlta] = useState(true);
@@ -251,24 +253,49 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
   // CRUD VIDEOS (el API deduce autor y usuario_id del token)
   const handlePublicarClase = async (e) => {
     e.preventDefault();
-    if (!tituloLeccion.trim() || !videoUrl.trim()) return notify.error('Completa el título y la URL del video.');
+    if (!tituloLeccion.trim()) return notify.error('Completa el título.');
+    if (uploadMode === 'url' && !videoUrl.trim()) return notify.error('Ingresa la URL del video.');
+    if (uploadMode === 'file' && !archivoVideoFile) return notify.error('Selecciona un archivo de video.');
     if (!playlistAlta) return notify.error('Selecciona un curso para la lección.');
 
+    const base = {
+      titulo: tituloLeccion.trim(),
+      descripcion: descripcion.trim(),
+      categoria: especialidad,
+      es_premium: esPremiumAlta,
+      visible: esVisibleAlta,
+      playlist_id: Number(playlistAlta),
+    };
+
     try {
-      await videosApi.create({
-        titulo: tituloLeccion.trim(),
-        descripcion: descripcion.trim(),
-        url_video: videoUrl.trim(),
-        categoria: especialidad,
-        es_premium: esPremiumAlta,
-        visible: esVisibleAlta,
-        playlist_id: Number(playlistAlta),
-      });
-      notify.success('¡Clase publicada con éxito!');
-      if (recargarVideos) recargarVideos();
+      if (uploadMode === 'url') {
+        await videosApi.create({ ...base, url_video: videoUrl.trim() });
+        notify.success('¡Clase publicada con éxito!');
+      } else {
+        const { id } = await videosApi.createWithUpload(base);
+        const titulo = tituloLeccion.trim();
+        addToUploadQueue({ id, titulo, progreso: 0, status: 'uploading' });
+        notify.success('Subida iniciada en segundo plano');
+
+        const file = archivoVideoFile;
+        const uploadEndpoint = videosApi.uploadUrl(id);
+        (async () => {
+          try {
+            await uploadVideoToMinio(uploadEndpoint, file, (pct) => updateUploadProgress(id, { progreso: pct }));
+            updateUploadProgress(id, { status: 'done', progreso: 100 });
+            if (recargarVideos) recargarVideos();
+            cargarMisVideos();
+          } catch {
+            updateUploadProgress(id, { status: 'error' });
+          }
+        })();
+      }
+
+      if (recargarVideos && uploadMode === 'url') recargarVideos();
       cargarMisVideos();
       cargarPlaylists();
-      setTituloLeccion(''); setDescripcion(''); setVideoUrl(''); setEsPremiumAlta(false); setEsVisibleAlta(true); setPlaylistAlta('');
+      setTituloLeccion(''); setDescripcion(''); setVideoUrl('');
+      setArchivoVideoFile(null); setEsPremiumAlta(false); setEsVisibleAlta(true); setPlaylistAlta('');
       setSubVista('canal');
     } catch (err) {
       notify.error(`Error al publicar la clase: ${err.message}`);
@@ -855,8 +882,31 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
                 </div>
               </div>
               <div>
-                <label className="text-[10px] font-bold text-cyan-500 mb-1.5 inline-flex items-center gap-1.5"><Link size={12} /> URL del Video</label>
-                <input type="url" required value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." className={darkMode ? "w-full p-3 rounded-xl border text-xs font-mono bg-gray-950 border-white/5 text-white" : "w-full p-3 rounded-xl border text-xs font-mono bg-cyan-50/10 border-cyan-200 text-black"} />
+                <div className="flex gap-2 mb-2">
+                  <button type="button" onClick={() => setUploadMode('url')}
+                    className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors ${uploadMode === 'url' ? 'bg-cyan-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'}`}>
+                    <Link size={10} className="inline mr-1" /> URL externa
+                  </button>
+                  <button type="button" onClick={() => setUploadMode('file')}
+                    className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors ${uploadMode === 'file' ? 'bg-cyan-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'}`}>
+                    <Clapperboard size={10} className="inline mr-1" /> Subir archivo
+                  </button>
+                </div>
+                {uploadMode === 'url' ? (
+                  <input type="url" required value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." className={darkMode ? "w-full p-3 rounded-xl border text-xs font-mono bg-gray-950 border-white/5 text-white" : "w-full p-3 rounded-xl border text-xs font-mono bg-cyan-50/10 border-cyan-200 text-black"} />
+                ) : (
+                  <div className={darkMode ? "w-full p-3 rounded-xl border border-white/5 bg-gray-950" : "w-full p-3 rounded-xl border border-gray-200 bg-[var(--clr-base)]"}>
+                    <input type="file" accept=".mp4,.mov,.webm,.mkv,video/*"
+                      onChange={(e) => setArchivoVideoFile(e.target.files[0] || null)}
+                      className="text-xs text-gray-400 file:mr-3 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-[10px] file:font-bold file:bg-cyan-600 file:text-white hover:file:bg-cyan-500 cursor-pointer w-full" />
+                    {archivoVideoFile && (
+                      <p className="text-[10px] text-gray-400 mt-1.5 font-mono">
+                        {archivoVideoFile.name} · {(archivoVideoFile.size / 1024 / 1024).toFixed(1)} MB
+                      </p>
+                    )}
+                    <p className="text-[9px] text-gray-500 mt-1">Máx. 2 GB · MP4, MOV, WebM, MKV</p>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5">Descripción</label>

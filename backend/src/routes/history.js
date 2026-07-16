@@ -24,7 +24,8 @@ router.get('/', verifyToken, async (req, res, next) => {
     const rows = await db
       .select({
         id: videos.id, titulo: videos.titulo, descripcion: videos.descripcion,
-        url_video: videos.url_video, categoria: videos.categoria, tipo: videos.tipo,
+        url_video: videos.url_video, minio_key: videos.minio_key, status: videos.status,
+        categoria: videos.categoria, tipo: videos.tipo,
         es_premium: videos.es_premium, vistas: videos.vistas, duracion: videos.duracion,
         created_at: videos.created_at, watched_at: history.watched_at,
         autor: users.nombre, autor_id: users.id, author_avatar_url: users.avatar_path,

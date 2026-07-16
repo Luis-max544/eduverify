@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
-import path from 'path';
 import { env } from './config/env.js';
+import { ensureBucket } from './config/minio.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 import authRouter from './routes/auth.js';
@@ -25,8 +25,12 @@ import earningsRouter from './routes/earnings.js';
 const app = express();
 
 app.use(cors({ origin: env.frontendUrl, credentials: true }));
-app.use(express.json());
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+
+// Skip json parser for video streaming upload route
+app.use((req, res, next) => {
+  if (req.path.match(/^\/api\/videos\/\d+\/upload$/)) return next();
+  express.json()(req, res, next);
+});
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -64,6 +68,8 @@ app.use('/api/profesor/earnings', earningsRouter);
 // Global error handler (must be last)
 app.use(errorHandler);
 
-app.listen(env.port, () => {
-  console.log(`EduVerify backend → http://localhost:${env.port}`);
+ensureBucket().then(() => {
+  app.listen(env.port, () => {
+    console.log(`EduVerify backend → http://localhost:${env.port}`);
+  });
 });

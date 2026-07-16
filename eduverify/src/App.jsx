@@ -17,6 +17,7 @@ import MisCursos from './components/MisCursos';
 import Breadcrumbs from './components/Breadcrumbs';
 import { ToastProvider } from './components/Toast';
 import Modal from './components/Modal';
+import UploadProgressBar from './components/UploadProgressBar';
 
 export default function App() {
   // 🌙 Modo oscuro
@@ -77,6 +78,12 @@ export default function App() {
 
   // 🎓 Cursos públicos del catálogo
   const [cursosPublicos, setCursosPublicos] = useState([]);
+
+  // 📤 Cola de uploads de video (background uploads)
+  const [uploadQueue, setUploadQueue] = useState([]);
+  const addToUploadQueue = (entry) => setUploadQueue(prev => [...prev, entry]);
+  const updateUploadProgress = (id, patch) => setUploadQueue(prev => prev.map(u => u.id === id ? { ...u, ...patch } : u));
+  const dismissUpload = (id) => setUploadQueue(prev => prev.filter(u => u.id !== id));
 
   // 🧹 Limpieza única de claves de la implementación localStorage anterior
   useEffect(() => {
@@ -273,57 +280,65 @@ export default function App() {
   }
 
   // 🏠 App principal
+  const enCurso = vista === 'reproductor' && !!cursoActivo;
+
   return (
     <ToastProvider>
     <div className={darkMode ? "dark" : ""}>
-      <div className="min-h-screen font-sans antialiased flex flex-col transition-colors duration-300 bg-[var(--clr-base)] text-[var(--clr-text-primary)]">
-        
-        {/* Navbar */}
-        <Navbar 
-          usuario={usuario} 
-          vista={vista}
-          setVista={setVista} 
-          cerrarSesion={cerrarSesion}
-          sidebarAmpliado={sidebarAmpliado}
-          setSidebarAmpliado={setSidebarAmpliado}
-          darkMode={darkMode}
-          notificaciones={notificaciones}
-          marcarNotificacionesLeidas={marcarNotificacionesLeidas}
-          abrirPanelProfesor={abrirPanelProfesor}
-          busqueda={busqueda}
-          setBusqueda={setBusqueda}
-        />
+      <div className={`${enCurso ? 'h-screen overflow-hidden' : 'min-h-screen'} font-sans antialiased flex flex-col transition-colors duration-300 bg-[var(--clr-base)] text-[var(--clr-text-primary)]`}>
 
-        <div className="flex flex-1 pt-16 relative">
-          
-          {/* Sidebar */}
-          <Sidebar 
-            sidebarAmpliado={sidebarAmpliado}
-            vista={vista === 'videos-guardados' ? 'playlists' : vista}
-            setVista={(v) => {
-              if (v === 'profesor') setProfesorSubVista('canal');
-              setVista(v === 'playlists' ? 'videos-guardados' : v);
-            }}
+        {/* Navbar — oculto en modo reproductor de curso */}
+        {!enCurso && (
+          <Navbar
             usuario={usuario}
+            vista={vista}
+            setVista={setVista}
+            cerrarSesion={cerrarSesion}
+            sidebarAmpliado={sidebarAmpliado}
+            setSidebarAmpliado={setSidebarAmpliado}
             darkMode={darkMode}
-            setDarkMode={cambiarDarkMode}
+            notificaciones={notificaciones}
+            marcarNotificacionesLeidas={marcarNotificacionesLeidas}
+            abrirPanelProfesor={abrirPanelProfesor}
+            busqueda={busqueda}
+            setBusqueda={setBusqueda}
           />
+        )}
+
+        <div className={`flex flex-1 relative ${!enCurso ? 'pt-16' : 'overflow-hidden'}`}>
+
+          {/* Sidebar — oculto en modo reproductor de curso */}
+          {!enCurso && (
+            <Sidebar
+              sidebarAmpliado={sidebarAmpliado}
+              vista={vista === 'videos-guardados' ? 'playlists' : vista}
+              setVista={(v) => {
+                if (v === 'profesor') setProfesorSubVista('canal');
+                setVista(v === 'playlists' ? 'videos-guardados' : v);
+              }}
+              usuario={usuario}
+              darkMode={darkMode}
+              setDarkMode={cambiarDarkMode}
+            />
+          )}
 
           {/* Contenido principal */}
-          <main className="flex-1 p-4 md:p-6 overflow-y-auto w-full">
-            <Breadcrumbs
-              vista={vista}
-              setVista={setVista}
-              videoSeleccionado={videoSeleccionado}
-              cursoSeleccionado={cursoSeleccionado}
-              canalSeleccionado={canalSeleccionado}
-              cursoActivo={cursoActivo}
-              cursoOrigen={cursoOrigen}
-              abrirCurso={abrirCurso}
-              subVista={profesorSubVista}
-              setSubVista={setProfesorSubVista}
-              darkMode={darkMode}
-            />
+          <main className={`flex-1 w-full ${enCurso ? 'overflow-hidden' : 'p-4 md:p-6 overflow-y-auto'}`}>
+            {!enCurso && (
+              <Breadcrumbs
+                vista={vista}
+                setVista={setVista}
+                videoSeleccionado={videoSeleccionado}
+                cursoSeleccionado={cursoSeleccionado}
+                canalSeleccionado={canalSeleccionado}
+                cursoActivo={cursoActivo}
+                cursoOrigen={cursoOrigen}
+                abrirCurso={abrirCurso}
+                subVista={profesorSubVista}
+                setSubVista={setProfesorSubVista}
+                darkMode={darkMode}
+              />
+            )}
             {vista === 'catalogo' && (
               <Catalogo
                 cursosPublicos={cursosPublicos}
@@ -349,6 +364,7 @@ export default function App() {
                 toggleSuscripcion={toggleSuscripcion}
                 cursoActivoId={cursoActivo}
                 abrirLeccionDeCurso={abrirLeccionDeCurso}
+                abrirCurso={abrirCurso}
               />
             )}
 
@@ -362,6 +378,8 @@ export default function App() {
                 recargarVideos={recargarVideos}
                 subVista={profesorSubVista}
                 setSubVista={setProfesorSubVista}
+                addToUploadQueue={addToUploadQueue}
+                updateUploadProgress={updateUploadProgress}
               />
             )}
 
@@ -436,6 +454,8 @@ export default function App() {
         </div>
       </div>
     </div>
+
+      <UploadProgressBar uploads={uploadQueue} onDismiss={dismissUpload} />
 
       <Modal open={Boolean(premiumVideo)} onClose={() => setPremiumVideo(null)} title="Contenido Premium" darkMode={darkMode} maxWidth="max-w-sm">
         <div className="space-y-4 text-center">

@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, AlertTriangle, Clock } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, Clock, Check, X } from 'lucide-react';
 import { cursos as cursosApi } from '../api';
 import { useToast } from './Toast';
 import Modal from './Modal';
 
-export default function QuizModal({ open, onClose, cursoId, quizId, darkMode }) {
+export default function QuizModal({ open, onClose, onPass, cursoId, quizId, darkMode }) {
   const notify = useToast();
 
   const [loading, setLoading] = useState(false);
@@ -21,7 +21,7 @@ export default function QuizModal({ open, onClose, cursoId, quizId, darkMode }) 
     setLoading(true);
     cursosApi.getQuiz(cursoId, quizId)
       .then(d => { setQuiz(d); setRespuestas(Object.fromEntries(d.preguntas.map(p => [p.id, null]))); })
-      .catch(() => notify.error('No se pudo cargar el quiz'))
+      .catch(err => notify.error(err?.message || 'No se pudo cargar el quiz'))
       .finally(() => setLoading(false));
   }, [open, quizId]);
 
@@ -35,7 +35,7 @@ export default function QuizModal({ open, onClose, cursoId, quizId, darkMode }) 
     try {
       const res = await cursosApi.submitQuiz(cursoId, quizId, respuestas);
       setResultado(res);
-      if (res.passed) notify.success(`¡Aprobaste! ${res.score}%`);
+      if (res.passed) { notify.success(`¡Aprobaste! ${res.score}%`); onPass?.(); }
       else notify.error(`No aprobaste — ${res.score}%. Intenta de nuevo.`);
     } catch (err) {
       notify.error(err.message);
@@ -62,6 +62,33 @@ export default function QuizModal({ open, onClose, cursoId, quizId, darkMode }) 
             <h3 className={`text-lg font-black uppercase ${resultado.passed ? 'text-emerald-500' : 'text-red-500'}`}>{resultado.passed ? '¡Aprobado!' : 'No aprobado'}</h3>
             <p className="text-xs text-gray-400 mt-1">{resultado.correctas} de {resultado.total} correctas &middot; {resultado.score}% &middot; mínimo {quiz?.min_aprobacion}%</p>
           </div>
+          {resultado.detalle && quiz?.preguntas && (
+            <div className="mt-4 space-y-3 text-left max-h-64 overflow-y-auto pr-1">
+              {quiz.preguntas.map((p, pi) => {
+                const d = resultado.detalle.find(x => x.pregunta_id === p.id);
+                return (
+                  <div key={p.id} className={`p-3 rounded-xl border text-xs ${d?.correcto ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-red-500/20 bg-red-500/5'}`}>
+                    <p className="font-black uppercase mb-2">{pi + 1}. {p.pregunta}</p>
+                    {p.opciones.map((opt, oi) => {
+                      const esCorrecta = oi === d?.correcta;
+                      const esDada = oi === d?.dada;
+                      const highlight = esCorrecta
+                        ? 'text-emerald-500 font-black'
+                        : esDada && !d?.correcto
+                          ? 'text-red-500 line-through'
+                          : 'text-gray-400 dark:text-gray-500';
+                      return (
+                        <div key={oi} className={`flex items-center gap-2 py-0.5 ${highlight}`}>
+                          {esCorrecta ? <Check size={10} /> : esDada && !d?.correcto ? <X size={10} /> : <span className="w-2.5 inline-block" />}
+                          {opt}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          )}
           {!resultado.passed && resultado.intentos_restantes !== undefined && (
             <p className="text-[10px] font-bold text-gray-400 uppercase">
               Intentos restantes: <span className="text-red-500">{resultado.intentos_restantes === 0 ? 'Ninguno' : resultado.intentos_restantes}</span>

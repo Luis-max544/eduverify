@@ -29,4 +29,11 @@ export const env = {
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
   geminiKey: process.env.GEMINI_API_KEY || '',
   aiModel: process.env.AI_MODEL || 'gemini-2.5-flash',
+  minio: {
+    endPoint:  process.env.MINIO_ENDPOINT  || 'localhost',
+    port:      Number(process.env.MINIO_PORT) || 9000,
+    accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
+    secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin',
+    bucket:    process.env.MINIO_BUCKET    || 'eduverify-media',
+  },
 };

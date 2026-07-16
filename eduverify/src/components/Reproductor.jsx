@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft, ArrowRight, GraduationCap, BellRing, Heart, Share2, Bookmark,
-  Bot, Reply, Trash2, Check, Clapperboard, FolderOpen, X, Star, FileText, Lock
+  Bot, Reply, Trash2, Check, Clapperboard, FolderOpen, X, Star, FileText, Lock,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { comments as commentsApi, favorites as favoritesApi, playlists as playlistsApi, videos as videosApi, cursos as cursosApi } from '../api';
 import { getYoutubeId } from '../utils/youtube';
@@ -23,7 +24,8 @@ export default function Reproductor({
   suscripciones = [],
   toggleSuscripcion = () => {},
   cursoActivoId = null,
-  abrirLeccionDeCurso = () => {}
+  abrirLeccionDeCurso = () => {},
+  abrirCurso = null,
 }) {
   // Estados principales
   const [localVideo, setLocalVideo] = useState(video);
@@ -41,10 +43,13 @@ export default function Reproductor({
   const [textoRespuesta, setTextoRespuesta] = useState('');
 
   // 🎓 Contexto de curso (cuando la lección se abrió desde un curso)
-  const [pestanaPanel, setPestanaPanel] = useState('comentarios');
+  const [pestanaPanel, setPestanaPanel] = useState('descripcion');
   const [cursoCtx, setCursoCtx] = useState(null);
-  const [progresoCurso, setProgresoCurso] = useState({ inscrito: false, completadas: [], porcentaje: 0 });
+  const [progresoCurso, setProgresoCurso] = useState({ inscrito: false, completadas: [], porcentaje: 0, quizzes_aprobados: [] });
   const [quizModal, setQuizModal] = useState(null);
+  const [modalQuizRequerido, setModalQuizRequerido] = useState(false);
+  const [confirmReintento, setConfirmReintento] = useState(false);
+  const [sidebarCursoAbierto, setSidebarCursoAbierto] = useState(true);
   const [pdfsCurso, setPdfsCurso] = useState([]);
 
   useEffect(() => {
@@ -98,9 +103,16 @@ export default function Reproductor({
     );
   }
 
-  const urlFinal = localVideo.url_video;
-  const youtubeId = getYoutubeId(urlFinal);
-  const esContenidoEnVivo = localVideo.tipo === 'envivo' || youtubeId !== null;
+  const BASE_API = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+  const token = localStorage.getItem('eduverify_token');
+  const streamUrl = localVideo.minio_key
+    ? `${BASE_API}/api/videos/${localVideo.id}/stream${token ? `?token=${token}` : ''}`
+    : null;
+  const urlFinal = streamUrl || localVideo.url_video;
+  const subtitlesUrl = localVideo.subtitles_key ? `${BASE_API}/api/videos/${localVideo.id}/subtitles` : null;
+  const youtubeId = getYoutubeId(localVideo.url_video);
+  const esContenidoEnVivo = !localVideo.minio_key && (localVideo.tipo === 'envivo' || youtubeId !== null);
+  const eProcesando = localVideo.status === 'uploading';
   const esBloqueadoPremium = localVideo.es_premium && !usuario?.premium && usuario?.id !== (localVideo.usuario_id ?? localVideo.autor_id);
 
   // ❤️ Favoritos (optimista + persistencia en el API)
@@ -253,6 +265,11 @@ export default function Reproductor({
   const leccionCompletada = completadasSet.has(localVideo.id);
   const idxLeccionActual = leccionesCurso.findIndex(l => l.id === localVideo.id);
   const siguienteLeccion = idxLeccionActual >= 0 ? leccionesCurso[idxLeccionActual + 1] : null;
+  const leccionAnterior = idxLeccionActual > 0 ? leccionesCurso[idxLeccionActual - 1] : null;
+  const quizId = leccionesCurso.find(l => l.id === localVideo.id)?.quiz_id ?? null;
+  const quizObligatorio = leccionesCurso.find(l => l.id === localVideo.id)?.quiz_obligatorio ?? true;
+  const quizzesAprobadosSet = new Set(progresoCurso.quizzes_aprobados ?? []);
+  const quizAprobado = !quizId || quizzesAprobadosSet.has(quizId);
 
   const toggleLeccionCompletada = async () => {
     if (!cursoActivoId) return;
@@ -271,12 +288,293 @@ export default function Reproductor({
     }
   };
 
+  // ─── COURSE PLAYER LAYOUT ────────────────────────────────────────────────
+  if (cursoActivoId) {
+    const volverAlCurso = () => abrirCurso ? abrirCurso(cursoActivoId) : setVista('mis-cursos');
+
+    const playerBlock = esBloqueadoPremium ? (
+      <div className="w-full h-full bg-gray-950 flex flex-col items-center justify-center gap-4">
+        <Lock size={40} className="text-amber-500 opacity-70" />
+        <p className="text-white font-bold text-sm">Contenido exclusivo Premium</p>
+        <button onClick={() => setVista('premium')} className="bg-amber-500 text-gray-950 font-black text-xs uppercase tracking-widest px-5 py-2 rounded-full hover:bg-amber-400 transition-colors">Activar Premium</button>
+      </div>
+    ) : eProcesando ? (
+      <div className="w-full h-full bg-gray-950 flex flex-col items-center justify-center gap-3">
+        <Clapperboard size={32} className="text-cyan-500 opacity-60 animate-pulse" />
+        <p className="text-white font-bold text-sm">Video en procesamiento...</p>
+      </div>
+    ) : esContenidoEnVivo && youtubeId ? (
+      <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0`} title={localVideo.titulo} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen className="w-full h-full" />
+    ) : (
+      <video src={urlFinal} controls autoPlay className="w-full h-full object-contain outline-none">
+        {subtitlesUrl && <track kind="subtitles" src={subtitlesUrl} label="Español" default />}
+      </video>
+    );
+
+    const primerBloqueadaIdx = leccionesCurso.findIndex((l, idx) => {
+      if (idx === 0) return false;
+      const prev = leccionesCurso[idx - 1];
+      return !completadasSet.has(prev.id) || (prev.quiz_id && (prev.quiz_obligatorio ?? true) && !quizzesAprobadosSet.has(prev.quiz_id));
+    });
+
+    return (
+      <div className="h-full flex flex-col select-none">
+
+        {/* ── HEADER ── */}
+        <header className={`h-14 shrink-0 border-b flex items-center gap-3 px-4 ${darkMode ? 'border-white/[0.06] bg-gray-950' : 'border-gray-200 bg-white'}`}>
+          <button
+            onClick={volverAlCurso}
+            className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 hover:text-cyan-500 transition-colors shrink-0"
+          >
+            <ArrowLeft size={13} />
+            <span className="hidden sm:inline max-w-[180px] truncate">{cursoCtx?.nombre || 'Curso'}</span>
+          </button>
+
+          <div className="flex-1 flex items-center gap-3 min-w-0 max-w-sm mx-auto">
+            <div className="flex-1 bg-gray-200 dark:bg-white/10 rounded-full h-1.5 overflow-hidden">
+              <div className="bg-cyan-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${progresoCurso.porcentaje}%` }} />
+            </div>
+            <span className="text-[9px] font-black uppercase tracking-wider text-gray-400 whitespace-nowrap hidden md:block">
+              {idxLeccionActual >= 0 ? `${idxLeccionActual + 1}/${leccionesCurso.length}` : ''} • {progresoCurso.porcentaje}%
+            </span>
+          </div>
+
+          {progresoCurso.inscrito && (
+            <button
+              onClick={toggleLeccionCompletada}
+              className={`shrink-0 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 transition ${
+                leccionCompletada
+                  ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                  : 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-sm'
+              }`}
+            >
+              {leccionCompletada ? <><Check size={12} /> Completada</> : 'Marcar completada'}
+            </button>
+          )}
+        </header>
+
+        {/* ── BODY ── */}
+        <div className="flex flex-1 overflow-hidden relative">
+
+          {/* LEFT — video + tabs */}
+          <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+
+            {/* Video */}
+            <div className="w-full bg-black flex-none" style={{ height: 'min(56.25vw, 45vh)' }}>{playerBlock}</div>
+
+            {/* Lesson title */}
+            <div className={`shrink-0 px-4 pt-3 pb-2 border-b ${darkMode ? 'border-white/[0.04]' : 'border-gray-100'}`}>
+              <h2 className="text-sm font-black tracking-tight text-gray-900 dark:text-white truncate">
+                {localVideo.titulo}
+                {localVideo.es_premium && <span className="ml-2 bg-amber-500/10 text-amber-500 text-[8px] font-black uppercase px-1.5 py-0.5 rounded inline-flex items-center gap-1 align-middle"><Star size={9} className="fill-current" /> Premium</span>}
+              </h2>
+            </div>
+
+            {/* Tab bar */}
+            <div className={`shrink-0 flex gap-5 px-4 border-b overflow-x-auto ${darkMode ? 'border-white/[0.04]' : 'border-gray-200'}`}>
+              <button onClick={() => setPestanaPanel('descripcion')} className={`pb-2.5 pt-2 text-xs font-black uppercase tracking-wider border-b-2 transition-all whitespace-nowrap ${pestanaPanel === 'descripcion' ? 'border-cyan-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}>Descripción</button>
+              {quizId && <button onClick={() => setPestanaPanel('quiz')} className={`pb-2.5 pt-2 text-xs font-black uppercase tracking-wider border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${pestanaPanel === 'quiz' ? 'border-amber-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}><GraduationCap size={13} /> Quiz</button>}
+              <button onClick={() => setPestanaPanel('comentarios')} className={`pb-2.5 pt-2 text-xs font-black uppercase tracking-wider border-b-2 transition-all flex items-center gap-2 whitespace-nowrap ${pestanaPanel === 'comentarios' ? 'border-cyan-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}>Comentarios <span className="text-[10px] font-mono bg-gray-100 dark:bg-white/5 text-gray-400 px-1.5 py-0.5 rounded">{comentarios.length}</span></button>
+              <button onClick={() => setPestanaPanel('tutor')} className={`pb-2.5 pt-2 text-xs font-black uppercase tracking-wider border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${pestanaPanel === 'tutor' ? 'border-cyan-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}><Bot size={13} /> Tutor IA</button>
+            </div>
+
+            {/* Tab content */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {pestanaPanel === 'descripcion' && (
+                <div className="space-y-3 max-w-2xl">
+                  <p className={`text-xs leading-relaxed font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    {localVideo.descripcion || 'Sin descripción adicional para esta clase.'}
+                  </p>
+                  <div className="flex gap-2 flex-wrap pt-1">
+                    {(() => { const p = pdfsCurso.find(p => p.video_id === localVideo.id); return p ? <a href={`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/uploads/pdfs/${p.filename}`} target="_blank" rel="noreferrer" className="px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-colors inline-flex items-center gap-1"><FileText size={11} /> PDF lección</a> : null; })()}
+                    {(() => { const p = pdfsCurso.find(p => p.video_id === null); return p ? <a href={`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/uploads/pdfs/${p.filename}`} target="_blank" rel="noreferrer" className="px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-colors inline-flex items-center gap-1"><FileText size={11} /> PDF curso</a> : null; })()}
+                  </div>
+                  <div className="flex gap-2 flex-wrap pt-1 border-t border-gray-100 dark:border-white/[0.04]">
+                    {leccionAnterior && <button onClick={() => abrirLeccionDeCurso(leccionAnterior, cursoActivoId)} className="px-4 py-2 rounded-full bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 text-[10px] font-black uppercase tracking-widest hover:opacity-80 inline-flex items-center gap-1.5"><ArrowLeft size={12} /> Lección anterior</button>}
+                    {siguienteLeccion && <button onClick={() => { if (quizId && quizObligatorio && !quizAprobado) { setModalQuizRequerido(true); } else { abrirLeccionDeCurso(siguienteLeccion, cursoActivoId); } }} className="px-4 py-2 rounded-full bg-cyan-600 hover:bg-cyan-500 text-white text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5">Siguiente lección <ArrowRight size={12} /></button>}
+                  </div>
+                </div>
+              )}
+
+              {pestanaPanel === 'quiz' && quizId && (
+                <div className="flex flex-col items-center justify-center py-10 gap-4">
+                  <GraduationCap size={40} className={`opacity-60 ${quizAprobado ? 'text-emerald-500' : 'text-amber-500'}`} />
+                  {!progresoCurso.inscrito ? (
+                    <>
+                      <p className={`text-sm font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Inscríbete al curso</p>
+                      <p className="text-xs text-gray-400 text-center max-w-xs">Debes estar inscrito para acceder al quiz de esta lección.</p>
+                      <button
+                        onClick={async () => { try { await cursosApi.inscribir(cursoActivoId); const p = await cursosApi.progreso(cursoActivoId); setProgresoCurso(p); } catch (e) { notify.error(e.message); } }}
+                        className="px-6 py-3 rounded-full bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xs uppercase tracking-widest shadow-sm transition-colors"
+                      >Inscribirse al curso</button>
+                    </>
+                  ) : quizAprobado ? (
+                    <>
+                      <p className="text-sm font-bold text-emerald-500">✓ Quiz aprobado</p>
+                      <button onClick={() => setConfirmReintento(true)} className="px-6 py-3 rounded-full bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 font-black text-xs uppercase tracking-widest hover:opacity-80 transition-opacity">Reintentar</button>
+                    </>
+                  ) : (
+                    <>
+                      <p className={`text-sm font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Quiz de la lección</p>
+                      <button onClick={() => setQuizModal(quizId)} className="px-6 py-3 rounded-full bg-amber-500 text-gray-950 font-black text-xs uppercase tracking-widest hover:bg-amber-400 transition-colors shadow-sm">Comenzar Quiz</button>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {pestanaPanel === 'tutor' && <TutorIA video={localVideo} darkMode={darkMode} />}
+
+              {pestanaPanel === 'comentarios' && (
+                <>
+                <form onSubmit={handleCrearComentarioRaiz} className="flex gap-3 mb-5 items-start max-w-2xl">
+                  <div className="w-8 h-8 rounded-full font-bold text-xs flex items-center justify-center text-white shrink-0 overflow-hidden bg-cyan-600">
+                    {fotoPerfilUsuarioActual ? <img src={fotoPerfilUsuarioActual} alt="" className="w-full h-full object-cover" /> : <span>{usuario?.nombre?.charAt(0).toUpperCase()}</span>}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <input type="text" value={nuevoComentarioTexto} onChange={(e) => setNuevoComentarioTexto(e.target.value)} placeholder="Añade un comentario..." className={`w-full pb-2 border-b text-xs outline-none bg-transparent ${darkMode ? 'border-white/10 text-white' : 'border-gray-200 text-black'}`} />
+                    {nuevoComentarioTexto.trim() && (
+                      <div className="flex justify-end gap-2">
+                        <button type="button" onClick={() => setNuevoComentarioTexto('')} className="px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wide text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5">Cancelar</button>
+                        <button type="submit" className="px-4 py-1.5 rounded-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-[10px] uppercase tracking-wide transition shadow-sm">Comentar</button>
+                      </div>
+                    )}
+                  </div>
+                </form>
+                <div className="space-y-4 max-w-2xl">
+                  {comentarios.map((c) => (
+                    <div key={c.id} className="flex gap-3 group">
+                      <div className="w-8 h-8 rounded-full font-bold text-xs flex items-center justify-center text-white shrink-0 overflow-hidden bg-gray-600">{c.autor_avatar_url ? <img src={c.autor_avatar_url} alt="" className="w-full h-full object-cover" /> : <span>{c.autor?.charAt(0).toUpperCase()}</span>}</div>
+                      <div className="flex-1 min-w-0 space-y-0.5">
+                        <div className="flex items-center gap-2 flex-wrap"><span className="text-xs font-black text-gray-900 dark:text-white">{c.autor}</span><span className="text-[9px] text-gray-400 font-mono">{c.created_at ? new Date(c.created_at).toLocaleDateString() : ''}</span></div>
+                        <p className="text-xs text-gray-700 dark:text-gray-300 font-medium whitespace-pre-wrap">{c.texto}</p>
+                        <div className="flex items-center gap-4 pt-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                          <button onClick={() => handleLikeComentario(c.id)} className={`flex items-center gap-1 hover:text-red-500 ${c.liked ? 'text-red-500' : ''}`}><Heart size={11} className={c.liked ? 'fill-current' : ''} /> {c.likes}</button>
+                          <button onClick={() => setIdComentarioRespondiendo(idComentarioRespondiendo === c.id ? null : c.id)} className="hover:text-gray-900 dark:hover:text-white flex items-center gap-1"><Reply size={11} /> Responder</button>
+                          {c.user_id === usuario?.id && <button onClick={() => handleEliminarComentario(c.id)} className="opacity-0 group-hover:opacity-100 hover:text-red-500 flex items-center gap-1"><Trash2 size={11} /> Eliminar</button>}
+                        </div>
+                        {idComentarioRespondiendo === c.id && (
+                          <form onSubmit={(e) => handleCrearRespuesta(e, c.id)} className="flex gap-2 mt-2">
+                            <input type="text" required value={textoRespuesta} onChange={(e) => setTextoRespuesta(e.target.value)} placeholder={`Responder a ${c.autor}...`} className={`flex-1 pb-1 text-xs outline-none bg-transparent border-b ${darkMode ? 'border-white/10 text-white' : 'border-gray-200 text-black'}`} />
+                          </form>
+                        )}
+                        {c.respuestas?.length > 0 && (
+                          <div className="mt-2 space-y-2 pl-3 border-l-2 border-gray-200 dark:border-white/10">
+                            {c.respuestas.map((r) => (
+                              <div key={r.id} className="flex gap-2 pt-1">
+                                <div className="w-6 h-6 rounded-full font-bold text-[10px] flex items-center justify-center text-white shrink-0 overflow-hidden bg-cyan-500">{r.autor_avatar_url ? <img src={r.autor_avatar_url} alt="" className="w-full h-full object-cover" /> : <span>{r.autor?.charAt(0).toUpperCase()}</span>}</div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5"><span className="text-[11px] font-black text-gray-900 dark:text-white">{r.autor}</span><span className="text-[9px] text-gray-400 font-mono">{r.created_at ? new Date(r.created_at).toLocaleDateString() : ''}</span></div>
+                                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{r.texto}</p>
+                                  <button onClick={() => handleLikeRespuestaInterna(c.id, r.id)} className={`flex items-center gap-1 text-[9px] font-bold text-gray-400 hover:text-red-500 mt-1 ${r.liked ? 'text-red-500' : ''}`}><Heart size={10} className={r.liked ? 'fill-current' : ''} /> {r.likes || 0}</button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* SIDEBAR TOGGLE */}
+          <button
+            onClick={() => setSidebarCursoAbierto(s => !s)}
+            style={{ right: sidebarCursoAbierto ? '320px' : '0' }}
+            className={`absolute top-1/2 -translate-y-1/2 z-10 w-5 h-10 flex items-center justify-center transition-all duration-200 ${darkMode ? 'bg-gray-800 border-white/10 text-gray-400 hover:text-white' : 'bg-white border-gray-200 text-gray-400 hover:text-gray-900'} border rounded-l-lg shadow-sm`}
+          >
+            {sidebarCursoAbierto ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+          </button>
+
+          {/* RIGHT — lesson list */}
+          <div className={`shrink-0 border-l overflow-y-auto transition-all duration-200 ${sidebarCursoAbierto ? 'w-80' : 'w-0 overflow-hidden'} ${darkMode ? 'border-white/[0.06]' : 'border-gray-200'}`}>
+            <div className="p-3 space-y-3 min-w-80">
+              <div className="px-1 pt-1">
+                <p className="text-[9px] font-black uppercase tracking-widest text-cyan-500 truncate">{cursoCtx?.nombre}</p>
+                <p className="text-[10px] text-gray-400 font-mono font-bold uppercase mt-0.5">{leccionesCurso.length} lecciones • {progresoCurso.porcentaje}% completado</p>
+              </div>
+              <div className="space-y-1.5">
+                {leccionesCurso.map((l, idx) => {
+                  const esActual = l.id === localVideo.id;
+                  const hecha = completadasSet.has(l.id);
+                  const ytIdL = getYoutubeId(l.url_video);
+                  const miniaturaL = ytIdL ? `https://img.youtube.com/vi/${ytIdL}/hqdefault.jpg` : null;
+                  const bloqueada = primerBloqueadaIdx >= 0 && idx >= primerBloqueadaIdx && !esActual;
+                  const quizAprobadoL = l.quiz_id ? quizzesAprobadosSet.has(l.quiz_id) : false;
+                  return (
+                    <React.Fragment key={l.id}>
+                      {idx === primerBloqueadaIdx && primerBloqueadaIdx > 0 && (
+                        <div className="flex items-center gap-2 py-1 px-1">
+                          <div className="flex-1 h-px bg-gray-200 dark:bg-white/10" />
+                          <span className="text-[8px] font-black uppercase tracking-widest text-gray-400 whitespace-nowrap flex items-center gap-1"><Lock size={8} /> Completa anteriores</span>
+                          <div className="flex-1 h-px bg-gray-200 dark:bg-white/10" />
+                        </div>
+                      )}
+                      <div
+                        onClick={() => !esActual && !bloqueada && abrirLeccionDeCurso(l, cursoActivoId)}
+                        className={`p-2 rounded-xl border flex gap-2.5 items-center transition-all ${
+                          esActual
+                            ? 'border-cyan-500/40 bg-cyan-600/5 cursor-default'
+                            : bloqueada
+                            ? `cursor-default ${darkMode ? 'bg-gray-900/40 border-white/5' : 'bg-white border-gray-100'}`
+                            : `cursor-pointer hover:scale-[1.01] ${darkMode ? 'bg-gray-900/40 border-white/5 hover:bg-gray-900' : 'bg-white border-gray-100 hover:border-gray-200 hover:shadow-sm'}`
+                        }`}
+                      >
+                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-black shrink-0 ${hecha ? 'bg-emerald-500 text-white' : darkMode ? 'bg-white/5 text-gray-400' : 'bg-gray-100 text-gray-500'}`}>
+                          {hecha ? <Check size={9} /> : idx + 1}
+                        </span>
+                        <div className="w-16 aspect-video bg-gray-950 rounded-md overflow-hidden shrink-0 flex items-center justify-center">
+                          {miniaturaL ? <img src={miniaturaL} alt="" className="w-full h-full object-cover" /> : <Clapperboard size={12} className="opacity-30 text-white" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className={`text-[10px] font-black uppercase leading-tight truncate ${esActual ? 'text-cyan-500' : darkMode ? 'text-white' : 'text-gray-800'}`}>{l.titulo}</h4>
+                          <p className="text-[8px] text-gray-400 font-mono font-bold uppercase mt-0.5">{l.duracion || '00:00'}</p>
+                          {l.quiz_id && (
+                            <span className={`inline-flex items-center gap-0.5 text-[8px] font-black uppercase mt-0.5 ${quizAprobadoL ? 'text-emerald-500' : (l.quiz_obligatorio ?? true) ? 'text-amber-500' : 'text-gray-400'}`}>
+                              {quizAprobadoL ? <Check size={7} /> : <GraduationCap size={7} />}
+                              {quizAprobadoL ? 'aprobado' : (l.quiz_obligatorio ?? true) ? 'requerido' : 'opcional'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Modals */}
+        <Modal open={modalQuizRequerido} onClose={() => setModalQuizRequerido(false)} title="Quiz requerido" darkMode={darkMode} maxWidth="max-w-sm">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">Debes aprobar el quiz de esta lección antes de continuar a la siguiente.</p>
+          <div className="flex gap-3 justify-end">
+            <button onClick={() => setModalQuizRequerido(false)} className="px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wide text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5">Cancelar</button>
+            <button onClick={() => { setModalQuizRequerido(false); setQuizModal(quizId); }} className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-gray-950 text-[10px] font-black uppercase tracking-wide shadow-sm inline-flex items-center gap-1.5"><GraduationCap size={12} /> Hacer Quiz</button>
+          </div>
+        </Modal>
+        <Modal open={confirmReintento} onClose={() => setConfirmReintento(false)} title="Reintentar quiz" darkMode={darkMode} maxWidth="max-w-sm">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">Ya aprobaste este quiz. ¿Quieres intentarlo de nuevo?</p>
+          <div className="flex gap-3 justify-end">
+            <button onClick={() => setConfirmReintento(false)} className="px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wide text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5">Cancelar</button>
+            <button onClick={() => { setConfirmReintento(false); setQuizModal(quizId); }} className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-gray-950 text-[10px] font-black uppercase tracking-wide shadow-sm inline-flex items-center gap-1.5"><GraduationCap size={12} /> Sí, reintentar</button>
+          </div>
+        </Modal>
+        <QuizModal open={Boolean(quizModal)} onClose={() => setQuizModal(null)} onPass={() => cursosApi.progreso(cursoActivoId).then(setProgresoCurso).catch(() => {})} cursoId={cursoActivoId} quizId={quizModal} darkMode={darkMode} />
+      </div>
+    );
+  }
+  // ─── END COURSE PLAYER ──────────────────────────────────────────────────
+
   return (
     <div className="animate-fade-in pb-16 select-none relative font-sans">
-      
+
       {/* Botón Volver */}
-      <button 
-        onClick={() => setVista('catalogo')} 
+      <button
+        onClick={() => setVista('catalogo')}
         className="mb-5 inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-cyan-500 transition-colors"
       >
         <ArrowLeft size={12} /> Volver al catálogo principal
@@ -300,6 +598,12 @@ export default function Reproductor({
                   Activar Premium
                 </button>
               </div>
+            ) : eProcesando ? (
+              <div className="w-full h-full bg-gray-950 flex flex-col items-center justify-center gap-3">
+                <Clapperboard size={36} className="text-cyan-500 opacity-60 animate-pulse" />
+                <p className="text-white font-bold text-sm">Video en procesamiento...</p>
+                <p className="text-gray-400 text-[11px]">Estará disponible en unos momentos</p>
+              </div>
             ) : esContenidoEnVivo && youtubeId ? (
               <iframe
                 width="100%" height="100%"
@@ -309,67 +613,12 @@ export default function Reproductor({
                 allowFullScreen className="w-full h-full object-cover"
               ></iframe>
             ) : (
-              <video src={urlFinal} controls autoPlay className="w-full h-full object-cover outline-none" />
+              <video src={urlFinal} controls autoPlay className="w-full h-full object-cover outline-none">
+                {subtitlesUrl && <track kind="subtitles" src={subtitlesUrl} label="Español" default />}
+              </video>
             )}
           </div>
 
-          {/* 🎓 BARRA DE CURSO (solo con contexto de curso) */}
-          {cursoCtx && (
-            <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center gap-3 justify-between ${darkMode ? 'bg-gray-900/40 border-white/5' : 'bg-white border-gray-200 shadow-sm'}`}>
-              <div className="min-w-0">
-                <p className="text-[9px] font-black uppercase tracking-widest text-cyan-500 flex items-center gap-1.5"><GraduationCap size={12} /> {cursoCtx.nombre}</p>
-                <p className="text-[10px] text-gray-400 font-mono font-bold uppercase mt-0.5">
-                  Lección {idxLeccionActual + 1} de {leccionesCurso.length} • Progreso {progresoCurso.porcentaje}%
-                </p>
-              </div>
-              {progresoCurso.inscrito && (
-                <div className="flex gap-2 flex-wrap shrink-0">
-                  <button
-                    onClick={toggleLeccionCompletada}
-                    className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition ${
-                      leccionCompletada
-                        ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                        : 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-sm'
-                    } inline-flex items-center gap-1.5`}
-                  >
-                    {leccionCompletada ? <><Check size={12} /> Completada</> : 'Marcar completada'}
-                  </button>
-                  {(() => {
-                    const quizId = cursoCtx?.quiz_por_video?.[localVideo.id];
-                    return quizId ? (
-                      <button onClick={() => setQuizModal(quizId)} className="px-4 py-2 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[10px] font-black uppercase tracking-widest hover:bg-amber-500 hover:text-white transition-colors inline-flex items-center gap-1.5">
-                        <GraduationCap size={12} /> Quiz
-                      </button>
-                    ) : null;
-                  })()}
-                  {(() => {
-                    const pdfLeccion = pdfsCurso.find(p => p.video_id === localVideo.id);
-                    return pdfLeccion ? (
-                      <a href={`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/uploads/pdfs/${pdfLeccion.filename}`} target="_blank" rel="noreferrer" className="px-4 py-2 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-colors inline-flex items-center gap-1.5">
-                        <FileText size={12} /> PDF de la lección
-                      </a>
-                    ) : null;
-                  })()}
-                  {(() => {
-                    const pdfCurso = pdfsCurso.find(p => p.video_id === null);
-                    return pdfCurso ? (
-                      <a href={`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/uploads/pdfs/${pdfCurso.filename}`} target="_blank" rel="noreferrer" className="px-4 py-2 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-colors inline-flex items-center gap-1.5">
-                        <FileText size={12} /> PDF del curso
-                      </a>
-                    ) : null;
-                  })()}
-                  {siguienteLeccion && (
-                    <button
-                      onClick={() => abrirLeccionDeCurso(siguienteLeccion, cursoActivoId)}
-                      className="px-4 py-2 rounded-full bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 text-[10px] font-black uppercase tracking-widest hover:opacity-80 inline-flex items-center gap-1.5"
-                    >
-                      Siguiente lección <ArrowRight size={12} />
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
 
           {/* METADATOS */}
           <div className="px-1 text-left">
@@ -474,15 +723,6 @@ export default function Reproductor({
               </div>
             </div>
 
-            {/* Descripción */}
-            <div className={`mt-4 p-4 rounded-2xl text-xs leading-relaxed ${darkMode ? 'bg-white/[0.02] text-gray-300' : 'bg-[var(--clr-surface-elevated)] text-gray-800'}`}>
-              <div className="flex gap-3 font-mono text-[10px] font-bold text-gray-400 mb-1.5">
-                <span>{localVideo.vistas || '0'} vistas</span>
-                <span>•</span>
-                <span>{localVideo.created_at ? new Date(localVideo.created_at).toLocaleDateString() : 'Recién publicado'}</span>
-              </div>
-              <p className="font-medium">{localVideo.descripcion || 'Sin descripción adicional para esta clase académica.'}</p>
-            </div>
 
             {/* Panel de edición (solo dueño) */}
             {panelAdmin === 'editar' && (
@@ -514,26 +754,67 @@ export default function Reproductor({
             )}
           </div>
 
-          {/* COMENTARIOS / TUTOR IA */}
+          {/* TABS */}
           <div className="pt-4 text-left">
-            <div className="flex gap-5 mb-5 border-b border-gray-200 dark:border-white/[0.04]">
-              <button
-                onClick={() => setPestanaPanel('comentarios')}
-                className={`pb-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all flex items-center gap-2 ${
-                  pestanaPanel === 'comentarios' ? 'border-cyan-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
-                }`}
-              >
-                Comentarios <span className="text-[10px] font-mono bg-gray-100 dark:bg-white/5 text-gray-400 px-2 py-0.5 rounded-lg">{comentarios.length}</span>
-              </button>
-              <button
-                onClick={() => setPestanaPanel('tutor')}
-                className={`pb-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all ${
-                  pestanaPanel === 'tutor' ? 'border-cyan-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
-                } flex items-center gap-1.5`}
-              >
-                <Bot size={14} /> Tutor IA
-              </button>
+            <div className="flex gap-5 mb-5 border-b border-gray-200 dark:border-white/[0.04] overflow-x-auto">
+              <button onClick={() => setPestanaPanel('descripcion')} className={`pb-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all whitespace-nowrap ${pestanaPanel === 'descripcion' ? 'border-cyan-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}>Descripción</button>
+              {quizId && <button onClick={() => setPestanaPanel('quiz')} className={`pb-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${pestanaPanel === 'quiz' ? 'border-amber-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}><GraduationCap size={14} /> Quiz</button>}
+              <button onClick={() => setPestanaPanel('comentarios')} className={`pb-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all flex items-center gap-2 whitespace-nowrap ${pestanaPanel === 'comentarios' ? 'border-cyan-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}>Comentarios <span className="text-[10px] font-mono bg-gray-100 dark:bg-white/5 text-gray-400 px-2 py-0.5 rounded-lg">{comentarios.length}</span></button>
+              <button onClick={() => setPestanaPanel('tutor')} className={`pb-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${pestanaPanel === 'tutor' ? 'border-cyan-500 text-gray-900 dark:text-white' : 'border-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}><Bot size={14} /> Tutor IA</button>
             </div>
+
+            {pestanaPanel === 'descripcion' && (
+              <div className="space-y-4">
+                <div className={`p-4 rounded-2xl text-xs leading-relaxed ${darkMode ? 'bg-white/[0.02] text-gray-300' : 'bg-[var(--clr-surface-elevated)] text-gray-800'}`}>
+                  <div className="flex gap-3 font-mono text-[10px] font-bold text-gray-400 mb-1.5">
+                    <span>{localVideo.vistas || '0'} vistas</span>
+                    <span>•</span>
+                    <span>{localVideo.created_at ? new Date(localVideo.created_at).toLocaleDateString() : 'Recién publicado'}</span>
+                  </div>
+                  <p className="font-medium">{localVideo.descripcion || 'Sin descripción adicional para esta clase académica.'}</p>
+                </div>
+                {cursoCtx && progresoCurso.inscrito && (
+                  <div className={`p-4 rounded-2xl border space-y-3 ${darkMode ? 'bg-gray-900/40 border-white/5' : 'bg-white border-gray-200 shadow-sm'}`}>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-cyan-500 flex items-center gap-1.5"><GraduationCap size={12} /> {cursoCtx.nombre}</p>
+                    <p className="text-[10px] text-gray-400 font-mono font-bold uppercase">Lección {idxLeccionActual + 1} de {leccionesCurso.length} • Progreso {progresoCurso.porcentaje}%</p>
+                    <div className="w-full bg-gray-200 dark:bg-white/10 rounded-full h-1.5"><div className="bg-cyan-500 h-1.5 rounded-full transition-all" style={{ width: `${progresoCurso.porcentaje}%` }} /></div>
+                    <div className="flex gap-2 flex-wrap">
+                      <button onClick={toggleLeccionCompletada} className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition inline-flex items-center gap-1.5 ${leccionCompletada ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-sm'}`}>{leccionCompletada ? <><Check size={12} /> Completada</> : 'Marcar completada'}</button>
+                      {(() => { const pdfL = pdfsCurso.find(p => p.video_id === localVideo.id); return pdfL ? <a href={`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/uploads/pdfs/${pdfL.filename}`} target="_blank" rel="noreferrer" className="px-4 py-2 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-colors inline-flex items-center gap-1.5"><FileText size={12} /> PDF lección</a> : null; })()}
+                      {(() => { const pdfC = pdfsCurso.find(p => p.video_id === null); return pdfC ? <a href={`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/uploads/pdfs/${pdfC.filename}`} target="_blank" rel="noreferrer" className="px-4 py-2 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-colors inline-flex items-center gap-1.5"><FileText size={12} /> PDF curso</a> : null; })()}
+                      {leccionAnterior && <button onClick={() => abrirLeccionDeCurso(leccionAnterior, cursoActivoId)} className="px-4 py-2 rounded-full bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 text-[10px] font-black uppercase tracking-widest hover:opacity-80 inline-flex items-center gap-1.5"><ArrowLeft size={12} /> Lección anterior</button>}
+                      {siguienteLeccion && <button onClick={() => { if (quizId && quizObligatorio && !quizAprobado) { setModalQuizRequerido(true); } else { abrirLeccionDeCurso(siguienteLeccion, cursoActivoId); } }} className="px-4 py-2 rounded-full bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 text-[10px] font-black uppercase tracking-widest hover:opacity-80 inline-flex items-center gap-1.5">Siguiente lección <ArrowRight size={12} /></button>}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {pestanaPanel === 'quiz' && quizId && (
+              <div className="flex flex-col items-center justify-center py-10 gap-4">
+                <GraduationCap size={40} className={`opacity-60 ${quizAprobado ? 'text-emerald-500' : 'text-amber-500'}`} />
+                {!progresoCurso.inscrito ? (
+                  <>
+                    <p className={`text-sm font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Inscríbete al curso</p>
+                    <p className="text-xs text-gray-400 text-center max-w-xs">Debes estar inscrito para acceder al quiz de esta lección.</p>
+                    <button
+                      onClick={async () => { try { await cursosApi.inscribir(cursoActivoId); const p = await cursosApi.progreso(cursoActivoId); setProgresoCurso(p); } catch (e) { notify.error(e.message); } }}
+                      className="px-6 py-3 rounded-full bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xs uppercase tracking-widest shadow-sm transition-colors"
+                    >Inscribirse al curso</button>
+                  </>
+                ) : quizAprobado ? (
+                  <>
+                    <p className="text-sm font-bold text-emerald-500">✓ Quiz aprobado</p>
+                    <button onClick={() => setConfirmReintento(true)} className="px-6 py-3 rounded-full bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-300 font-black text-xs uppercase tracking-widest hover:opacity-80 transition-opacity">Reintentar</button>
+                  </>
+                ) : (
+                  <>
+                    <p className={`text-sm font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Quiz de la lección</p>
+                    <button onClick={() => setQuizModal(quizId)} className="px-6 py-3 rounded-full bg-amber-500 text-gray-950 font-black text-xs uppercase tracking-widest hover:bg-amber-400 transition-colors shadow-sm">Comenzar Quiz</button>
+                  </>
+                )}
+              </div>
+            )}
 
             {pestanaPanel === 'tutor' && <TutorIA video={localVideo} darkMode={darkMode} />}
 
@@ -694,49 +975,80 @@ export default function Reproductor({
         </div>
 
         {/* COLUMNA LATERAL - Lecciones del curso o videos sugeridos */}
-        <div className="space-y-4 text-left">
+        <div className="space-y-4 text-left lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
           {cursoCtx ? (
             <>
               <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1 flex items-center gap-1.5"><GraduationCap size={13} /> Lecciones del curso</h3>
-              <div className="grid grid-cols-1 gap-2.5">
-                {leccionesCurso.map((l, idx) => {
-                  const esActual = l.id === localVideo.id;
-                  const hecha = completadasSet.has(l.id);
-                  const ytIdL = getYoutubeId(l.url_video);
-                  const miniaturaL = ytIdL ? `https://img.youtube.com/vi/${ytIdL}/hqdefault.jpg` : null;
-                  return (
-                    <div
-                      key={l.id}
-                      onClick={() => !esActual && abrirLeccionDeCurso(l, cursoActivoId)}
-                      className={`p-2 rounded-xl border flex gap-3 items-center transition-all ${
-                        esActual
-                          ? 'border-cyan-500/40 bg-cyan-600/5 cursor-default'
-                          : `cursor-pointer hover:scale-[1.01] ${darkMode ? 'bg-gray-900/40 border-white/5 hover:bg-gray-900' : 'bg-white border-gray-200 shadow-sm hover:shadow'}`
-                      }`}
-                    >
-                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black shrink-0 ${
-                        hecha ? 'bg-emerald-500 text-white' : darkMode ? 'bg-white/5 text-gray-400' : 'bg-[var(--clr-surface-elevated)] text-gray-500'
-                      }`}>
-                        {hecha ? <Check size={11} /> : idx + 1}
-                      </span>
-                      <div className="w-20 aspect-video bg-gray-950 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
-                        {miniaturaL ? <img src={miniaturaL} alt="" className="w-full h-full object-cover" /> : <Clapperboard size={16} className="opacity-30 text-white" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className={`text-[11px] font-black uppercase truncate tracking-wide ${esActual ? 'text-cyan-500' : darkMode ? 'text-white' : 'text-gray-900'}`}>
-                          {l.titulo}
-                          {l.es_premium && <span className="ml-1.5 text-amber-500 text-[8px] font-black uppercase inline-flex items-center gap-0.5"><Star size={9} className="fill-current" /> Premium</span>}
-                        </h4>
-                        <p className="text-[9px] text-gray-400 font-mono font-bold uppercase">{l.duracion || '00:00'}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              {(() => {
+                const primerBloqueadaIdx = leccionesCurso.findIndex((l, idx) => {
+                  if (idx === 0) return false;
+                  const prev = leccionesCurso[idx - 1];
+                  const prevOk = completadasSet.has(prev.id);
+                  const prevQuizOk = !prev.quiz_id || !(prev.quiz_obligatorio ?? true) || quizzesAprobadosSet.has(prev.quiz_id);
+                  return !prevOk || !prevQuizOk;
+                });
+                return (
+                  <div className="grid grid-cols-1 gap-2.5">
+                    {leccionesCurso.map((l, idx) => {
+                      const esActual = l.id === localVideo.id;
+                      const hecha = completadasSet.has(l.id);
+                      const ytIdL = getYoutubeId(l.url_video);
+                      const miniaturaL = ytIdL ? `https://img.youtube.com/vi/${ytIdL}/hqdefault.jpg` : null;
+                      const bloqueada = primerBloqueadaIdx >= 0 && idx >= primerBloqueadaIdx && !esActual;
+                      const quizAprobadoL = l.quiz_id ? quizzesAprobadosSet.has(l.quiz_id) : false;
+                      return (
+                        <React.Fragment key={l.id}>
+                          {idx === primerBloqueadaIdx && primerBloqueadaIdx > 0 && (
+                            <div className="flex items-center gap-2 py-1 px-1">
+                              <div className="flex-1 h-px bg-gray-200 dark:bg-white/10" />
+                              <span className="text-[8px] font-black uppercase tracking-widest text-gray-400 whitespace-nowrap flex items-center gap-1">
+                                <Lock size={8} /> Completa anteriores para continuar
+                              </span>
+                              <div className="flex-1 h-px bg-gray-200 dark:bg-white/10" />
+                            </div>
+                          )}
+                          <div
+                            onClick={() => !esActual && !bloqueada && abrirLeccionDeCurso(l, cursoActivoId)}
+                            className={`p-2 rounded-xl border flex gap-3 items-center transition-all ${
+                              esActual
+                                ? 'border-cyan-500/40 bg-cyan-600/5 cursor-default'
+                                : bloqueada
+                                ? `cursor-default ${darkMode ? 'bg-gray-900/40 border-white/5' : 'bg-white border-gray-200 shadow-sm'}`
+                                : `cursor-pointer hover:scale-[1.01] ${darkMode ? 'bg-gray-900/40 border-white/5 hover:bg-gray-900' : 'bg-white border-gray-200 shadow-sm hover:shadow'}`
+                            }`}
+                          >
+                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black shrink-0 ${
+                              hecha ? 'bg-emerald-500 text-white' : darkMode ? 'bg-white/5 text-gray-400' : 'bg-[var(--clr-surface-elevated)] text-gray-500'
+                            }`}>
+                              {hecha ? <Check size={11} /> : idx + 1}
+                            </span>
+                            <div className="w-20 aspect-video bg-gray-950 rounded-lg overflow-hidden shrink-0 flex items-center justify-center">
+                              {miniaturaL ? <img src={miniaturaL} alt="" className="w-full h-full object-cover" /> : <Clapperboard size={16} className="opacity-30 text-white" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className={`text-[11px] font-black uppercase truncate tracking-wide ${esActual ? 'text-cyan-500' : darkMode ? 'text-white' : 'text-gray-900'}`}>
+                                {l.titulo}
+                                {l.es_premium && <span className="ml-1.5 text-amber-500 text-[8px] font-black uppercase inline-flex items-center gap-0.5"><Star size={9} className="fill-current" /> Premium</span>}
+                              </h4>
+                              <p className="text-[9px] text-gray-400 font-mono font-bold uppercase">{l.duracion || '00:00'}</p>
+                              {l.quiz_id && (
+                                <span className={`inline-flex items-center gap-0.5 text-[8px] font-black uppercase mt-0.5 ${quizAprobadoL ? 'text-emerald-500' : (l.quiz_obligatorio ?? true) ? 'text-amber-500' : 'text-gray-400'}`}>
+                                  {quizAprobadoL ? <Check size={8} /> : <GraduationCap size={8} />}
+                                  {quizAprobadoL ? 'Quiz aprobado' : (l.quiz_obligatorio ?? true) ? 'Quiz requerido' : 'Quiz opcional'}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </React.Fragment>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </>
           ) : (
           <>
-          <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">Clases Sugeridas</h3>
+          <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1">Más clases</h3>
           {sugeridos.length === 0 ? (
             <p className="text-[11px] text-gray-400 font-medium italic px-1">No hay más videos sugeridos en este momento.</p>
           ) : (
@@ -831,7 +1143,30 @@ export default function Reproductor({
             </form>
       </Modal>
 
-      <QuizModal open={Boolean(quizModal)} onClose={() => setQuizModal(null)} cursoId={cursoActivoId} quizId={quizModal} darkMode={darkMode} />
+      <Modal open={modalQuizRequerido} onClose={() => setModalQuizRequerido(false)} title="Quiz requerido" darkMode={darkMode} maxWidth="max-w-sm">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">Debes aprobar el quiz de esta lección antes de continuar a la siguiente.</p>
+        <div className="flex gap-3 justify-end">
+          <button onClick={() => setModalQuizRequerido(false)} className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wide text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5`}>Cancelar</button>
+          <button onClick={() => { setModalQuizRequerido(false); setQuizModal(quizId); }} className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-gray-950 text-[10px] font-black uppercase tracking-wide shadow-sm inline-flex items-center gap-1.5"><GraduationCap size={12} /> Hacer Quiz</button>
+        </div>
+      </Modal>
+
+      <Modal open={confirmReintento} onClose={() => setConfirmReintento(false)} title="Reintentar quiz" darkMode={darkMode} maxWidth="max-w-sm">
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">Ya aprobaste este quiz. ¿Quieres intentarlo de nuevo?</p>
+        <div className="flex gap-3 justify-end">
+          <button onClick={() => setConfirmReintento(false)} className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wide text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5`}>Cancelar</button>
+          <button onClick={() => { setConfirmReintento(false); setQuizModal(quizId); }} className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-gray-950 text-[10px] font-black uppercase tracking-wide shadow-sm inline-flex items-center gap-1.5"><GraduationCap size={12} /> Sí, reintentar</button>
+        </div>
+      </Modal>
+
+      <QuizModal
+        open={Boolean(quizModal)}
+        onClose={() => setQuizModal(null)}
+        onPass={() => cursosApi.progreso(cursoActivoId).then(setProgresoCurso).catch(() => {})}
+        cursoId={cursoActivoId}
+        quizId={quizModal}
+        darkMode={darkMode}
+      />
 
     </div>
   );

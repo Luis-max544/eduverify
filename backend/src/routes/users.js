@@ -1,26 +1,13 @@
 import { Router } from 'express';
-import path from 'path';
 import { eq, sql, desc, and } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../config/db.js';
 import { users, videos, subscriptions, channelSubscriptions } from '../db/schema.js';
 import { verifyToken, optionalAuth } from '../middleware/auth.js';
-import { uploadAvatar, uploadBanner } from '../middleware/upload.js';
-import { env } from '../config/env.js';
+import { uploadAvatar, uploadBanner, putToMinio, avatarKey, bannerKey } from '../middleware/upload.js';
+import { mediaUrl } from '../config/minio.js';
 
 const router = Router();
-
-function uploadsBase() {
-  return `http://localhost:${env.port}`;
-}
-
-function avatarUrl(avatar_path) {
-  return avatar_path ? `${uploadsBase()}/uploads/${avatar_path}` : null;
-}
-
-function bannerUrl(banner_path) {
-  return banner_path ? `${uploadsBase()}/uploads/${banner_path}` : null;
-}
 
 function formatUser(user) {
   return {
@@ -34,8 +21,8 @@ function formatUser(user) {
     membresia_docente_expires_at: user.membresia_docente_expires_at,
     canal_precio: user.canal_precio ? Number(user.canal_precio) : null,
     dark_mode: user.dark_mode,
-    avatar_url: avatarUrl(user.avatar_path),
-    banner_url: bannerUrl(user.banner_path),
+    avatar_url: mediaUrl(user.avatar_path),
+    banner_url: mediaUrl(user.banner_path),
   };
 }
 
@@ -78,11 +65,10 @@ router.post('/me/avatar', verifyToken, (req, res, next) => {
     if (err) return next(err);
     if (!req.file) return res.status(400).json({ status: 'error', message: 'No se recibió archivo' });
 
-    const ext = path.extname(req.file.filename).toLowerCase();
-    const avatar_path = `avatars/${req.user.sub}${ext}`;
-    await db.update(users).set({ avatar_path }).where(eq(users.id, req.user.sub));
-
-    res.json({ status: 'success', data: { avatar_url: avatarUrl(avatar_path) } });
+    const key = avatarKey(req.user.sub, req.file);
+    await putToMinio(key, req.file.buffer, req.file.mimetype);
+    await db.update(users).set({ avatar_path: key }).where(eq(users.id, req.user.sub));
+    res.json({ status: 'success', data: { avatar_url: mediaUrl(key) } });
   });
 });
 
@@ -92,11 +78,10 @@ router.post('/me/banner', verifyToken, (req, res, next) => {
     if (err) return next(err);
     if (!req.file) return res.status(400).json({ status: 'error', message: 'No se recibió archivo' });
 
-    const ext = path.extname(req.file.filename).toLowerCase();
-    const banner_path = `banners/${req.user.sub}${ext}`;
-    await db.update(users).set({ banner_path }).where(eq(users.id, req.user.sub));
-
-    res.json({ status: 'success', data: { banner_url: bannerUrl(banner_path) } });
+    const key = bannerKey(req.user.sub, req.file);
+    await putToMinio(key, req.file.buffer, req.file.mimetype);
+    await db.update(users).set({ banner_path: key }).where(eq(users.id, req.user.sub));
+    res.json({ status: 'success', data: { banner_url: mediaUrl(key) } });
   });
 });
 
@@ -155,8 +140,8 @@ router.get('/:id/profile', optionalAuth, async (req, res, next) => {
         nombre: user.nombre,
         rol: user.rol,
         canal_precio: user.canal_precio ? Number(user.canal_precio) : null,
-        avatar_url: avatarUrl(user.avatar_path),
-        banner_url: bannerUrl(user.banner_path),
+        avatar_url: mediaUrl(user.avatar_path),
+        banner_url: mediaUrl(user.banner_path),
         video_count: Number(videoCount),
         subscriber_count: Number(subCount),
       },
@@ -178,7 +163,8 @@ router.get('/:id/videos', optionalAuth, async (req, res, next) => {
     const rows = await db
       .select({
         id: videos.id, titulo: videos.titulo, descripcion: videos.descripcion,
-        url_video: videos.url_video, categoria: videos.categoria, tipo: videos.tipo,
+        url_video: videos.url_video, minio_key: videos.minio_key, status: videos.status,
+        categoria: videos.categoria, tipo: videos.tipo,
         es_premium: videos.es_premium, visible: videos.visible,
         vistas: videos.vistas, duracion: videos.duracion,
         created_at: videos.created_at,
@@ -196,11 +182,7 @@ router.get('/:id/videos', optionalAuth, async (req, res, next) => {
       .from(videos)
       .where(baseWhere);
 
-    const base = uploadsBase();
-    const items = rows.map(v => ({
-      ...v,
-      author_avatar_url: v.author_avatar_url ? `${base}/uploads/${v.author_avatar_url}` : null,
-    }));
+    const items = rows.map(v => ({ ...v, author_avatar_url: mediaUrl(v.author_avatar_url) }));
 
     res.json({ status: 'success', data: { items, total: Number(total), page, limit } });
   } catch (err) { next(err); }

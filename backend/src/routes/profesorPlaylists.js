@@ -4,14 +4,10 @@ import { z } from 'zod';
 import { db } from '../config/db.js';
 import { profesorPlaylists, profesorPlaylistVideos, videos, users, courseReviews, quizzes, quizQuestions, pdfResources } from '../db/schema.js';
 import { verifyToken, requireRol } from '../middleware/auth.js';
-import { uploadPdf, uploadCover } from '../middleware/upload.js';
-import { env } from '../config/env.js';
-import fs from 'fs';
-import path from 'path';
+import { uploadPdf, uploadCover, putToMinio, coverKey, pdfKey } from '../middleware/upload.js';
+import { mediaUrl } from '../config/minio.js';
 
 const router = Router();
-
-function base() { return `http://localhost:${env.port}`; }
 
 async function getWithVideos(userId) {
   const pls = await db.select().from(profesorPlaylists).where(eq(profesorPlaylists.user_id, userId));
@@ -33,6 +29,7 @@ async function getWithVideos(userId) {
     const rows = await db
       .select({
         id: videos.id, titulo: videos.titulo, url_video: videos.url_video,
+        minio_key: videos.minio_key, status: videos.status,
         categoria: videos.categoria, duracion: videos.duracion, vistas: videos.vistas,
         orden: profesorPlaylistVideos.orden,
         autor: users.nombre, author_avatar_url: users.avatar_path,
@@ -46,12 +43,12 @@ async function getWithVideos(userId) {
     const rating = ratingByPl.get(pl.id);
     return {
       ...pl,
-      portada_url: pl.portada_path ? `${base()}/uploads/${pl.portada_path}` : null,
+      portada_url: mediaUrl(pl.portada_path),
       promedio_estrellas: rating ? Number(Number(rating.promedio).toFixed(1)) : null,
       total_reviews: rating ? Number(rating.total) : 0,
       videos: rows.map(v => ({
         ...v,
-        author_avatar_url: v.author_avatar_url ? `${base()}/uploads/${v.author_avatar_url}` : null,
+        author_avatar_url: mediaUrl(v.author_avatar_url),
       })),
     };
   }));
@@ -131,10 +128,10 @@ router.put('/:id/cover', verifyToken, (req, res, next) => {
     if (err) return next(err);
     if (!req.file) return res.status(400).json({ status: 'error', message: 'No se recibió archivo' });
     if (!await ownerCheck(playlistId, req.user.sub, res)) return;
-    const ext = path.extname(req.file.filename).toLowerCase();
-    const portada_path = `covers/${playlistId}${ext}`;
-    await db.update(profesorPlaylists).set({ portada_path }).where(eq(profesorPlaylists.id, playlistId));
-    res.json({ status: 'success', data: { portada_url: `${base()}/uploads/${portada_path}` } });
+    const key = coverKey(playlistId, req.file);
+    await putToMinio(key, req.file.buffer, req.file.mimetype);
+    await db.update(profesorPlaylists).set({ portada_path: key }).where(eq(profesorPlaylists.id, playlistId));
+    res.json({ status: 'success', data: { portada_url: mediaUrl(key) } });
   });
 });
 
@@ -340,15 +337,16 @@ router.put('/:id/pdf', verifyToken, (req, res, next) => {
 
       const [existing] = await db.select().from(pdfResources).where(and(...conditions));
       if (existing) {
-        const oldPath = path.join(process.cwd(), 'uploads', 'pdfs', existing.filename);
-        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
         await db.delete(pdfResources).where(eq(pdfResources.id, existing.id));
       }
+
+      const key = pdfKey(file);
+      await putToMinio(key, file.buffer, file.mimetype);
 
       await db.insert(pdfResources).values({
         playlist_id: playlistId,
         video_id: videoId,
-        filename: file.filename,
+        filename: key,
         original_name: file.originalname,
       });
 
@@ -375,8 +373,6 @@ router.delete('/:id/pdfs/:pdfId', verifyToken, async (req, res, next) => {
     ));
     if (!row) return res.status(404).json({ status: 'error', message: 'PDF no encontrado' });
 
-    const filePath = path.join(process.cwd(), 'uploads', 'pdfs', row.filename);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     await db.delete(pdfResources).where(eq(pdfResources.id, pdfId));
     res.json({ status: 'success', data: { message: 'PDF eliminado' } });
   } catch (err) { next(err); }

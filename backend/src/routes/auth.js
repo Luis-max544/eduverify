@@ -9,6 +9,7 @@ import { users, resetTokens } from '../db/schema.js';
 import { env } from '../config/env.js';
 import { sendPasswordReset } from '../services/email.js';
 import { verifyGoogleCredential } from '../services/google.js';
+import { mediaUrl } from '../config/minio.js';
 
 const router = Router();
 
@@ -21,7 +22,6 @@ function signToken(user) {
 }
 
 function formatUser(user) {
-  const base = `${process.env.VITE_API_URL || `http://localhost:${env.port}`}`;
   return {
     id: user.id,
     nombre: user.nombre,
@@ -33,8 +33,8 @@ function formatUser(user) {
     membresia_docente_expires_at: user.membresia_docente_expires_at,
     canal_precio: user.canal_precio ? Number(user.canal_precio) : null,
     dark_mode: user.dark_mode,
-    avatar_url: user.avatar_path ? `${base}/uploads/${user.avatar_path}` : null,
-    banner_url: user.banner_path ? `${base}/uploads/${user.banner_path}` : null,
+    avatar_url: mediaUrl(user.avatar_path),
+    banner_url: mediaUrl(user.banner_path),
   };
 }
 
