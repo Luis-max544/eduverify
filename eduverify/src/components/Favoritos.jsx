@@ -1,8 +1,12 @@
 import { Heart, Clapperboard, PlayCircle } from 'lucide-react';
 import { favorites as favoritesApi } from '../api';
 import { getYoutubeId } from '../utils/youtube';
+import { useSocial } from '../context/SocialContext';
+import { usePlayer } from '../context/PlayerContext';
 
-export default function Favoritos({ favoritos = [], setFavoritos, setVideoSeleccionado }) {
+export default function Favoritos() {
+  const { favoritos, setFavoritos } = useSocial();
+  const { seleccionarYRegistrarVideo } = usePlayer();
 
   const handleUnfavorite = (e, video) => {
     e.stopPropagation();
@@ -39,7 +43,7 @@ export default function Favoritos({ favoritos = [], setFavoritos, setVideoSelecc
             return (
               <div
                 key={v.id}
-                onClick={() => setVideoSeleccionado(v)}
+                onClick={() => seleccionarYRegistrarVideo(v)}
                 className="flex flex-col group cursor-pointer rounded-xl border border-[var(--clr-border-subtle)] bg-[var(--clr-surface)] hover:shadow-md hover:border-[var(--clr-border)] transition-all duration-200 overflow-hidden"
               >
                 <div className="w-full aspect-video bg-[var(--clr-surface-elevated)] relative overflow-hidden">
@@ -55,7 +59,6 @@ export default function Favoritos({ favoritos = [], setFavoritos, setVideoSelecc
                     <PlayCircle size={36} className="text-white drop-shadow-lg" />
                   </div>
 
-                  {/* Unfavorite button */}
                   <button
                     onClick={(e) => handleUnfavorite(e, v)}
                     className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-lg shadow-lg hover:bg-red-600 transition-colors"

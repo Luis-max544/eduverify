@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Crown, Gem, Sparkles, GraduationCap, FileText, CreditCard, Check } from 'lucide-react';
+import { ArrowLeft, Crown, Gem, Sparkles, GraduationCap, FileText, Check } from 'lucide-react';
 import { premium } from '../api';
 import { useToast } from './Toast';
+import { useAuth } from '../context/AuthContext';
+import { useNavigation } from '../context/NavigationContext';
 
 const TIERS = [
   {
@@ -36,13 +38,16 @@ const TIERS = [
   },
 ];
 
-export default function PasarelaPrueba({ usuario, setUsuario, setVista, darkMode }) {
+export default function PasarelaPrueba() {
+  const { usuario, setUsuario, darkMode } = useAuth();
+  const { setVista } = useNavigation();
+  const notify = useToast();
+
   const tier = usuario?.tier || 'free';
   const esPremium = tier !== 'free';
   const [fechaPago, setFechaPago] = useState(null);
   const [docStatus, setDocStatus] = useState(null);
   const [loading, setLoading] = useState(false);
-  const notify = useToast();
 
   useEffect(() => {
     if (esPremium) premium.status().then(d => setFechaPago(d.fecha_pago)).catch(() => {});
@@ -116,7 +121,6 @@ export default function PasarelaPrueba({ usuario, setUsuario, setVista, darkMode
         <p className="text-sm text-[var(--clr-text-muted)] mt-1">Elige tu nivel de acceso</p>
       </div>
 
-      {/* TIER CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {TIERS.map((t) => {
           const isCurrent = tier === t.key;
@@ -164,7 +168,6 @@ export default function PasarelaPrueba({ usuario, setUsuario, setVista, darkMode
         })}
       </div>
 
-      {/* TEACHER MEMBERSHIP */}
       {esDocente && (
         <div className={`rounded-2xl border p-5 space-y-4 ${darkMode ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200 shadow-sm'}`}>
           <div className="flex items-center gap-2">

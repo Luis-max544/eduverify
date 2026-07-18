@@ -271,20 +271,21 @@ router.put('/:id/quiz', verifyToken, async (req, res, next) => {
     ));
 
     let quizId;
-    if (existente) {
-      quizId = existente.id;
-      await db.update(quizzes).set({ titulo: titulo ?? null, min_aprobacion }).where(eq(quizzes.id, quizId));
-      await db.delete(quizQuestions).where(eq(quizQuestions.quiz_id, quizId));
-    } else {
-      const [result] = await db.insert(quizzes).values({
-        playlist_id: playlistId, video_id, titulo: titulo ?? null, min_aprobacion,
-      });
-      quizId = result.insertId;
-    }
-
-    await db.insert(quizQuestions).values(preguntas.map((p, i) => ({
-      quiz_id: quizId, pregunta: p.pregunta, opciones: p.opciones, correcta: p.correcta, orden: i,
-    })));
+    await db.transaction(async (tx) => {
+      if (existente) {
+        quizId = existente.id;
+        await tx.update(quizzes).set({ titulo: titulo ?? null, min_aprobacion }).where(eq(quizzes.id, quizId));
+        await tx.delete(quizQuestions).where(eq(quizQuestions.quiz_id, quizId));
+      } else {
+        const [result] = await tx.insert(quizzes).values({
+          playlist_id: playlistId, video_id, titulo: titulo ?? null, min_aprobacion,
+        });
+        quizId = result.insertId;
+      }
+      await tx.insert(quizQuestions).values(preguntas.map((p, i) => ({
+        quiz_id: quizId, pregunta: p.pregunta, opciones: p.opciones, correcta: p.correcta, orden: i,
+      })));
+    });
 
     res.json({ status: 'success', data: await getQuizConPreguntas(quizId) });
   } catch (err) { next(err); }
@@ -314,7 +315,7 @@ router.get('/:id/pdfs', verifyToken, async (req, res, next) => {
     const playlistId = Number(req.params.id);
     if (!await ownerCheck(playlistId, req.user.sub, res)) return;
     const items = await db.select().from(pdfResources).where(eq(pdfResources.playlist_id, playlistId));
-    res.json({ status: 'success', data: items });
+    res.json({ status: 'success', data: items.map(i => ({ ...i, url: mediaUrl(i.filename) })) });
   } catch (err) { next(err); }
 });
 

@@ -2,12 +2,12 @@ import { Router } from 'express';
 import { eq, and, sql } from 'drizzle-orm';
 import { db } from '../config/db.js';
 import { channelSubscriptions, coursePurchases, profesorPlaylists, users } from '../db/schema.js';
-import { verifyToken } from '../middleware/auth.js';
+import { verifyToken, requireRol } from '../middleware/auth.js';
 
 const router = Router();
 
 // GET /api/profesor/earnings
-router.get('/', verifyToken, async (req, res, next) => {
+router.get('/', verifyToken, requireRol('profesor', 'creador'), async (req, res, next) => {
   try {
     const userId = req.user.sub;
 

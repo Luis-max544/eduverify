@@ -6,8 +6,7 @@ import { db } from '../config/db.js';
 import { videos, users, pdfResources, profesorPlaylistVideos } from '../db/schema.js';
 import { verifyToken } from '../middleware/auth.js';
 import { env } from '../config/env.js';
-import fs from 'fs';
-import path from 'path';
+import { minioClient, BUCKET } from '../config/minio.js';
 
 const router = Router();
 
@@ -45,6 +44,10 @@ router.post('/chat', verifyToken, async (req, res, next) => {
     if (!env.geminiKey) {
       return res.status(503).json({ status: 'error', message: 'El tutor IA no está configurado en este servidor' });
     }
+    const [currentUser] = await db.select({ premium: users.premium }).from(users).where(eq(users.id, req.user.sub));
+    if (!currentUser?.premium) {
+      return res.status(403).json({ status: 'error', message: 'Tutor IA requiere cuenta Premium' });
+    }
     if (rateLimited(req.user.sub)) {
       return res.status(429).json({ status: 'error', message: 'Demasiadas solicitudes, espera un momento' });
     }
@@ -69,8 +72,13 @@ router.post('/chat', verifyToken, async (req, res, next) => {
       ` Responde en español, de forma breve, clara y pedagógica. ` +
       `Si la pregunta no tiene relación con la clase o su temática, redirige amablemente al tema.`;
 
+    const ai = new GoogleGenAI({ apiKey: env.geminiKey });
+    const contents = messages.map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    }));
+
     // Buscar PDFs del curso/lección e inyectarlos como contexto extra
-    let pdfParts = [];
     try {
       const [ppv] = await db.select({ playlist_id: profesorPlaylistVideos.playlist_id })
         .from(profesorPlaylistVideos)
@@ -83,29 +91,23 @@ router.post('/chat', verifyToken, async (req, res, next) => {
         const courseDocs = docs.length === 0
           ? await db.select().from(pdfResources).where(and(eq(pdfResources.playlist_id, ppv.playlist_id)))
           : [];
-        const all = [...docs, ...courseDocs];
-        for (const doc of all) {
-          const filePath = path.join(process.cwd(), 'uploads', 'pdfs', doc.filename);
-          if (!fs.existsSync(filePath)) continue;
-          const buf = fs.readFileSync(filePath);
-          if (buf.length > 8 * 1024 * 1024) continue; // skip >8MB
-          pdfParts.push({
-            inlineData: { mimeType: 'application/pdf', data: buf.toString('base64') },
-          });
+        const pdfParts = [];
+        for (const doc of [...docs, ...courseDocs]) {
+          try {
+            const stream = await minioClient.getObject(BUCKET, doc.filename);
+            const chunks = [];
+            for await (const chunk of stream) chunks.push(chunk);
+            const buf = Buffer.concat(chunks);
+            if (buf.length > 8 * 1024 * 1024) continue;
+            pdfParts.push({ inlineData: { mimeType: 'application/pdf', data: buf.toString('base64') } });
+          } catch { /* objeto no existe en MinIO, ignorar */ }
         }
         if (pdfParts.length > 0) {
-          // ponytail: inject after the last user message as context
           contents[contents.length - 1]?.parts.push({ text: '(Ver documento PDF adjunto como material complementario de la clase. Úsalo para responder con más precisión.)' });
           contents.push({ role: 'user', parts: pdfParts });
         }
       }
     } catch { /* si falla la resolución de PDF, ignorar y seguir sin contexto extra */ }
-
-    const ai = new GoogleGenAI({ apiKey: env.geminiKey });
-    const contents = messages.map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }],
-    }));
 
     let response;
     try {

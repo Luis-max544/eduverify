@@ -1,7 +1,12 @@
 import { History, BookOpen, Clapperboard } from 'lucide-react';
 import { getYoutubeId } from '../utils/youtube';
+import { useSocial } from '../context/SocialContext';
+import { usePlayer } from '../context/PlayerContext';
 
-export default function Historial({ historial = [], setVideoSeleccionado }) {
+export default function Historial() {
+  const { historial } = useSocial();
+  const { seleccionarYRegistrarVideo } = usePlayer();
+
   return (
     <div className="space-y-6 animate-fade-in select-none pb-16">
       <div className="border-b border-[var(--clr-border-subtle)] pb-4">
@@ -31,7 +36,7 @@ export default function Historial({ historial = [], setVideoSeleccionado }) {
             return (
               <div
                 key={v.id || index}
-                onClick={() => setVideoSeleccionado(v)}
+                onClick={() => seleccionarYRegistrarVideo(v)}
                 className="flex flex-col sm:flex-row items-center gap-4 p-3 rounded-xl border bg-[var(--clr-surface)] border-[var(--clr-border-subtle)] hover:border-[var(--clr-accent)]/30 hover:shadow-sm transition-all duration-200 cursor-pointer group"
               >
                 <div className="w-full sm:w-44 aspect-video bg-[var(--clr-surface-elevated)] rounded-lg overflow-hidden shrink-0 relative">

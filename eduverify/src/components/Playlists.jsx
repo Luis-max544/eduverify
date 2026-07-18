@@ -3,8 +3,13 @@ import { ArrowLeft, Folder, FolderOpen, Trash2, Clapperboard, PlayCircle } from 
 import { playlists as playlistsApi } from '../api';
 import { useToast } from './Toast';
 import { getYoutubeId } from '../utils/youtube';
+import { useAuth } from '../context/AuthContext';
+import { usePlayer } from '../context/PlayerContext';
 
-export default function Playlists({ usuario, setVideoSeleccionado }) {
+export default function Playlists() {
+  const { usuario } = useAuth();
+  const { seleccionarYRegistrarVideo } = usePlayer();
+
   const [listas, setListas] = useState([]);
   const notify = useToast();
   const [carpetaActivaId, setCarpetaActivaId] = useState(null);
@@ -57,7 +62,7 @@ export default function Playlists({ usuario, setVideoSeleccionado }) {
               return (
                 <div
                   key={v.id}
-                  onClick={() => setVideoSeleccionado(v)}
+                  onClick={() => seleccionarYRegistrarVideo(v)}
                   className="flex flex-col group cursor-pointer rounded-xl border border-[var(--clr-border-subtle)] bg-[var(--clr-surface)] hover:shadow-md hover:border-[var(--clr-border)] transition-all overflow-hidden"
                 >
                   <div className="w-full aspect-video bg-[var(--clr-surface-elevated)] relative overflow-hidden">
@@ -106,7 +111,6 @@ export default function Playlists({ usuario, setVideoSeleccionado }) {
           {listas.map((lista) => {
             const videos = lista.videos || [];
             const numVideos = videos.length;
-            // Use first video's thumbnail as folder cover
             const firstYtId = getYoutubeId(videos[0]?.url_video);
             const coverThumb = firstYtId ? `https://img.youtube.com/vi/${firstYtId}/mqdefault.jpg` : null;
 
@@ -116,7 +120,6 @@ export default function Playlists({ usuario, setVideoSeleccionado }) {
                 onClick={() => setCarpetaActivaId(lista.id)}
                 className="flex flex-col group cursor-pointer rounded-xl border border-[var(--clr-border-subtle)] bg-[var(--clr-surface)] hover:shadow-md hover:border-[var(--clr-border)] transition-all overflow-hidden"
               >
-                {/* Folder thumbnail */}
                 <div className="w-full aspect-video bg-[var(--clr-surface-elevated)] relative overflow-hidden">
                   {coverThumb ? (
                     <img src={coverThumb} alt={lista.nombre} className="w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-500 opacity-80" loading="lazy" />
@@ -126,12 +129,10 @@ export default function Playlists({ usuario, setVideoSeleccionado }) {
                     </div>
                   )}
 
-                  {/* Video count badge */}
                   <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs font-semibold font-mono px-2 py-0.5 rounded flex items-center gap-1">
                     <Folder size={10} /> {numVideos}
                   </div>
 
-                  {/* Delete button — always visible on touch */}
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); setConfirmDelete(lista.id); }}
@@ -156,7 +157,6 @@ export default function Playlists({ usuario, setVideoSeleccionado }) {
         </div>
       )}
 
-      {/* Confirm delete inline — replaces window.confirm */}
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setConfirmDelete(null)}>
           <div

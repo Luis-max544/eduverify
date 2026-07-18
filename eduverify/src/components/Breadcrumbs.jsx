@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { ChevronRight } from 'lucide-react';
 import * as api from '../api';
+import { useAuth } from '../context/AuthContext';
+import { useNavigation } from '../context/NavigationContext';
+import { usePlayer } from '../context/PlayerContext';
 
 const cache = new Map();
 
@@ -61,11 +64,15 @@ function Crumb({ label, onClick, darkMode, last }) {
   );
 }
 
-export default function Breadcrumbs({
-  vista, setVista, videoSeleccionado, cursoSeleccionado,
-  canalSeleccionado, cursoActivo, cursoOrigen, abrirCurso,
-  subVista, setSubVista, darkMode,
-}) {
+export default function Breadcrumbs() {
+  const { darkMode } = useAuth();
+  const { vista, setVista } = useNavigation();
+  const {
+    videoSeleccionado, cursoSeleccionado, canalSeleccionado,
+    cursoActivo, cursoOrigen, abrirCurso,
+    profesorSubVista, setProfesorSubVista,
+  } = usePlayer();
+
   const [, tick] = useState(0);
 
   useEffect(() => {
@@ -93,13 +100,12 @@ export default function Breadcrumbs({
   if (vista === 'login' || vista === 'catalogo') return null;
 
   const crumbs = [];
-
   const push = (label, onClick) => crumbs.push({ label, onClick });
 
   push(LABELS.catalogo, () => setVista('catalogo'));
 
-  if (vista === 'profesor' && subVista === 'subir') {
-    push(LABELS.profesor, () => setSubVista('canal'));
+  if (vista === 'profesor' && profesorSubVista === 'subir') {
+    push(LABELS.profesor, () => setProfesorSubVista('canal'));
     push('Subir video', null);
   } else if (vista === 'profesor') {
     push(LABELS.profesor, null);

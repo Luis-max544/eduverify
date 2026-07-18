@@ -2,8 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Clapperboard, Folder, ListVideo, GraduationCap, Star, Crown, BadgeCheck, Zap } from 'lucide-react';
 import { users as usersApi, profesorPlaylists, channelSubs as channelSubsApi } from '../api';
 import { useToast } from './Toast';
+import { useAuth } from '../context/AuthContext';
+import { usePlayer } from '../context/PlayerContext';
 
-export default function Canal({ canal, setVideoSeleccionado, darkMode, abrirCurso, usuario }) {
+export default function Canal() {
+  const { usuario, darkMode } = useAuth();
+  const { canalSeleccionado, seleccionarYRegistrarVideo, abrirCurso } = usePlayer();
+
+  const canal = canalSeleccionado;
+
   const [pestanaActiva, setPestanaActiva] = useState('VIDEOS');
   const [perfil, setPerfil] = useState(null);
   const [misVideos, setMisVideos] = useState([]);
@@ -57,7 +64,6 @@ export default function Canal({ canal, setVideoSeleccionado, darkMode, abrirCurs
   return (
     <div className="space-y-6 animate-fade-in select-none font-sans pb-16 text-left">
 
-      {/* BANNER DEL PERFIL PÚBLICO */}
       <div
         className="w-full h-28 md:h-36 rounded-3xl bg-gradient-to-r from-slate-100 via-slate-200 to-slate-100 dark:from-cyan-900/10 dark:to-gray-900/40 border border-gray-200 dark:border-white/5 relative overflow-hidden flex items-center justify-center bg-cover bg-center"
         style={{ backgroundImage: perfil?.banner_url ? `url(${perfil.banner_url})` : 'none' }}
@@ -67,7 +73,6 @@ export default function Canal({ canal, setVideoSeleccionado, darkMode, abrirCurs
         )}
       </div>
 
-      {/* INFORMACIÓN DEL CANAL */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 px-2">
         <div className="flex items-center gap-4">
           <div className="w-20 h-20 rounded-full bg-cyan-600 font-black text-white text-2xl flex items-center justify-center shadow-lg shrink-0 overflow-hidden">
@@ -98,7 +103,6 @@ export default function Canal({ canal, setVideoSeleccionado, darkMode, abrirCurs
           </div>
         </div>
 
-        {/* MINI-SUB BUTTON */}
         {mostrarMinisub && (
           <button
             onClick={suscribirse}
@@ -120,7 +124,6 @@ export default function Canal({ canal, setVideoSeleccionado, darkMode, abrirCurs
         )}
       </div>
 
-      {/* PESTAÑAS DE COMPONENTES DE YOUTUBE */}
       <div className="flex gap-6 border-b border-gray-200 dark:border-white/[0.04] px-2">
         {['INICIO', 'VIDEOS', 'CURSOS', 'ACERCA DE'].map((tab) => {
           const isActive = pestanaActiva === tab;
@@ -137,10 +140,8 @@ export default function Canal({ canal, setVideoSeleccionado, darkMode, abrirCurs
         })}
       </div>
 
-      {/* RENDERIZADO DE SECCIONES */}
       <div className="px-2">
 
-        {/* PESTAÑA A: VIDEOS DEL CANAL */}
         {(pestanaActiva === 'VIDEOS' || pestanaActiva === 'INICIO') && (
           <div className="space-y-4">
             {misVideos.length === 0 ? (
@@ -154,18 +155,18 @@ export default function Canal({ canal, setVideoSeleccionado, darkMode, abrirCurs
                   return (
                     <div
                       key={v.id}
-                      onClick={() => setVideoSeleccionado && setVideoSeleccionado(v)}
+                      onClick={() => seleccionarYRegistrarVideo(v)}
                       className="flex flex-col gap-2 cursor-pointer group text-left"
                     >
                       <div className="w-full aspect-video bg-gray-900 rounded-xl overflow-hidden relative border border-gray-200/10 shadow-sm">
                         {miniatura ? <img src={miniatura} alt="" className="w-full h-full object-cover group-hover:scale-[1.02] transition duration-300" /> : <div className="w-full h-full flex items-center justify-center"><Clapperboard size={28} className="opacity-20 text-white" /></div>}
-                      <span className="absolute bottom-2 right-2 bg-black/80 text-white font-mono text-[9px] px-1.5 py-0.2 rounded font-bold">{v.duracion || '00:00'}</span>
-                      {v.es_premium && (
-                        <span className="absolute top-2 left-2 bg-amber-500 text-gray-950 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md shadow-lg inline-flex items-center gap-1">
-                          <Star size={9} className="fill-current" /> Premium
-                        </span>
-                      )}
-                    </div>
+                        <span className="absolute bottom-2 right-2 bg-black/80 text-white font-mono text-[9px] px-1.5 py-0.2 rounded font-bold">{v.duracion || '00:00'}</span>
+                        {v.es_premium && (
+                          <span className="absolute top-2 left-2 bg-amber-500 text-gray-950 text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md shadow-lg inline-flex items-center gap-1">
+                            <Star size={9} className="fill-current" /> Premium
+                          </span>
+                        )}
+                      </div>
                       <div className="space-y-0.5 pr-1">
                         <h4 className={`text-xs font-black uppercase truncate group-hover:text-cyan-500 transition-colors ${darkMode ? 'text-white' : 'text-gray-900'}`}>{v.titulo}</h4>
                         <p className="text-[10px] font-mono font-bold text-gray-400 uppercase">{v.vistas || 0} vistas • {v.created_at ? new Date(v.created_at).toLocaleDateString() : ''}</p>
@@ -178,7 +179,6 @@ export default function Canal({ canal, setVideoSeleccionado, darkMode, abrirCurs
           </div>
         )}
 
-        {/* PESTAÑA B: CURSOS PÚBLICOS DEL PROFESOR */}
         {pestanaActiva === 'CURSOS' && (
           lasPlaylists.length === 0 ? (
             <p className="text-center py-10 text-xs text-gray-400 uppercase font-mono tracking-wider">Este canal no tiene cursos públicos.</p>
@@ -193,7 +193,7 @@ export default function Canal({ canal, setVideoSeleccionado, darkMode, abrirCurs
                 return (
                   <div
                     key={playlist.id}
-                    onClick={() => abrirCurso && abrirCurso(playlist.id)}
+                    onClick={() => abrirCurso(playlist.id)}
                     className="flex flex-col gap-2 cursor-pointer group text-left"
                   >
                     <div className="w-full aspect-video bg-gray-900 rounded-xl overflow-hidden relative border border-gray-200/10 shadow-md">

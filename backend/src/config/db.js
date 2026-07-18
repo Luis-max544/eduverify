@@ -11,6 +11,15 @@ export const pool = mysql.createPool({
   database: env.db.database,
   waitForConnections: true,
   connectionLimit: 10,
+  connectTimeout: 10_000,
 });
 
+pool.on('error', (err) => { console.error('MySQL pool error:', err.message); });
+
 export const db = drizzle(pool, { schema, mode: 'default' });
+
+export async function checkDbConnection() {
+  const conn = await pool.getConnection();
+  await conn.ping();
+  conn.release();
+}

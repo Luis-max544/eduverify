@@ -1,19 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Menu, Bell, GraduationCap, Settings, Heart, History, FolderOpen, LogOut, Plus, Search, X } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useNavigation } from '../context/NavigationContext';
+import { useSocial } from '../context/SocialContext';
+import { usePlayer } from '../context/PlayerContext';
+import { useCatalog } from '../context/CatalogContext';
 
-export default function Navbar({
-  usuario,
-  setVista,
-  cerrarSesion,
-  notificaciones = [],
-  marcarNotificacionesLeidas,
-  darkMode,
-  sidebarAmpliado,
-  setSidebarAmpliado,
-  abrirPanelProfesor = () => {},
-  busqueda = '',
-  setBusqueda = () => {}
-}) {
+export default function Navbar() {
+  const { usuario, darkMode, cerrarSesion } = useAuth();
+  const { setVista, sidebarAmpliado, setSidebarAmpliado } = useNavigation();
+  const { notificaciones, marcarNotificacionesLeidas } = useSocial();
+  const { abrirPanelProfesor } = usePlayer();
+  const { busqueda, setBusqueda } = useCatalog();
+
   const [mostrarMenu, setMostrarMenu]   = useState(false);
   const [mostrarBell, setMostrarBell]   = useState(false);
   const [busquedaMovil, setBusquedaMovil] = useState(false);
@@ -27,7 +26,6 @@ export default function Navbar({
   const esProfesor  = usuario?.rol === 'profesor' || usuario?.rol === 'creador';
   const badgeCount  = noLeidas > 99 ? '99+' : noLeidas;
 
-  // Outside-click dismiss for both menus
   useEffect(() => {
     function handleClick(e) {
       if (menuRef.current && !menuRef.current.contains(e.target)) setMostrarMenu(false);
@@ -37,7 +35,6 @@ export default function Navbar({
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  // ⌘K / Ctrl+K focuses search
   useEffect(() => {
     function handleKey(e) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -58,7 +55,6 @@ export default function Navbar({
     return () => document.removeEventListener('keydown', handleKey);
   }, []);
 
-  // Focus search input when mobile search opens
   useEffect(() => {
     if (busquedaMovil && searchRef.current) searchRef.current.focus();
   }, [busquedaMovil]);
@@ -82,16 +78,14 @@ export default function Navbar({
 
         {/* LEFT */}
         <div className="flex items-center gap-3">
-          {setSidebarAmpliado && sidebarAmpliado !== undefined && (
-            <button
-              type="button"
-              onClick={() => setSidebarAmpliado(!sidebarAmpliado)}
-              className={`p-2 rounded-lg transition-colors text-[var(--clr-text-muted)] ${hoverCls}`}
-              aria-label="Alternar sidebar"
-            >
-              <Menu size={18} />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setSidebarAmpliado(!sidebarAmpliado)}
+            className={`p-2 rounded-lg transition-colors text-[var(--clr-text-muted)] ${hoverCls}`}
+            aria-label="Alternar sidebar"
+          >
+            <Menu size={18} />
+          </button>
 
           <div
             onClick={() => setVista('catalogo')}
@@ -129,7 +123,6 @@ export default function Navbar({
         {/* RIGHT */}
         <div className="flex items-center gap-2">
 
-          {/* Mobile search toggle */}
           <button
             type="button"
             onClick={() => setBusquedaMovil(v => !v)}
@@ -139,7 +132,6 @@ export default function Navbar({
             <Search size={16} />
           </button>
 
-          {/* Upload CTA — professors only */}
           {esProfesor && (
             <button
               type="button"

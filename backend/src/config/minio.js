@@ -6,7 +6,7 @@ export const BUCKET = env.minio.bucket;
 export const minioClient = new Minio.Client({
   endPoint:  env.minio.endPoint,
   port:      env.minio.port,
-  useSSL:    false,
+  useSSL:    env.minio.useSSL,
   accessKey: env.minio.accessKey,
   secretKey: env.minio.secretKey,
 });
@@ -35,7 +35,9 @@ export async function ensureBucket() {
 
 export function mediaUrl(key) {
   if (!key) return null;
-  return `http://${env.minio.endPoint}:${env.minio.port}/${BUCKET}/${key}`;
+  if (env.minio.publicUrl) return `${env.minio.publicUrl}/${BUCKET}/${key}`;
+  const scheme = env.minio.useSSL ? 'https' : 'http';
+  return `${scheme}://${env.minio.endPoint}:${env.minio.port}/${BUCKET}/${key}`;
 }
 
 export async function putBuffer(key, buffer, mimetype) {
@@ -44,5 +46,5 @@ export async function putBuffer(key, buffer, mimetype) {
 }
 
 export async function deleteObject(key) {
-  try { await minioClient.removeObject(BUCKET, key); } catch {}
+  try { await minioClient.removeObject(BUCKET, key); } catch (err) { console.error('MinIO delete failed:', err.message); }
 }

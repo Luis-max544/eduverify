@@ -112,8 +112,12 @@ router.delete('/cursos/:id/purchase/refund', verifyToken, async (req, res, next)
     const pct = await getProgresoPct(userId, cursoId);
     if (pct >= REFUND_MAX_PROGRESS) return res.status(400).json({ status: 'error', message: `Has completado ${pct}% del curso — no apto para reembolso (límite: ${REFUND_MAX_PROGRESS}%)` });
 
-    await db.update(coursePurchases).set({ refunded_at: new Date() })
-      .where(and(eq(coursePurchases.user_id, userId), eq(coursePurchases.playlist_id, cursoId)));
+    await db.transaction(async (tx) => {
+      await tx.update(coursePurchases).set({ refunded_at: new Date() })
+        .where(and(eq(coursePurchases.user_id, userId), eq(coursePurchases.playlist_id, cursoId)));
+      await tx.delete(courseEnrollments)
+        .where(and(eq(courseEnrollments.user_id, userId), eq(courseEnrollments.playlist_id, cursoId)));
+    });
 
     res.json({ status: 'success', data: { reembolsado: true } });
   } catch (err) { next(err); }

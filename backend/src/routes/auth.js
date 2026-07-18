@@ -68,11 +68,15 @@ router.post('/registro', async (req, res, next) => {
       rol: z.enum(['estudiante', 'profesor', 'creador']).default('estudiante'),
     }).parse(req.body);
 
-    const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, correo));
-    if (existing) return res.status(409).json({ status: 'error', message: 'El email ya está registrado' });
-
     const hash = await bcrypt.hash(password, 10);
-    await db.insert(users).values({ nombre, email: correo, password_hash: hash, rol });
+    try {
+      await db.insert(users).values({ nombre, email: correo, password_hash: hash, rol });
+    } catch (err) {
+      if (err?.code === 'ER_DUP_ENTRY') {
+        return res.status(409).json({ status: 'error', message: 'El email ya está registrado' });
+      }
+      throw err;
+    }
 
     res.status(201).json({ status: 'success', data: { message: 'Usuario creado exitosamente' } });
   } catch (err) { next(err); }
@@ -91,12 +95,9 @@ router.post('/google', async (req, res, next) => {
     }
 
     if (!user) {
-      await db.insert(users).values({
-        nombre: googleUser.nombre,
-        email: googleUser.email,
-        google_sub: googleUser.sub,
-        rol: 'estudiante',
-      });
+      await db.insert(users)
+        .values({ nombre: googleUser.nombre, email: googleUser.email, google_sub: googleUser.sub, rol: 'estudiante' })
+        .onDuplicateKeyUpdate({ set: { google_sub: googleUser.sub } });
       [user] = await db.select().from(users).where(eq(users.email, googleUser.email));
     } else if (!user.google_sub) {
       await db.update(users).set({ google_sub: googleUser.sub }).where(eq(users.id, user.id));
@@ -111,9 +112,14 @@ router.post('/cambiar-password', async (req, res, next) => {
   try {
     const { email } = z.object({ email: z.string().email() }).parse(req.body);
 
-    const [user] = await db.select({ id: users.id }).from(users).where(eq(users.email, email));
+    const [user] = await db
+      .select({ id: users.id, google_sub: users.google_sub, password_hash: users.password_hash })
+      .from(users).where(eq(users.email, email));
 
     if (user) {
+      if (user.google_sub && !user.password_hash) {
+        return res.json({ status: 'success', data: { message: 'Esta cuenta usa Google para iniciar sesión. Usa el botón "Continuar con Google".' } });
+      }
       const token = crypto.randomBytes(32).toString('hex');
       const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
       await db.insert(resetTokens).values({ user_id: user.id, token, expires_at: expiresAt });
@@ -148,8 +154,10 @@ router.post('/actualizar-password', async (req, res, next) => {
     }
 
     const hash = await bcrypt.hash(password, 10);
-    await db.update(users).set({ password_hash: hash }).where(eq(users.id, id));
-    await db.update(resetTokens).set({ used: true }).where(eq(resetTokens.id, resetToken.id));
+    await db.transaction(async (tx) => {
+      await tx.update(users).set({ password_hash: hash }).where(eq(users.id, id));
+      await tx.update(resetTokens).set({ used: true }).where(eq(resetTokens.id, resetToken.id));
+    });
 
     res.json({ status: 'success', data: { message: 'Contraseña actualizada exitosamente' } });
   } catch (err) { next(err); }

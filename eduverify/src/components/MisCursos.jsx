@@ -1,8 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { GraduationCap, ArrowRight, Star, Check } from 'lucide-react';
 import { cursos as cursosApi } from '../api';
+import { useAuth } from '../context/AuthContext';
+import { useNavigation } from '../context/NavigationContext';
+import { usePlayer } from '../context/PlayerContext';
 
-export default function MisCursos({ darkMode, abrirCurso, setVista }) {
+export default function MisCursos() {
+  const { darkMode } = useAuth();
+  const { setVista } = useNavigation();
+  const { abrirCurso } = usePlayer();
+
   const [misCursos, setMisCursos] = useState([]);
   const [cargando, setCargando] = useState(true);
 
@@ -42,8 +49,10 @@ export default function MisCursos({ darkMode, abrirCurso, setVista }) {
                 darkMode ? 'bg-gray-900/40 border-white/5 hover:bg-gray-900' : 'bg-white border-gray-200 shadow-sm hover:shadow'
               }`}
             >
-              <div className="w-full aspect-video bg-[var(--clr-surface-elevated)] dark:bg-gray-900 rounded-xl flex items-center justify-center border border-[var(--clr-border-subtle)] dark:border-white/5">
-                <GraduationCap size={32} className="text-[var(--clr-text-muted)] opacity-40" />
+              <div className="w-full aspect-video bg-[var(--clr-surface-elevated)] dark:bg-gray-900 rounded-xl overflow-hidden flex items-center justify-center border border-[var(--clr-border-subtle)] dark:border-white/5">
+                {curso.portada_url
+                  ? <img src={curso.portada_url} alt="" className="w-full h-full object-cover" />
+                  : <GraduationCap size={32} className="text-[var(--clr-text-muted)] opacity-40" />}
               </div>
               <div className="space-y-1 flex-1">
                 <h4 className={`text-xs font-black uppercase tracking-wide truncate ${darkMode ? 'text-white' : 'text-gray-900'}`}>{curso.nombre}</h4>
@@ -53,7 +62,6 @@ export default function MisCursos({ darkMode, abrirCurso, setVista }) {
                 )}
               </div>
 
-              {/* Barra de progreso */}
               <div className="space-y-1.5">
                 <div className="flex justify-between text-[9px] font-black uppercase tracking-wider text-gray-400">
                   <span>{curso.completadas}/{curso.total_lecciones} lecciones</span>

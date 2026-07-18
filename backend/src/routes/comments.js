@@ -4,13 +4,9 @@ import { z } from 'zod';
 import { db } from '../config/db.js';
 import { comments, commentLikes, users } from '../db/schema.js';
 import { verifyToken } from '../middleware/auth.js';
-import { env } from '../config/env.js';
+import { mediaUrl } from '../config/minio.js';
 
 const router = Router({ mergeParams: true });
-
-function avatarUrl(path) {
-  return path ? `http://localhost:${env.port}/uploads/${path}` : null;
-}
 
 // GET /api/videos/:videoId/comments
 router.get('/', async (req, res, next) => {
@@ -40,7 +36,7 @@ router.get('/', async (req, res, next) => {
 
     const formatted = allComments.map(c => ({
       ...c,
-      autor_avatar_url: avatarUrl(c.autor_avatar),
+      autor_avatar_url: mediaUrl(c.autor_avatar),
       liked: likedSet.has(c.id),
       respuestas: [],
     }));
@@ -85,7 +81,7 @@ router.post('/', verifyToken, async (req, res, next) => {
 
     res.status(201).json({
       status: 'success',
-      data: { ...created, autor_avatar_url: avatarUrl(created.autor_avatar), liked: false, respuestas: [] },
+      data: { ...created, autor_avatar_url: mediaUrl(created.autor_avatar), liked: false, respuestas: [] },
     });
   } catch (err) { next(err); }
 });

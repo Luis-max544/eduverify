@@ -1,0 +1,1 @@
+ALTER TABLE `quizzes` ADD `obligatorio` boolean DEFAULT true NOT NULL;

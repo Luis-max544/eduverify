@@ -2,19 +2,21 @@ import React, { useState } from 'react';
 import { ArrowLeft, Camera, Lock, Loader2, MailCheck, AlertTriangle } from 'lucide-react';
 import { auth, users as usersApi } from '../api';
 import { useToast } from './Toast';
+import { useAuth } from '../context/AuthContext';
+import { useNavigation } from '../context/NavigationContext';
 
-export default function Configuracion({ usuario, setUsuario, setVista, darkMode }) {
-  // Estados principales del formulario
+export default function Configuracion() {
+  const { usuario, setUsuario, darkMode } = useAuth();
+  const { setVista } = useNavigation();
+
   const [nombre, setNombre] = useState(usuario?.nombre || '');
   const notify = useToast();
   const [email] = useState(usuario?.email || '');
   const [foto, setFoto] = useState(usuario?.avatar_url || null);
 
-  // Estados para la recuperación de contraseña por correo
   const [enviandoEmail, setEnviandoEmail] = useState(false);
   const [statusMensaje, setStatusMensaje] = useState({ tipo: '', texto: '' });
 
-  // 📷 SUBIDA DE FOTO REAL (multipart al API, devuelve la URL pública)
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -31,7 +33,6 @@ export default function Configuracion({ usuario, setUsuario, setVista, darkMode 
     }
   };
 
-  // 🔒 ENVIAR CORREO DE CAMBIO DE CONTRASEÑA
   const handleEnviarCorreoPassword = async () => {
     setEnviandoEmail(true);
     setStatusMensaje({ tipo: '', texto: '' });
@@ -51,7 +52,6 @@ export default function Configuracion({ usuario, setUsuario, setVista, darkMode 
     }
   };
 
-  // 💾 GUARDAR CAMBIOS DE PERFIL EN EL API
   const handleGuardarConfiguracion = async (e) => {
     e.preventDefault();
     if (!nombre.trim()) return notify.error("El nombre no puede quedar vacío.");
@@ -68,9 +68,8 @@ export default function Configuracion({ usuario, setUsuario, setVista, darkMode 
 
   return (
     <div className="max-w-xl mx-auto pb-16 animate-fade-in select-none font-sans">
-      
-      {/* Botón Volver Fiel a image_9235f5.png */}
-      <button 
+
+      <button
         onClick={() => setVista('catalogo')}
         className="mb-4 text-left text-[11px] font-black tracking-widest text-gray-400 hover:text-cyan-500 transition-colors uppercase inline-flex items-center gap-1.5"
       >
@@ -78,33 +77,28 @@ export default function Configuracion({ usuario, setUsuario, setVista, darkMode 
       </button>
 
       <div className="space-y-5">
-        
-        {/* ========================================================================= */}
-        {/* CARD 1: IDENTIDAD VISUAL (Reflejo exacto de tu diseño previo)            */}
-        {/* ========================================================================= */}
+
         <div className={`p-6 rounded-3xl border text-center shadow-sm ${darkMode ? 'bg-gray-900 border-white/5' : 'bg-white border-gray-200'}`}>
           <span className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-5">
             Identidad Visual
           </span>
 
-          {/* Contenedor del Avatar Inteligente */}
           <div className="relative w-24 h-24 mx-auto mb-4">
-            <div className={`w-full h-full rounded-full overflow-hidden flex items-center justify-center border-2 border-cyan-600/20 bg-cyan-600 text-white font-black text-2xl shadow-inner`}>
+            <div className="w-full h-full rounded-full overflow-hidden flex items-center justify-center border-2 border-cyan-600/20 bg-cyan-600 text-white font-black text-2xl shadow-inner">
               {foto ? (
                 <img src={foto} alt="Perfil" className="w-full h-full object-cover" />
               ) : (
                 <span>{nombre ? nombre.charAt(0).toUpperCase() : 'U'}</span>
               )}
             </div>
-            
-            {/* Overlay Azul de Cámara para subir fotos de verdad */}
+
             <label className="absolute bottom-0 right-0 bg-cyan-600 hover:bg-cyan-500 text-white w-8 h-8 rounded-xl flex items-center justify-center shadow-lg transition-all cursor-pointer border-2 border-white dark:border-gray-900">
               <Camera size={14} />
-              <input 
-                type="file" 
-                accept="image/*" 
-                onChange={handleFileChange} 
-                className="hidden" 
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
               />
             </label>
           </div>
@@ -117,18 +111,14 @@ export default function Configuracion({ usuario, setUsuario, setVista, darkMode 
           </p>
         </div>
 
-        {/* ========================================================================= */}
-        {/* CARD 2: FORMULARIO DE DETALLES Y ACCIONES                                 */}
-        {/* ========================================================================= */}
         <div className={`p-6 md:p-8 rounded-3xl border shadow-sm ${darkMode ? 'bg-gray-900 border-white/5' : 'bg-white border-gray-200'}`}>
           <form onSubmit={handleGuardarConfiguracion} className="space-y-5 text-left">
-            
-            {/* Input Nombre */}
+
             <div>
               <label className="block text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1.5 px-1">
                 Nombre Completo
               </label>
-              <input 
+              <input
                 type="text"
                 required
                 value={nombre}
@@ -138,12 +128,11 @@ export default function Configuracion({ usuario, setUsuario, setVista, darkMode 
               />
             </div>
 
-            {/* Input Correo (Deshabilitado de edición por reglas de base de datos) */}
             <div>
               <label className="block text-[9px] font-black uppercase tracking-widest text-gray-400 mb-1.5 px-1">
                 Correo Electrónico
               </label>
-              <input 
+              <input
                 type="email"
                 disabled
                 value={email}
@@ -151,7 +140,6 @@ export default function Configuracion({ usuario, setUsuario, setVista, darkMode 
               />
             </div>
 
-            {/* MÓDULO INTERACTIVO DE SEGURIDAD (Restablecer Contraseña) */}
             <div className="pt-2">
               <button
                 type="button"
@@ -162,7 +150,6 @@ export default function Configuracion({ usuario, setUsuario, setVista, darkMode 
                 {enviandoEmail ? <><Loader2 size={12} className="animate-spin" /> Solicitando token...</> : <><Lock size={12} /> Cambiar Contraseña</>}
               </button>
 
-              {/* Alertas dinámicas flotantes */}
               {statusMensaje.texto && (
                 <div className="mt-3 p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-500 text-[11px] font-medium leading-relaxed animate-fade-in flex items-center gap-2">
                   {statusMensaje.tipo === 'success' ? <MailCheck size={14} className="shrink-0" /> : <AlertTriangle size={14} className="shrink-0" />}
@@ -171,9 +158,8 @@ export default function Configuracion({ usuario, setUsuario, setVista, darkMode 
               )}
             </div>
 
-            {/* Botón Guardar Principal de image_9235f5.png */}
             <div className="pt-3">
-              <button 
+              <button
                 type="submit"
                 className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-black py-3.5 px-6 rounded-xl text-xs uppercase tracking-widest shadow-md shadow-cyan-500/10 transition-colors"
               >

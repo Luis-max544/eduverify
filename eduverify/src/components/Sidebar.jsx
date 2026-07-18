@@ -1,16 +1,30 @@
 import React from 'react';
 import { Home, Heart, History, Folder, GraduationCap, Clapperboard, Moon, Sun, Star, Gem } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useNavigation } from '../context/NavigationContext';
+import { usePlayer } from '../context/PlayerContext';
 
-export default function Sidebar({ sidebarAmpliado, vista, setVista, usuario, darkMode, setDarkMode }) {
+export default function Sidebar() {
+  const { usuario, darkMode, cambiarDarkMode } = useAuth();
+  const { vista, setVista, sidebarAmpliado } = useNavigation();
+  const { setProfesorSubVista } = usePlayer();
 
   const esProfesor = usuario?.rol === 'profesor' || usuario?.rol === 'creador';
 
+  // Map sidebar display vista (playlists) ↔ internal vista (videos-guardados)
+  const vistaDisplay = vista === 'videos-guardados' ? 'playlists' : vista;
+
+  const handleSetVista = (v) => {
+    if (v === 'profesor') setProfesorSubVista('canal');
+    setVista(v === 'playlists' ? 'videos-guardados' : v);
+  };
+
   const menuNav = [
-    { id: 'catalogo',        nombre: 'Inicio',         icono: Home },
-    { id: 'favoritos',       nombre: 'Favoritos',      icono: Heart },
-    { id: 'historial',       nombre: 'Historial',      icono: History },
-    { id: 'playlists',       nombre: 'Guardados',      icono: Folder },
-    { id: 'mis-cursos',      nombre: 'Mis cursos',     icono: GraduationCap },
+    { id: 'catalogo',   nombre: 'Inicio',    icono: Home },
+    { id: 'favoritos',  nombre: 'Favoritos', icono: Heart },
+    { id: 'historial',  nombre: 'Historial', icono: History },
+    { id: 'playlists',  nombre: 'Guardados', icono: Folder },
+    { id: 'mis-cursos', nombre: 'Mis cursos',icono: GraduationCap },
     ...(esProfesor ? [{ id: 'profesor', nombre: 'Mi canal', icono: Clapperboard }] : []),
   ];
 
@@ -25,7 +39,6 @@ export default function Sidebar({ sidebarAmpliado, vista, setVista, usuario, dar
         ${surfaceCls}
       `}
     >
-      {/* NAV */}
       <div className="space-y-0.5 pt-4 min-w-[200px]">
         {sidebarAmpliado && (
           <span className="text-xs font-semibold text-[var(--clr-text-muted)] uppercase tracking-widest block px-3 mb-3 opacity-60">
@@ -35,13 +48,13 @@ export default function Sidebar({ sidebarAmpliado, vista, setVista, usuario, dar
 
         <nav className="space-y-0.5">
           {menuNav.map((item) => {
-            const isActive = vista === item.id
+            const isActive = vistaDisplay === item.id
               || (item.id === 'catalogo' && (vista === 'reproductor' || vista === 'curso'));
             const Icono = item.icono;
             return (
               <button
                 key={item.id}
-                onClick={() => setVista(item.id)}
+                onClick={() => handleSetVista(item.id)}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all relative
                   ${isActive
                     ? 'text-[var(--clr-accent)] bg-[var(--clr-accent-muted)]'
@@ -61,10 +74,9 @@ export default function Sidebar({ sidebarAmpliado, vista, setVista, usuario, dar
           })}
         </nav>
 
-        {/* THEME TOGGLE */}
         <div className="pt-4 mt-2 border-t border-[var(--clr-border-subtle)]">
           <button
-            onClick={() => setDarkMode(!darkMode)}
+            onClick={() => cambiarDarkMode(!darkMode)}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all
               ${darkMode
                 ? 'text-[var(--clr-text-muted)] hover:bg-[var(--clr-surface)] hover:text-[var(--clr-text-primary)]'
@@ -81,10 +93,9 @@ export default function Sidebar({ sidebarAmpliado, vista, setVista, usuario, dar
         </div>
       </div>
 
-      {/* PREMIUM */}
       <div className="pb-5 pt-3 border-t border-[var(--clr-border-subtle)] min-w-[200px]">
         <button
-          onClick={() => setVista('premium')}
+          onClick={() => handleSetVista('premium')}
           className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all
             ${vista === 'premium' ? 'ring-2 ring-[var(--clr-accent)] ring-offset-2 ' + (darkMode ? 'ring-offset-[var(--clr-base)]' : 'ring-offset-[var(--clr-surface)]') : ''}
             ${usuario?.premium

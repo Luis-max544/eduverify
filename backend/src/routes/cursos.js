@@ -260,6 +260,7 @@ router.get('/mis-cursos', verifyToken, async (req, res, next) => {
       .select({
         id: profesorPlaylists.id, nombre: profesorPlaylists.nombre,
         descripcion: profesorPlaylists.descripcion,
+        portada_path: profesorPlaylists.portada_path,
         autor: users.nombre, autor_id: users.id, author_avatar_url: users.avatar_path,
         enrolled_at: courseEnrollments.enrolled_at,
       })
@@ -274,6 +275,7 @@ router.get('/mis-cursos', verifyToken, async (req, res, next) => {
       return {
         ...c,
         author_avatar_url: avatarUrl(c.author_avatar_url),
+        portada_url: mediaUrl(c.portada_path),
         completadas: completadas.length,
         total_lecciones,
         porcentaje,
@@ -362,12 +364,14 @@ router.post('/:id/inscripcion', verifyToken, async (req, res, next) => {
 router.delete('/:id/inscripcion', verifyToken, async (req, res, next) => {
   try {
     const playlistId = Number(req.params.id);
-    await db.delete(lessonProgress).where(
-      and(eq(lessonProgress.user_id, req.user.sub), eq(lessonProgress.playlist_id, playlistId))
-    );
-    await db.delete(courseEnrollments).where(
-      and(eq(courseEnrollments.user_id, req.user.sub), eq(courseEnrollments.playlist_id, playlistId))
-    );
+    await db.transaction(async (tx) => {
+      await tx.delete(lessonProgress).where(
+        and(eq(lessonProgress.user_id, req.user.sub), eq(lessonProgress.playlist_id, playlistId))
+      );
+      await tx.delete(courseEnrollments).where(
+        and(eq(courseEnrollments.user_id, req.user.sub), eq(courseEnrollments.playlist_id, playlistId))
+      );
+    });
     res.json({ status: 'success', data: { message: 'Inscripción cancelada' } });
   } catch (err) { next(err); }
 });
@@ -679,7 +683,7 @@ router.get('/:id/pdfs', async (req, res, next) => {
     const playlistId = Number(req.params.id);
     if (!await getCurso(playlistId)) return res.status(404).json({ status: 'error', message: 'Curso no encontrado' });
     const items = await db.select().from(pdfResources).where(eq(pdfResources.playlist_id, playlistId));
-    res.json({ status: 'success', data: items });
+    res.json({ status: 'success', data: items.map(i => ({ ...i, url: mediaUrl(i.filename) })) });
   } catch (err) { next(err); }
 });
 

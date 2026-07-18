@@ -42,17 +42,20 @@ router.post('/:professorId', verifyToken, async (req, res, next) => {
       return res.status(400).json({ status: 'error', message: 'No puedes suscribirte a ti mismo' });
     }
 
+    const [prof] = await db.select({ nombre: users.nombre }).from(users).where(eq(users.id, professorId));
+    if (!prof) return res.status(404).json({ status: 'error', message: 'Profesor no encontrado' });
+
     const { notificaciones } = z.object({ notificaciones: z.boolean().default(true) }).parse(req.body || {});
 
     await db.insert(subscriptions)
       .values({ subscriber_id: req.user.sub, professor_id: professorId, notificaciones })
       .onDuplicateKeyUpdate({ set: { notificaciones } });
 
-    const [prof] = await db.select({ nombre: users.nombre }).from(users).where(eq(users.id, professorId));
-    if (prof) {
+    const [sub] = await db.select({ nombre: users.nombre }).from(users).where(eq(users.id, req.user.sub));
+    if (sub) {
       await db.insert(notifications).values({
-        user_id: req.user.sub,
-        mensaje: `Te has suscrito a ${prof.nombre}`,
+        user_id: professorId,
+        mensaje: `${sub.nombre} se ha suscrito a tu canal`,
       });
     }
 

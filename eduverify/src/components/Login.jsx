@@ -1,107 +1,109 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, AlertTriangle, PartyPopper, MailCheck } from 'lucide-react';
 import { auth, setToken } from '../api';
+import { useAuth } from '../context/AuthContext';
+import { useNavigation } from '../context/NavigationContext';
 
-export default function Login({ setVista, setUsuario, paramsReset, setParamsReset }) {
+export default function Login() {
+  const { setUsuario, paramsReset, setParamsReset } = useAuth();
+  const { setVista } = useNavigation();
+
   const [esLogin, setEsLogin] = useState(true);
-  const [modoRecuperar, setModoRecuperar] = useState(false); 
-  const [modoNuevoPassword, setModoNuevoPassword] = useState(false); 
+  const [modoRecuperar, setModoRecuperar] = useState(false);
+  const [modoNuevoPassword, setModoNuevoPassword] = useState(false);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [nuevoPassword, setNuevoPassword] = useState(''); 
+  const [nuevoPassword, setNuevoPassword] = useState('');
   const [confirmarPassword, setConfirmarPassword] = useState('');
   const [nombre, setNombre] = useState('');
   const [rol, setRol] = useState('estudiante');
-  
+
   const [error, setError] = useState('');
   const [exito, setExito] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // 🌐 INTEGRACIÓN NATIVA DE GOOGLE OAUTH
+  const googleWrapperRef = useRef(null);
+
+  // Initialize GSI once on mount — setters are stable refs, safe to capture
   useEffect(() => {
-    // Escuchar los parámetros de restablecimiento de contraseña vía URL
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!window.google || !googleClientId) return;
+    window.google.accounts.id.initialize({
+      client_id: googleClientId,
+      callback: async (response) => {
+        setLoading(true);
+        setError('');
+        try {
+          const data = await auth.google(response.credential);
+          setToken(data.token);
+          setUsuario(data.user);
+          setVista('catalogo');
+        } catch {
+          setError('Error al autenticar las credenciales con tu cuenta de Google.');
+        } finally {
+          setLoading(false);
+        }
+      },
+    });
+    const btnEl = document.getElementById('btnGoogleSignIn');
+    if (btnEl) {
+      const width = googleWrapperRef.current?.offsetWidth || 368;
+      window.google.accounts.id.renderButton(btnEl, {
+        theme: 'outline', size: 'large', width, text: 'continue_with',
+        shape: 'rectangular', logo_alignment: 'center',
+      });
+    }
+  }, []);
+
+  // React to reset link params → show new-password form
+  useEffect(() => {
     if (paramsReset) {
       setModoNuevoPassword(true);
       setModoRecuperar(false);
     }
-
-    // El credential de Google se valida en el servidor (POST /api/auth/google)
-    const handleCredentialResponse = async (response) => {
-      setLoading(true);
-      setError('');
-      try {
-        const data = await auth.google(response.credential);
-        setToken(data.token);
-        setUsuario(data.user);
-        setVista('catalogo');
-      } catch (err) {
-        setError("Error al autenticar las credenciales con tu cuenta de Google.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    // Cargar e inicializar el botón de Google si existe el SDK en la ventana global
-    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (window.google && googleClientId && !modoNuevoPassword && !modoRecuperar) {
-      window.google.accounts.id.initialize({
-        client_id: googleClientId,
-        callback: handleCredentialResponse
-      });
-      window.google.accounts.id.renderButton(
-        document.getElementById("btnGoogleSignIn"),
-        { theme: "outline", size: "large", width: "100%", text: "continue_with", shape: "pill" }
-      );
-    }
-  }, [paramsReset, esLogin, modoRecuperar, modoNuevoPassword]);
+  }, [paramsReset]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setExito('');
     setLoading(true);
-    
-    // FLUJO 1: REESCRIBIR CONTRASEÑA EN LA BASE DE DATOS
+
     if (modoNuevoPassword) {
       if (nuevoPassword !== confirmarPassword) {
-        setError("Las contraseñas ingresadas no coinciden.");
+        setError('Las contraseñas ingresadas no coinciden.');
         setLoading(false);
         return;
       }
       try {
-        await auth.actualizarPassword({
-          id: paramsReset.id,
-          token: paramsReset.token,
-          password: nuevoPassword
-        });
-        setExito("¡Contraseña actualizada con éxito! Ya puedes iniciar sesión.");
+        await auth.actualizarPassword({ id: paramsReset.id, token: paramsReset.token, password: nuevoPassword });
+        setExito('¡Contraseña actualizada con éxito! Ya puedes iniciar sesión.');
         setModoNuevoPassword(false);
         setEsLogin(true);
         setParamsReset(null);
       } catch (err) {
-        setError(err.message || "El enlace ya expiró o no es válido.");
+        setError(err.message || 'El enlace ya expiró o no es válido.');
       } finally {
         setLoading(false);
       }
       return;
     }
 
-    // FLUJO 2: PETICIÓN DE ENVÍO DE TOKEN AL CORREO
     if (modoRecuperar) {
       try {
-        await auth.cambiarPassword(email.trim());
-        setExito(`Enlace enviado. Revisa tu bandeja de entrada o Spam en: ${email}`);
-        setEmail('');
+        const data = await auth.cambiarPassword(email.trim());
+        const isGoogleOnly = data?.message?.includes('Google');
+        setExito(isGoogleOnly ? data.message : `Enlace enviado. Revisa tu bandeja de entrada o Spam en: ${email}`);
+        if (!isGoogleOnly) setEmail('');
       } catch (err) {
-        setError(err.message || "Error al procesar la solicitud de recuperación.");
+        setError(err.message || 'Error al procesar la solicitud de recuperación.');
       } finally {
         setLoading(false);
       }
       return;
     }
 
-    // FLUJO 3: LOGUEAR USUARIO TRADICIONAL
     if (esLogin) {
       try {
         const data = await auth.login({ correo: email, password });
@@ -109,25 +111,19 @@ export default function Login({ setVista, setUsuario, paramsReset, setParamsRese
         setUsuario(data.user);
         setVista('catalogo');
       } catch (err) {
-        setError(err.message || "Credenciales incorrectas.");
+        setError(err.message || 'Credenciales incorrectas.');
       } finally {
         setLoading(false);
       }
     } else {
-      // FLUJO 4: REGISTRAR CUENTA NUEVA (el registro no devuelve token — se encadena login)
       try {
-        await auth.registro({
-          nombre: nombre || email.split('@')[0],
-          correo: email,
-          password,
-          rol
-        });
+        await auth.registro({ nombre: nombre || email.split('@')[0], correo: email, password, rol });
         const data = await auth.login({ correo: email, password });
         setToken(data.token);
         setUsuario(data.user);
         setVista('catalogo');
       } catch (err) {
-        setError(err.message || "Error al registrar.");
+        setError(err.message || 'Error al registrar.');
       } finally {
         setLoading(false);
       }
@@ -140,7 +136,7 @@ export default function Login({ setVista, setUsuario, paramsReset, setParamsRese
       <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--clr-border-subtle)_1px,transparent_1px),linear-gradient(to_bottom,var(--clr-border-subtle)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] pointer-events-none opacity-60"></div>
 
       <div className="relative w-full max-w-md p-8 rounded-2xl shadow-xl transition-all duration-300 bg-[var(--clr-surface)] border border-[var(--clr-border-subtle)]">
-        
+
         <div className="text-center mb-8 select-none">
           <div className="inline-flex items-center gap-2 mb-5">
             <div className="relative w-7 h-7 flex items-center justify-center">
@@ -180,7 +176,6 @@ export default function Login({ setVista, setUsuario, paramsReset, setParamsRese
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          
           {modoNuevoPassword ? (
             <div className="space-y-4 animate-fade-in">
               <div>
@@ -205,7 +200,6 @@ export default function Login({ setVista, setUsuario, paramsReset, setParamsRese
                 <label className="block text-xs font-semibold uppercase tracking-widest mb-2 text-[var(--clr-text-muted)]">Nombre Completo</label>
                 <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Luis Martínez" required={!esLogin} className="w-full rounded-xl px-4 py-3 text-sm outline-none transition bg-[var(--clr-base)] border border-[var(--clr-border)] text-[var(--clr-text-primary)] focus:border-[var(--clr-accent)] focus:ring-2 focus:ring-[var(--clr-accent)]/20" />
               </div>
-
               <div className={`transition-all duration-300 origin-top ${esLogin ? 'opacity-0 h-0 overflow-hidden pointer-events-none scale-95' : 'opacity-100 h-auto scale-100'}`}>
                 <label className="block text-xs font-semibold uppercase tracking-widest mb-2 text-[var(--clr-text-muted)]">Tipo de Perfil</label>
                 <div className="grid grid-cols-2 gap-3">
@@ -213,12 +207,10 @@ export default function Login({ setVista, setUsuario, paramsReset, setParamsRese
                   <button type="button" onClick={() => setRol('profesor')} className={`py-2 text-xs font-semibold rounded-xl border transition ${rol === 'profesor' ? 'bg-gray-900 text-white border-gray-900 dark:bg-white dark:text-gray-950' : 'bg-transparent text-gray-500 border-gray-200'}`}>Docente</button>
                 </div>
               </div>
-
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-widest mb-2 text-[var(--clr-text-muted)]">Dirección de Correo</label>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="usuario@dominio.com" required className="w-full rounded-xl px-4 py-3 text-sm outline-none transition bg-[var(--clr-base)] border border-[var(--clr-border)] text-[var(--clr-text-primary)] focus:border-[var(--clr-accent)] focus:ring-2 focus:ring-[var(--clr-accent)]/20" />
               </div>
-
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">Contraseña de Acceso</label>
@@ -238,7 +230,6 @@ export default function Login({ setVista, setUsuario, paramsReset, setParamsRese
             {loading ? 'Procesando...' : (modoNuevoPassword ? 'Actualizar Contraseña' : (modoRecuperar ? 'Enviar enlace de acceso' : (esLogin ? 'Validar e Ingresar' : 'Confirmar Registro')))}
           </button>
 
-          {/* Separador e integración del botón nativo de Google */}
           {!modoRecuperar && !modoNuevoPassword && (
             <>
               <div className="relative flex py-2 items-center">
@@ -246,8 +237,12 @@ export default function Login({ setVista, setUsuario, paramsReset, setParamsRese
                 <span className="flex-shrink mx-4 text-[10px] font-bold uppercase text-gray-400 tracking-wider">o continuar con</span>
                 <div className="flex-grow border-t border-gray-200 dark:border-white/5"></div>
               </div>
-              
-              <div id="btnGoogleSignIn" className="w-full flex justify-center pt-1"></div>
+              <div
+                ref={googleWrapperRef}
+                className="w-full rounded-xl overflow-hidden border border-[var(--clr-border)] hover:border-[var(--clr-accent)] transition duration-200 shadow-sm"
+              >
+                <div id="btnGoogleSignIn" className="w-full" />
+              </div>
             </>
           )}
 
@@ -256,9 +251,7 @@ export default function Login({ setVista, setUsuario, paramsReset, setParamsRese
               <ArrowLeft size={12} /> Volver al inicio de sesión
             </button>
           )}
-
         </form>
-
       </div>
     </div>
   );

@@ -1,7 +1,10 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import { rateLimit } from 'express-rate-limit';
 import { env } from './config/env.js';
 import { ensureBucket } from './config/minio.js';
+import { checkDbConnection } from './config/db.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 import authRouter from './routes/auth.js';
@@ -24,12 +27,17 @@ import earningsRouter from './routes/earnings.js';
 
 const app = express();
 
+app.use(helmet());
 app.use(cors({ origin: env.frontendUrl, credentials: true }));
 
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false });
+const globalLimiter = rateLimit({ windowMs: 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false });
+
 // Skip json parser for video streaming upload route
+const jsonParser = express.json();
 app.use((req, res, next) => {
   if (req.path.match(/^\/api\/videos\/\d+\/upload$/)) return next();
-  express.json()(req, res, next);
+  jsonParser(req, res, next);
 });
 
 // Health check
@@ -37,8 +45,10 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+app.use(globalLimiter);
+
 // Auth
-app.use('/api/auth', authRouter);
+app.use('/api/auth', authLimiter, authRouter);
 
 // Users — includes /me and /:id/profile and /:id/videos
 app.use('/api/users', usersRouter);
@@ -68,8 +78,11 @@ app.use('/api/profesor/earnings', earningsRouter);
 // Global error handler (must be last)
 app.use(errorHandler);
 
-ensureBucket().then(() => {
+Promise.all([checkDbConnection(), ensureBucket()]).then(() => {
   app.listen(env.port, () => {
     console.log(`EduVerify backend → http://localhost:${env.port}`);
   });
+}).catch((err) => {
+  console.error('Startup failed:', err.message);
+  process.exit(1);
 });

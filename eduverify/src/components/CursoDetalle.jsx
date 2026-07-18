@@ -3,8 +3,17 @@ import { GraduationCap, Star, Play, Check, Clapperboard, ArrowRight, HelpCircle,
 import { cursos as cursosApi } from '../api';
 import { useToast } from './Toast';
 import QuizModal from './QuizModal';
+import { useAuth } from '../context/AuthContext';
+import { useNavigation } from '../context/NavigationContext';
+import { usePlayer } from '../context/PlayerContext';
 
-export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abrirCanalProfesor, abrirLeccionDeCurso }) {
+export default function CursoDetalle() {
+  const { usuario, darkMode } = useAuth();
+  const { setVista } = useNavigation();
+  const { cursoSeleccionado, abrirCanalProfesor, abrirLeccionDeCurso, abrirCurso } = usePlayer();
+
+  const cursoId = cursoSeleccionado;
+
   const [curso, setCurso] = useState(null);
   const notify = useToast();
   const [progreso, setProgreso] = useState({ inscrito: false, completadas: [], porcentaje: 0 });
@@ -13,7 +22,6 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
   const [quizModal, setQuizModal] = useState(null);
   const [pdfsCurso, setPdfsCurso] = useState([]);
 
-  // Formulario de reseña propia
   const [estrellasForm, setEstrellasForm] = useState(0);
   const [textoForm, setTextoForm] = useState('');
   const [enviandoReview, setEnviandoReview] = useState(false);
@@ -35,7 +43,6 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
     cargarTodo();
   }, [cursoId]);
 
-  // Precargar la reseña propia en el formulario
   const miReview = reviews.items.find(r => r.user_id === usuario?.id);
   useEffect(() => {
     if (miReview) {
@@ -110,7 +117,6 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
   return (
     <div className="space-y-8 animate-fade-in select-none font-sans pb-16 text-left">
 
-      {/* HEADER DEL CURSO */}
       <div className={`p-6 md:p-8 rounded-3xl border ${darkMode ? 'bg-gray-900/40 border-white/5' : 'bg-white border-gray-200 shadow-sm'}`}>
         <p className="text-[10px] font-black uppercase tracking-widest text-cyan-500 mb-2 flex items-center gap-1.5"><GraduationCap size={14} /> Curso</p>
         <h1 className={`text-xl md:text-2xl font-black tracking-tight uppercase ${darkMode ? 'text-white' : 'text-gray-900'}`}>{curso.nombre}</h1>
@@ -120,7 +126,7 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
 
         <div className="flex items-center gap-4 mt-4 flex-wrap">
           <div
-            onClick={() => abrirCanalProfesor && abrirCanalProfesor(curso.autor.id)}
+            onClick={() => abrirCanalProfesor(curso.autor.id)}
             className="flex items-center gap-2.5 cursor-pointer group"
           >
             <div className="w-9 h-9 rounded-full bg-cyan-600 font-black text-white text-xs flex items-center justify-center overflow-hidden shrink-0">
@@ -142,7 +148,6 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
           </div>
         </div>
 
-        {/* Progreso + acciones */}
         <div className="mt-6 space-y-3">
           {progreso.inscrito && (
             <div className="space-y-1.5 max-w-md">
@@ -161,7 +166,7 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
               <>
                 {primeraNoCompletada && (
                   <button
-                    onClick={() => abrirLeccionDeCurso(primeraNoCompletada, curso.id)}
+                    onClick={() => abrirLeccionDeCurso(primeraNoCompletada, cursoId)}
                     className="px-6 py-2.5 rounded-full bg-cyan-600 hover:bg-cyan-500 text-white text-[10px] font-black uppercase tracking-widest shadow-md inline-flex items-center gap-1.5"
                   >
                     <Play size={12} className="fill-current" /> Continuar curso
@@ -186,7 +191,6 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
         </div>
       </div>
 
-      {/* LECCIONES */}
       <div className="space-y-3">
         <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white px-1">Contenido del curso</h3>
         {curso.lecciones.length === 0 ? (
@@ -200,7 +204,7 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
               return (
                 <div
                   key={leccion.id}
-                  onClick={() => abrirLeccionDeCurso(leccion, curso.id)}
+                  onClick={() => abrirLeccionDeCurso(leccion, cursoId)}
                   className={`p-3 rounded-2xl border flex items-center gap-4 cursor-pointer transition-all hover:scale-[1.005] ${
                     darkMode ? 'bg-gray-900/40 border-white/5 hover:bg-gray-900' : 'bg-white border-gray-200 shadow-sm hover:shadow'
                   }`}
@@ -242,7 +246,6 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
         )}
       </div>
 
-      {/* EXAMEN FINAL DEL CURSO */}
       {curso.quiz_final && (
         <div className={`p-5 rounded-3xl border ${darkMode ? 'bg-amber-500/5 border-amber-500/20' : 'bg-amber-50 border-amber-200'}`}>
           <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -266,13 +269,12 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
         </div>
       )}
 
-      {/* MATERIALES DEL CURSO */}
       {pdfsCurso.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white px-1">Materiales del curso</h3>
           <div className={`p-4 rounded-2xl border space-y-2 ${darkMode ? 'bg-gray-900/40 border-white/5' : 'bg-white border-gray-200 shadow-sm'}`}>
             {pdfsCurso.map(p => (
-              <a key={p.id} href={`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/uploads/pdfs/${p.filename}`} target="_blank" rel="noreferrer" className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-colors ${darkMode ? 'hover:bg-white/5 text-gray-300' : 'hover:bg-gray-50 text-gray-700'}`}>
+              <a key={p.id} href={p.url} target="_blank" rel="noreferrer" className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-colors ${darkMode ? 'hover:bg-white/5 text-gray-300' : 'hover:bg-gray-50 text-gray-700'}`}>
                 <FileText size={18} className="text-emerald-500 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-black uppercase truncate">{p.original_name}</p>
@@ -285,7 +287,6 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
         </div>
       )}
 
-      {/* RESEÑAS */}
       <div className="space-y-4">
         <h3 className="text-xs font-black uppercase tracking-wider text-gray-900 dark:text-white px-1 flex items-center gap-2">
           Reseñas
@@ -293,7 +294,6 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
           {reviews.promedio != null && <span className="text-amber-500 text-[11px] inline-flex items-center gap-1"><Star size={11} className="fill-current" /> {reviews.promedio}</span>}
         </h3>
 
-        {/* Formulario (solo inscritos) */}
         {progreso.inscrito ? (
           <form onSubmit={enviarReview} className={`p-4 rounded-2xl border space-y-3 ${darkMode ? 'bg-gray-900/40 border-white/5' : 'bg-white border-gray-200 shadow-sm'}`}>
             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{miReview ? 'Editar tu reseña' : 'Deja tu reseña'}</p>
@@ -335,7 +335,6 @@ export default function CursoDetalle({ cursoId, usuario, setVista, darkMode, abr
           <p className="text-[11px] text-gray-400 font-medium italic px-1">Inscríbete en el curso para dejar una reseña.</p>
         )}
 
-        {/* Lista */}
         {reviews.items.length === 0 ? (
           <p className="text-center py-6 text-xs text-gray-400 uppercase font-mono tracking-wider">Todavía no hay reseñas.</p>
         ) : (

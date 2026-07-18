@@ -6,10 +6,19 @@ import {
 import { videos as videosApi, users as usersApi, profesorPlaylists, uploadVideoToMinio } from '../api';
 import { useToast } from './Toast';
 import Modal from './Modal';
+import { useAuth } from '../context/AuthContext';
+import { useSocial } from '../context/SocialContext';
+import { usePlayer } from '../context/PlayerContext';
+import { useCatalog } from '../context/CatalogContext';
 
 const CATEGORIAS = ['Programación', 'Ciberseguridad', 'Matemáticas', 'Electrónica', 'Arte'];
 
-export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode, videosGlobales = [], recargarVideos, setVideoSeleccionado, subVista = 'canal', setSubVista = () => {}, addToUploadQueue = () => {}, updateUploadProgress = () => {} }) {
+export default function PanelProfesor() {
+  const { usuario, setUsuario, darkMode } = useAuth();
+  const { addToUploadQueue, updateUploadProgress } = useSocial();
+  const { profesorSubVista: subVista, setProfesorSubVista: setSubVista, seleccionarYRegistrarVideo: setVideoSeleccionado } = usePlayer();
+  const { recargarVideos } = useCatalog();
+
   const [pestanaStudio, setPestanaStudio] = useState('VIDEOS');
   const notify = useToast();
 
@@ -512,11 +521,11 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
 
                     return (
                       <div key={v.id || Math.random()} className={darkMode ? "flex flex-col sm:flex-row items-center gap-4 p-4 rounded-2xl border transition-colors bg-gray-950/40 border-white/5 hover:bg-gray-950" : "flex flex-col sm:flex-row items-center gap-4 p-4 rounded-2xl border transition-colors bg-white border-[var(--clr-border-subtle)] hover:shadow-sm"}
-                        ><div onClick={() => { if(setVideoSeleccionado) { setVideoSeleccionado(v); setVista('reproductor'); } }} className="w-full sm:w-40 aspect-video bg-gray-900 rounded-xl overflow-hidden border border-white/5 shrink-0 relative flex items-center justify-center cursor-pointer hover:opacity-90">
+                        ><div onClick={() => setVideoSeleccionado(v)} className="w-full sm:w-40 aspect-video bg-gray-900 rounded-xl overflow-hidden border border-white/5 shrink-0 relative flex items-center justify-center cursor-pointer hover:opacity-90">
                           {urlMiniatura ? <img src={urlMiniatura} alt="" className="w-full h-full object-cover" /> : <Clapperboard size={28} className="opacity-30 text-white" />}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h4 onClick={() => { if(setVideoSeleccionado) { setVideoSeleccionado(v); setVista('reproductor'); } }} className={`text-sm font-bold truncate cursor-pointer hover:text-cyan-500 transition-colors ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                          <h4 onClick={() => setVideoSeleccionado(v)} className={`text-sm font-bold truncate cursor-pointer hover:text-cyan-500 transition-colors ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                             {v.titulo}
                             {v.es_premium && <span className="ml-2 bg-amber-500/10 text-amber-500 text-[8px] font-black uppercase px-1.5 py-0.5 rounded inline-flex items-center gap-1 align-middle"><Star size={9} className="fill-current" /> Premium</span>}
                             {!v.visible && <span className="ml-2 bg-red-500/10 text-red-500 text-[8px] font-black uppercase px-1.5 py-0.5 rounded inline-flex items-center gap-1 align-middle"><EyeOff size={9} /> Oculto</span>}
@@ -552,7 +561,7 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
 
                     return (
                       <div key={playlist.id} className="flex flex-col gap-2 p-3 rounded-2xl border border-gray-100 dark:border-white/[0.04] bg-gray-50/40 dark:bg-gray-900/10">
-                        <div onClick={() => { if (videosDeLista.length > 0 && setVideoSeleccionado) { setVideoSeleccionado(primerVideo); setVista('reproductor'); } }} className="w-full aspect-video bg-gray-900 rounded-xl overflow-hidden relative border border-gray-200/10 shadow-md cursor-pointer hover:opacity-95">
+                        <div onClick={() => videosDeLista.length > 0 && setVideoSeleccionado(primerVideo)} className="w-full aspect-video bg-gray-900 rounded-xl overflow-hidden relative border border-gray-200/10 shadow-md cursor-pointer hover:opacity-95">
                           {thumbnail ? <img src={thumbnail} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-[var(--clr-surface-elevated)] dark:bg-gray-900 flex items-center justify-center"><Folder size={28} className="text-[var(--clr-text-muted)] opacity-40" /></div>}
                           <div className="absolute right-0 top-0 bottom-0 w-2/5 bg-black/70 backdrop-blur-[4px] flex flex-col items-center justify-center text-white border-l border-white/5 space-y-1">
                             <ListVideo size={16} /><span className="text-[10px] font-black font-mono uppercase">{videosDeLista.length} videos</span>
@@ -804,7 +813,7 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
                         const pdfLeccion = pdfsCurso.find(p => p.video_id === v.id);
                         if (pdfLeccion) return (
                           <span className="flex items-center gap-1 text-[9px] font-bold text-cyan-500">
-                            <a href={`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/uploads/pdfs/${pdfLeccion.filename}`} target="_blank" rel="noreferrer" className="hover:underline" title={pdfLeccion.original_name}><FileText size={12} /></a>
+                            <a href={pdfLeccion.url} target="_blank" rel="noreferrer" className="hover:underline" title={pdfLeccion.original_name}><FileText size={12} /></a>
                             <button onClick={() => handleRemovePdf(gestionarPlaylist.id, pdfLeccion.id)} className="text-red-400 hover:text-red-500"><X size={10} /></button>
                           </span>
                         );
@@ -827,7 +836,7 @@ export default function PanelProfesor({ usuario, setUsuario, setVista, darkMode,
                     <div className="flex items-center gap-2 text-[10px] font-bold">
                       <FileText size={12} className="text-cyan-500 shrink-0" />
                       <span className={`flex-1 truncate ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>{pdfCurso.original_name}</span>
-                      <a href={`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/uploads/pdfs/${pdfCurso.filename}`} target="_blank" rel="noreferrer" className="text-cyan-500 text-[9px] font-black uppercase hover:underline shrink-0">Ver</a>
+                      <a href={pdfCurso.url} target="_blank" rel="noreferrer" className="text-cyan-500 text-[9px] font-black uppercase hover:underline shrink-0">Ver</a>
                       <button onClick={() => handleRemovePdf(gestionarPlaylist.id, pdfCurso.id)} className="text-red-500 text-[9px] font-black uppercase hover:underline shrink-0">Eliminar</button>
                     </div>
                   ) : (

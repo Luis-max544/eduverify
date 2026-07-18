@@ -12,6 +12,11 @@ import { v4 as uuid } from 'uuid';
 
 const router = Router();
 
+async function esPremiumDb(userId) {
+  const [u] = await db.select({ premium: users.premium }).from(users).where(eq(users.id, userId));
+  return Boolean(u?.premium);
+}
+
 const CATEGORIAS = ['Programación', 'Ciberseguridad', 'Matemáticas', 'Electrónica', 'Arte'];
 
 function formatVideo(v) {
@@ -56,7 +61,7 @@ router.get('/', async (req, res, next) => {
 });
 
 // GET /api/videos/:id
-router.get('/:id', verifyToken, async (req, res, next) => {
+router.get('/:id', optionalAuth, async (req, res, next) => {
   try {
     const [row] = await db
       .select({
@@ -77,8 +82,9 @@ router.get('/:id', verifyToken, async (req, res, next) => {
     if (!row.visible && (!req.user || req.user.sub !== row.usuario_id)) {
       return res.status(404).json({ status: 'error', message: 'Video no encontrado' });
     }
-    if (row.es_premium && !req.user.premium && req.user.sub !== row.usuario_id) {
-      return res.status(403).json({ status: 'error', message: 'Contenido exclusivo para miembros Premium' });
+    if (row.es_premium && req.user?.sub !== row.usuario_id) {
+      const premium = req.user ? await esPremiumDb(req.user.sub) : false;
+      if (!premium) return res.status(403).json({ status: 'error', message: 'Contenido exclusivo para miembros Premium' });
     }
     res.json({ status: 'success', data: formatVideo(row) });
   } catch (err) { next(err); }
@@ -187,6 +193,7 @@ router.post('/:id/upload', verifyToken, async (req, res, next) => {
 // GET /api/videos/:id/stream — proxy with Range support + premium gate
 router.get('/:id/stream', optionalAuth, async (req, res, next) => {
   try {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     // Fallback: token from query param (used by <video> elements that can't set headers)
     if (!req.user && req.query.token) {
       try {
@@ -205,6 +212,7 @@ router.get('/:id/stream', optionalAuth, async (req, res, next) => {
       .from(videos).where(eq(videos.id, videoId));
 
     if (!vid || !vid.minio_key) return res.status(404).json({ status: 'error', message: 'Video no encontrado' });
+    if (!vid.visible && req.user?.sub !== vid.usuario_id) return res.status(404).json({ status: 'error', message: 'Video no encontrado' });
     if (vid.status !== 'ready') return res.status(409).json({ status: 'error', message: 'Video aún en procesamiento' });
 
     if (vid.es_premium) {
@@ -245,6 +253,10 @@ router.get('/:id/stream', optionalAuth, async (req, res, next) => {
       const [s, e] = range.replace('bytes=', '').split('-');
       const start = Number(s);
       const end = e ? Number(e) : size - 1;
+      if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end >= size || start > end) {
+        res.setHeader('Content-Range', `bytes */${size}`);
+        return res.status(416).end();
+      }
       const chunkSize = end - start + 1;
 
       res.writeHead(206, {
@@ -271,15 +283,21 @@ next(err); }
 });
 
 // GET /api/videos/:id/subtitles
-router.get('/:id/subtitles', async (req, res, next) => {
+router.get('/:id/subtitles', optionalAuth, async (req, res, next) => {
   try {
-    const [vid] = await db.select({ subtitles_key: videos.subtitles_key }).from(videos).where(eq(videos.id, Number(req.params.id)));
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    const [vid] = await db
+      .select({ subtitles_key: videos.subtitles_key, es_premium: videos.es_premium, usuario_id: videos.usuario_id })
+      .from(videos).where(eq(videos.id, Number(req.params.id)));
     if (!vid?.subtitles_key) return res.status(404).json({ status: 'error', message: 'Sin subtítulos' });
+    if (vid.es_premium && req.user?.sub !== vid.usuario_id) {
+      const premium = req.user ? await esPremiumDb(req.user.sub) : false;
+      if (!premium) return res.status(403).json({ status: 'error', message: 'Contenido exclusivo para miembros Premium' });
+    }
     const stream = await minioClient.getObject(BUCKET, vid.subtitles_key);
     res.setHeader('Content-Type', 'text/vtt');
     stream.pipe(res);
-  } catch (err) { 
-    next(err); }
+  } catch (err) { next(err); }
 });
 
 // PUT /api/videos/:id/thumbnail
@@ -353,6 +371,9 @@ router.delete('/:id', verifyToken, async (req, res, next) => {
 router.post('/:id/view', verifyToken, async (req, res, next) => {
   try {
     const videoId = Number(req.params.id);
+    const [vid] = await db.select({ vistas: videos.vistas, usuario_id: videos.usuario_id }).from(videos).where(eq(videos.id, videoId));
+    if (!vid) return res.status(404).json({ status: 'error', message: 'Video no encontrado' });
+    if (req.user.sub === vid.usuario_id) return res.json({ status: 'success', data: { vistas: vid.vistas } });
     await db.update(videos).set({ vistas: sql`vistas + 1` }).where(eq(videos.id, videoId));
     const [{ vistas }] = await db.select({ vistas: videos.vistas }).from(videos).where(eq(videos.id, videoId));
     res.json({ status: 'success', data: { vistas } });

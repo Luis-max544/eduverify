@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { eq, desc } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { db } from '../config/db.js';
 import { notifications } from '../db/schema.js';
 import { verifyToken } from '../middleware/auth.js';
@@ -34,7 +34,7 @@ router.patch('/:id/read', verifyToken, async (req, res, next) => {
     const notifId = Number(req.params.id);
     await db.update(notifications)
       .set({ leida: true })
-      .where(eq(notifications.id, notifId));
+      .where(and(eq(notifications.id, notifId), eq(notifications.user_id, req.user.sub)));
     res.json({ status: 'success', data: { message: 'Notificación marcada como leída' } });
   } catch (err) { next(err); }
 });
